@@ -1,0 +1,14 @@
+#!/bin/bash
+
+BRed="\033[1;31m" # Red
+
+COMMIT_MSG_FILE=$1
+COMMIT_MESSAGE="$(cat $COMMIT_MSG_FILE)"
+
+./scripts/lint_commit_message.sh "$COMMIT_MESSAGE" && RETURN_CODE=$? || RETURN_CODE=$?
+
+if [[ $RETURN_CODE -eq 1 ]]
+then
+    printf "${BRed}Commit failed.\n"
+    exit 1
+fi
