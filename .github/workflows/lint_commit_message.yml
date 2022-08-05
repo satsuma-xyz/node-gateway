@@ -1,0 +1,16 @@
+name: Lint commit message
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-commit-message:
+    timeout-minutes: 1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - run: ./scripts/lint_commit_message.sh "${{ github.event.head_commit.message }}"
+      shell: bash
