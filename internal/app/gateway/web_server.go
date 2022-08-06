@@ -8,10 +8,10 @@ import (
 )
 
 type JSONRPCRequestBody struct {
-	JSONRPC string `json:"jsonrpc"`
-	Method  string `json:"method"`
-	Params  []any  `json:"params"`
-	ID      int64  `json:"id"`
+	JSONRPCVersion string `json:"jsonrpc,omitempty"`
+	Method         string `json:"method,omitempty"`
+	Params         []any  `json:"params,omitempty"`
+	ID             int64  `json:"id,omitempty"`
 }
 
 func StartServer() error {
