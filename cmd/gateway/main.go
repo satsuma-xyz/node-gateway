@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/satsuma-data/node-gateway/internal/app/gateway"
@@ -14,8 +15,16 @@ func main() {
 	if loggerErr != nil {
 		panic(loggerErr)
 	}
-	//nolint:errcheck // Ignore error from defer.
-	defer logger.Sync() // Flushes buffer, if any.
+
+	defer func() {
+		// Flushes buffer, if any.
+		err := logger.Sync()
+		if err != nil {
+			// There could be something wrong with the logger if it's not Syncing, so
+			// print using `fmt.Println`.
+			fmt.Println("failed to sync logger.", zap.Error(err))
+		}
+	}()
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env))
 
