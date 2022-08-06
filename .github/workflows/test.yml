@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Test building and run tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3
