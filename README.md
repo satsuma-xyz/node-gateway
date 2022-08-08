@@ -3,6 +3,10 @@ Blockchain node gateway.
 
 # Development
 
+## Running the gateway
+1. Install go 1.19.
+2. Run `go run cmd/gateway/main.go`.
+
 ## Code linting
 `golangci-lint` can be run in your local editor for quick feedback. For VSCode:
 1. Install the [Go extension](https://marketplace.visualstudio.com/items?itemName=golang.Go)
