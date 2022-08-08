@@ -22,7 +22,7 @@ func main() {
 		if err != nil {
 			// There could be something wrong with the logger if it's not Syncing, so
 			// print using `fmt.Println`.
-			fmt.Println("failed to sync logger.", zap.Error(err))
+			fmt.Println("Failed to sync logger.", zap.Error(err))
 		}
 	}()
 
