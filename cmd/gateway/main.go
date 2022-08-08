@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/satsuma-data/node-gateway/internal/app/gateway"
+	"github.com/satsuma-data/node-gateway/internal"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +28,7 @@ func main() {
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env))
 
-	err := gateway.StartServer()
+	err := internal.StartServer()
 	if err != nil {
 		logger.Fatal("Failed to start web server.", zap.Error(err))
 	}
