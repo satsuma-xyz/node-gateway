@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestHandleJSONRPCRequestSuccess(t *testing.T) {
+func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
@@ -26,7 +26,7 @@ func TestHandleJSONRPCRequestSuccess(t *testing.T) {
 	}
 }
 
-func TestHandleJSONRPCRequestNonPost(t *testing.T) {
+func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
@@ -44,7 +44,7 @@ func TestHandleJSONRPCRequestNonPost(t *testing.T) {
 	}
 }
 
-func TestHandleJSONRPCRequestNonJSONContentType(t *testing.T) {
+func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("body")))
 	req.Header.Add("Content-Type", "text/plain")
 
@@ -61,7 +61,7 @@ func TestHandleJSONRPCRequestNonJSONContentType(t *testing.T) {
 	}
 }
 
-func TestHandleJSONRPCRequestBadJSON(t *testing.T) {
+func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("{\"bad_json\": ")))
 	req.Header.Add("Content-Type", "application/json")
 
@@ -78,7 +78,7 @@ func TestHandleJSONRPCRequestBadJSON(t *testing.T) {
 	}
 }
 
-func TestHandleJSONRPCRequestUnknownBodyField(t *testing.T) {
+func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 	emptyJSONBody, _ := json.Marshal(map[string]any{"unknown_field": "value"})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
