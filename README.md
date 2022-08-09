@@ -1,6 +1,6 @@
 # ⛩ node-gateway
 
-A load balancer for blockchain node RPCs that provides better reliability and proper
+Load balancer for blockchain nodes that provides better reliability and proper
 data consistency.
 
 ## Quick start
@@ -17,22 +17,6 @@ docker run -d -p 8080:8080 \
   -e "ALCHEMY_API_KEY=test_key" \
   satsuma-data/node-gateway:v0
 ```
-
-## Features
-
-- Round-robin load balancing for all EVM-based JSON RPCs.
-- Health checks for block height, uptime, and response time.
-- Automated routing to the max block height for data consistency.
-
-#### 🔮 Roadmap
-
-- Rate limit configuration for upstreams.
-- Automatic retry / fallback.
-- Caching.
-- WebSockets.
-- Better data consistency (parallel requests, uncled blocks caching, etc).
-
-Interested in a specific feature? Join our [Discord community]() to let us know.
 
 ## Configuration
 
@@ -59,6 +43,24 @@ upstreams:
     chain: bsc
     url: "http://12.57.207.168:8545"
 ```
+
+## Features
+
+- Round-robin load balancing for all EVM-based JSON RPCs.
+- Health checks for block height, uptime, and response time.
+- Automated routing to nodes at max block height for data consistency.
+
+#### 🔮 Roadmap
+
+- Better support for managed node providers (rate limits/throttling, authentication).
+- Automatic retry / fallback.
+- Caching.
+- WebSockets.
+- Better data consistency (verifying requests across multiple nodes, uncled blocks, etc).
+- Additional routing strategies (archive/full node, primary/fallback, etc).
+- Support for `eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`.
+
+Interested in a specific feature? Join our [Discord community]() to let us know.
 
 ## Development
 
