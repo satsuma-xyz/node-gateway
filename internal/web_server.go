@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"go.uber.org/zap"
+	"golang.org/x/exp/slices"
 )
 
 type JSONRPCRequestBody struct {
@@ -26,8 +27,11 @@ func handleJSONRPCRequest(responseWriter http.ResponseWriter, req *http.Request)
 	}
 
 	headerContentType := req.Header.Get("Content-Type")
-	if headerContentType != "application/json" {
-		_ = respond(responseWriter, "Content-Type must be application/json.", http.StatusUnsupportedMediaType)
+	// Content-Type SHOULD be 'application/json-rpc' but MAY be
+	// 'application/json' or 'application/jsonrequest'.
+	// See https://www.jsonrpc.org/historical/json-rpc-over-http.html.
+	if !slices.Contains([]string{"application/json", "application/json-rpc", "application/jsonrequest"}, headerContentType) {
+		_ = respond(responseWriter, "Content-Type not supported.", http.StatusUnsupportedMediaType)
 		return
 	}
 
