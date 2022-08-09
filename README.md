@@ -1,7 +1,16 @@
 # ⛩ node-gateway
 
-Load balancer for blockchain nodes that provides better reliability and proper
-data consistency.
+A L7 load balancer for blockchain nodes that provides better reliability and
+proper data consistency.
+
+## Introduction
+
+Whether you're running your own nodes or using a managed provider, node RPCs
+often go down or fall behind. Naive load balancing between nodes doesn't
+account for [data consistency issues](https://alchemy.com/blog/data-accuracy).
+
+node-gateway makes it easier to run reliable and accurate node infrastructure
+for serving dApps, trading, and staking.
 
 ## Quick start
 
@@ -18,6 +27,14 @@ docker run -d -p 8080:8080 \
   satsuma-data/node-gateway:v0
 ```
 
+#### Usage
+
+```sh
+curl --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://localhost:8080
+
+{"jsonrpc":"2.0","id":1,"result":"0xe9a0a1"}
+```
+
 ## Configuration
 
 See [sample config](/configs/config.sample.yml) here:
@@ -31,22 +48,18 @@ upstreams:
   # Each upstream can have the following keys:
   #
   # id - Unique identifier for the upstream.
-  # chain - Chain name
-  # url - RPC URL.
-  - id: alchemy-eth
-    chain: mainnet
+  # url - JSON RPC HTTP URL.
+  - id: alchemy
     url: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-  - id: ankr-polygon
-    chain: polygon
-    url: "https://rpc.ankr.com/polygon"
+  - id: ankr
+    url: "https://rpc.ankr.com/eth"
   - id: my-node
-    chain: bsc
     url: "http://12.57.207.168:8545"
 ```
 
 ## Features
 
-- Round-robin load balancing for all EVM-based JSON RPCs.
+- Round-robin load balancing for EVM-based JSON RPCs.
 - Health checks for block height, uptime, and response time.
 - Automated routing to nodes at max block height for data consistency.
 
@@ -54,11 +67,12 @@ upstreams:
 
 - Better support for managed node providers (rate limits/throttling, authentication).
 - Automatic retry / fallback.
+- Monitoring (metrics, UI dashboard).
 - Caching.
 - WebSockets.
-- Better data consistency (verifying requests across multiple nodes, uncled blocks, etc).
+- Additional data consistency measures (broadcasting to multiple nodes, uncled blocks, etc).
 - Additional routing strategies (archive/full node, primary/fallback, etc).
-- Support for `eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`.
+- Filter support (`eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`).
 
 Interested in a specific feature? Join our [Discord community]() to let us know.
 
