@@ -26,9 +26,14 @@ func main() {
 		}
 	}()
 
-	zap.L().Info("Starting node gateway.", zap.String("env", env))
+	config, err := internal.LoadConfig(os.Args[1])
+	if err != nil {
+		logger.Fatal("Failed to load config.", zap.Error(err))
+	}
 
-	err := internal.StartServer()
+	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", config))
+
+	err = internal.StartServer()
 	if err != nil {
 		logger.Fatal("Failed to start web server.", zap.Error(err))
 	}
