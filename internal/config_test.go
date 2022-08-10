@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -21,7 +20,6 @@ func TestParseConfig_ValidConfig(t *testing.T) {
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
   `
-	fmt.Println(config)
 	configBytes := []byte(config)
 
 	parsedConfig, err := parseConfig(configBytes)
@@ -62,7 +60,6 @@ func TestParseConfig_InvalidYaml(t *testing.T) {
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
   `
-	fmt.Println(config)
 	configBytes := []byte(config)
 
 	_, err := parseConfig(configBytes)
