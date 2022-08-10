@@ -86,6 +86,12 @@ Interested in a specific feature? Join our [Discord community]() to let us know.
 
 #### Testing
 
+Generate mocks by first installing [mockery](https://github.com/vektra/mockery#installation), then running:
+```sh
+go generate ./...
+```
+This command will generate mocks for interfaces/types annotated with `go:generate mockery ...` and place them in the `mocks` folder
+
 Run tests with:
 
 ```sh
