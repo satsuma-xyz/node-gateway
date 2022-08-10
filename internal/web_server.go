@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -22,7 +23,7 @@ func StartServer() error {
 
 func handleJSONRPCRequest(responseWriter http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		_ = respond(responseWriter, "Method not allowed.", http.StatusMethodNotAllowed)
+		respond(responseWriter, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -31,30 +32,35 @@ func handleJSONRPCRequest(responseWriter http.ResponseWriter, req *http.Request)
 	// 'application/json' or 'application/jsonrequest'.
 	// See https://www.jsonrpc.org/historical/json-rpc-over-http.html.
 	if !slices.Contains([]string{"application/json", "application/json-rpc", "application/jsonrequest"}, headerContentType) {
-		_ = respond(responseWriter, "Content-Type not supported.", http.StatusUnsupportedMediaType)
+		respond(responseWriter, "Content-Type not supported.", http.StatusUnsupportedMediaType)
 		return
 	}
 
-	var body JSONRPCRequestBody
-
-	decoder := json.NewDecoder(req.Body)
-
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&body)
-
+	body, err := decodeBody(req)
 	if err != nil {
-		_ = respond(responseWriter, "Request body could not be parsed. "+err.Error(), http.StatusBadRequest)
+		respond(responseWriter, fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
 	zap.L().Info("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 }
 
-func respond(responseWriter http.ResponseWriter, message string, httpStatusCode int) error {
+func decodeBody(req *http.Request) (JSONRPCRequestBody, error) {
+	decoder := json.NewDecoder(req.Body)
+	decoder.DisallowUnknownFields()
+
+	var body JSONRPCRequestBody
+
+	err := decoder.Decode(&body)
+
+	return body, err
+}
+
+func respond(responseWriter http.ResponseWriter, message string, httpStatusCode int) {
 	responseWriter.WriteHeader(httpStatusCode)
 
 	if message == "" {
-		return nil
+		return
 	}
 
 	responseWriter.Header().Set("Content-Type", "application/json")
@@ -68,6 +74,4 @@ func respond(responseWriter http.ResponseWriter, message string, httpStatusCode 
 	if err != nil {
 		zap.L().Error("Failed to write response.", zap.Error(err))
 	}
-
-	return err
 }
