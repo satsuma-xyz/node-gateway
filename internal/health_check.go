@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 )
 
-var PeriodicHealthCheckInterval = 1 * time.Second
+const PeriodicHealthCheckInterval = 1 * time.Second
 
 type NodeStatus struct {
 	getCurrentBlockNumberError error
 	getPeerCountError          error
 	getIsSyncingError          error
+	connectionError            error
 	currentBlockNumber         uint64
 	peerCount                  uint64
 	isSyncing                  bool
@@ -24,37 +24,61 @@ type NodeStatus struct {
 
 var NodeIDToStatus map[string]*NodeStatus
 var statusMutex *sync.RWMutex
+var getEthereumClient = NewEthClient // for unit testing
 
-// If there's no websocket url, we use http URL to poll max block height
-// instead of using the websocket URL to subscribe to new heads.
 type HealthCheckConfig struct {
-	// Used to `eth_subscribe` to `newHeads`.
-	websocketURL string
+	nodeID       string
 	httpURL      string
+	websocketURL string
+	// Should use websocket for `eth_subscribe` to `newHeads`. If not set, will use http URL to poll max block height
+	shouldSubscribeNewHeads bool
 }
 
-func StartHealthChecks(nodeIDToConfig map[string]HealthCheckConfig) {
+func (c HealthCheckConfig) validate() bool {
+	isValid := true
+	if c.httpURL == "" {
+		isValid = false
+
+		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("nodeId", c.nodeID))
+	}
+
+	if c.shouldSubscribeNewHeads && c.websocketURL == "" {
+		isValid = false
+
+		zap.L().Error("websocketUrl should be provided if shouldSubscribeNewHeads=true.", zap.Any("config", c), zap.String("nodeId", c.nodeID))
+	}
+
+	return isValid
+}
+
+func StartHealthChecks(configs []HealthCheckConfig) {
 	zap.L().Info("Starting health checks.")
 
 	NodeIDToStatus = make(map[string]*NodeStatus)
-	for nodeID := range nodeIDToConfig {
+
+	for _, config := range configs {
+		if !config.validate() {
+			zap.L().Panic("Config not valid.", zap.Any("config", config), zap.String("nodeId", config.nodeID))
+		}
+
 		// Fail the `isSyncing` check until we perform the check.
-		NodeIDToStatus[nodeID] = &NodeStatus{isSyncing: true}
+		NodeIDToStatus[config.nodeID] = &NodeStatus{isSyncing: true}
 	}
 
 	statusMutex = &sync.RWMutex{}
 
-	for nodeID, config := range nodeIDToConfig {
-		if config.websocketURL != "" {
-			go monitorMaxBlockHeight(nodeID, config.websocketURL)
+	for _, config := range configs {
+		if config.shouldSubscribeNewHeads {
+			// TODO: handle case of subscribe failure, fall back to using HTTP polling
+			go monitorMaxBlockHeight(config.nodeID, config.websocketURL)
 		}
 	}
 
-	go runPeriodicChecks(nodeIDToConfig)
+	go runPeriodicChecks(configs)
 }
 
 func monitorMaxBlockHeight(nodeID, websocketURL string) {
-	websocketClient, err := ethclient.Dial(websocketURL)
+	websocketClient, err := getEthereumClient(websocketURL)
 
 	if err != nil {
 		zap.L().Error("Failed to connect to node to monitor max block height.", zap.String("nodeID", nodeID), zap.Error(err))
@@ -77,8 +101,7 @@ func monitorMaxBlockHeight(nodeID, websocketURL string) {
 		statusMutex.Unlock()
 	}
 
-	err = subscribeNewHead(websocketClient, &newHeadHandler{onNewHead: onNewHead, onError: onError})
-	if err != nil {
+	if err = subscribeNewHead(websocketClient, &newHeadHandler{onNewHead: onNewHead, onError: onError}); err != nil {
 		zap.L().Error("Failed to subscribe to new head to monitor max block height.", zap.String("nodeID", nodeID), zap.Error(err))
 		statusMutex.Lock()
 		NodeIDToStatus[nodeID].getCurrentBlockNumberError = err
@@ -86,6 +109,8 @@ func monitorMaxBlockHeight(nodeID, websocketURL string) {
 
 		return
 	}
+
+	zap.L().Info("Successfully subscribed to new head to monitor max block height.", zap.String("nodeID", nodeID), zap.String("websocketURL", websocketURL))
 }
 
 type newHeadHandler struct {
@@ -93,7 +118,7 @@ type newHeadHandler struct {
 	onError   func(failure string)
 }
 
-func subscribeNewHead(websocketClient *ethclient.Client, handler *newHeadHandler) error {
+func subscribeNewHead(websocketClient EthClient, handler *newHeadHandler) error {
 	ch := make(chan *types.Header)
 	subscription, err := websocketClient.SubscribeNewHead(context.Background(), ch)
 
@@ -120,35 +145,33 @@ func subscribeNewHead(websocketClient *ethclient.Client, handler *newHeadHandler
 	return nil
 }
 
-func runPeriodicChecks(nodeIDToConfig map[string]HealthCheckConfig) {
-	nodeIDToHTTPClient := make(map[string]*ethclient.Client)
-
-	for nodeID, config := range nodeIDToConfig {
-		client, err := ethclient.Dial(config.httpURL)
-		if err != nil {
-			zap.L().Error("Failed to connect to node to run periodic checks.", zap.String("nodeID", nodeID), zap.Error(err))
-			continue
-		}
-
-		nodeIDToHTTPClient[nodeID] = client
-	}
-
+func runPeriodicChecks(configs []HealthCheckConfig) {
 	for {
-		for nodeID, httpClient := range nodeIDToHTTPClient {
-			// Only get the max block height if there is no websocket URL.
-			if nodeIDToConfig[nodeID].websocketURL == "" {
-				go checkMaxBlockHeight(nodeID, httpClient)
+		for _, config := range configs {
+			httpClient, err := getEthereumClient(config.httpURL)
+			if err != nil {
+				zap.L().Error("Failed to connect to node to run periodic checks.", zap.String("nodeID", config.nodeID), zap.Error(err))
+				statusMutex.Lock()
+				NodeIDToStatus[config.nodeID].connectionError = err
+				statusMutex.Unlock()
+
+				continue
 			}
 
-			go checkPeerCount(nodeID, httpClient)
-			go checkIsNodeSyncing(nodeID, httpClient)
+			// Get the max block height if we're not doing `eth_subscribe` to `newHeads` via websockets
+			if !config.shouldSubscribeNewHeads {
+				go checkMaxBlockHeight(config.nodeID, httpClient)
+			}
+
+			go checkPeerCount(config.nodeID, httpClient)
+			go checkIsNodeSyncing(config.nodeID, httpClient)
 		}
 
 		time.Sleep(PeriodicHealthCheckInterval)
 	}
 }
 
-func checkMaxBlockHeight(nodeID string, httpClient *ethclient.Client) {
+func checkMaxBlockHeight(nodeID string, httpClient EthClient) {
 	header, err := httpClient.HeaderByNumber(context.Background(), nil)
 
 	statusMutex.Lock()
@@ -162,7 +185,7 @@ func checkMaxBlockHeight(nodeID string, httpClient *ethclient.Client) {
 	NodeIDToStatus[nodeID].currentBlockNumber = header.Number.Uint64()
 }
 
-func checkPeerCount(nodeID string, httpClient *ethclient.Client) {
+func checkPeerCount(nodeID string, httpClient EthClient) {
 	peerCount, err := httpClient.PeerCount(context.Background())
 
 	statusMutex.Lock()
@@ -176,7 +199,7 @@ func checkPeerCount(nodeID string, httpClient *ethclient.Client) {
 	NodeIDToStatus[nodeID].peerCount = peerCount
 }
 
-func checkIsNodeSyncing(nodeID string, httpClient *ethclient.Client) {
+func checkIsNodeSyncing(nodeID string, httpClient EthClient) {
 	syncProgress, err := httpClient.SyncProgress(context.Background())
 
 	statusMutex.Lock()
