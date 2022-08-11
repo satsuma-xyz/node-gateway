@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

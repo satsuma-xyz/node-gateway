@@ -22,8 +22,7 @@ cd node-gateway
 cp configs/config.sample.yml config.yml
 
 docker run -d -p 8080:8080 \
-  -v $PWD/config.yml:/etc/node-gateway/config.yml \
-  -e "ALCHEMY_API_KEY=test_key" \
+  -v $PWD/config.yml:/etc/node-gateway/configs/config.yml \
   satsuma-data/node-gateway:v0
 ```
 
@@ -37,25 +36,7 @@ curl --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' ht
 
 ## Configuration
 
-See [sample config](/configs/config.sample.yml) here:
-
-```yaml
-global:
-  port: 8080
-
-# List of upstream node RPCs.
-upstreams:
-  # Each upstream can have the following keys:
-  #
-  # id - Unique identifier for the upstream.
-  # url - JSON RPC HTTP URL.
-  - id: alchemy
-    url: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-  - id: ankr
-    url: "https://rpc.ankr.com/eth"
-  - id: my-node
-    url: "http://12.57.207.168:8545"
-```
+See the [sample config](/configs/config.sample.yml).
 
 ## Features
 
