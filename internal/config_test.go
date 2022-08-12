@@ -3,7 +3,47 @@ package internal
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func TestParseConfig_InvalidConfigs(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		config string
+	}{
+		{
+			name: "Upstream config without httpURL.",
+			config: `
+			global:
+			  port: 8080
+		
+			upstreams:
+			  - id: alchemy-eth
+				chain: mainnet
+				wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+				useWsForBlockHeight: true
+			`,
+		},
+		{
+			name: "UpstreamConfig without wssURL when useWsForBlockHeight: true.",
+			config: `
+			global:
+			  port: 8080
+		
+			upstreams:
+			  - id: alchemy-eth
+				chain: mainnet
+				httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+				useWsForBlockHeight: true
+			`,
+		},
+	} {
+		configBytes := []byte(testCase.config)
+		_, err := parseConfig(configBytes)
+		assert.NotNil(t, err)
+	}
+}
 
 func TestParseConfig_ValidConfig(t *testing.T) {
 	config := `
@@ -15,10 +55,12 @@ func TestParseConfig_ValidConfig(t *testing.T) {
         chain: mainnet
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+        useWsForBlockHeight: true
       - id: ankr-polygon
         chain: polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
+        useWsForBlockHeight: false
   `
 	configBytes := []byte(config)
 
@@ -30,8 +72,20 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 
 	expectedConfig := Config{
 		Upstreams: []UpstreamConfig{
-			{ID: "alchemy-eth", Chain: "mainnet", HTTPURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}", WSURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"},
-			{ID: "ankr-polygon", Chain: "polygon", HTTPURL: "https://rpc.ankr.com/polygon", WSURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"},
+			{
+				ID:                  "alchemy-eth",
+				Chain:               "mainnet",
+				HTTPURL:             "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+				WSURL:               "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+				UseWsForBlockHeight: true,
+			},
+			{
+				ID:                  "ankr-polygon",
+				Chain:               "polygon",
+				HTTPURL:             "https://rpc.ankr.com/polygon",
+				WSURL:               "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
+				UseWsForBlockHeight: false,
+			},
 		},
 		Global: GlobalConfig{
 			Port: 8080,

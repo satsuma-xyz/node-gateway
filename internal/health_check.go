@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -22,31 +23,6 @@ type NodeStatus struct {
 	isSyncing                  bool
 }
 
-type HealthCheckConfig struct {
-	nodeID       string
-	httpURL      string
-	websocketURL string
-	// Specifies whether to use a websocket subscription to `newHeads` for monitoring block height. Will fall back to HTTP polling if not set.
-	useWsForBlockHeight bool
-}
-
-func (c HealthCheckConfig) isValid() bool {
-	isValid := true
-	if c.httpURL == "" {
-		isValid = false
-
-		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("nodeId", c.nodeID))
-	}
-
-	if c.useWsForBlockHeight && c.websocketURL == "" {
-		isValid = false
-
-		zap.L().Error("websocketUrl should be provided if shouldSubscribeNewHeads=true.", zap.Any("config", c), zap.String("nodeId", c.nodeID))
-	}
-
-	return isValid
-}
-
 type HealthCheckManager struct {
 	nodeIDToStatus  map[string]*NodeStatus
 	statusMutex     *sync.RWMutex
@@ -61,26 +37,69 @@ func NewHealthCheckManager(ethClientGetter EthClientGetter) *HealthCheckManager 
 	}
 }
 
-func (h *HealthCheckManager) StartHealthChecks(configs []HealthCheckConfig) {
+func (h *HealthCheckManager) StartHealthChecks(configs []UpstreamConfig) {
 	zap.L().Info("Starting health checks.")
 
 	for _, config := range configs {
-		if !config.isValid() {
-			zap.L().Panic("Config not valid.", zap.Any("config", config), zap.String("nodeId", config.nodeID))
-		}
-
 		// Set `isSyncing:true` until we check the node's syncing status
-		h.nodeIDToStatus[config.nodeID] = &NodeStatus{isSyncing: true}
+		h.nodeIDToStatus[config.ID] = &NodeStatus{isSyncing: true}
 	}
 
 	for _, config := range configs {
-		if config.useWsForBlockHeight {
+		if config.UseWsForBlockHeight {
 			// TODO: handle case of subscribe failure, fall back to using HTTP polling
-			go h.monitorMaxBlockHeightByWebsocket(config.nodeID, config.websocketURL)
+			go h.monitorMaxBlockHeightByWebsocket(config.ID, config.WSURL)
 		}
 	}
 
 	go h.runPeriodicChecks(configs)
+}
+
+// Tolerate being at most 4 blocks behind the max block height across nodes.
+// We should think about making this configurable in the config file.
+const HealthyBlockHeightBelowMax = 4
+
+func (h *HealthCheckManager) GetCurrentHealthyNodes() map[string]*NodeStatus {
+	h.statusMutex.Lock()
+	defer h.statusMutex.Unlock()
+
+	zap.L().Debug("Currently determining healthy nodes.", zap.String("nodeIDToStatus", fmt.Sprintf("%v", h.nodeIDToStatus)))
+
+	healthyNodes := make(map[string]*NodeStatus)
+
+	// Exclude nodes that have errors or still syncing
+	var maxBlockHeight uint64 = 0
+
+	for nodeID, nodeStatus := range h.nodeIDToStatus {
+		if nodeStatus.connectionError != nil ||
+			nodeStatus.getCurrentBlockNumberError != nil ||
+			nodeStatus.getPeerCountError != nil ||
+			nodeStatus.getIsSyncingError != nil {
+			zap.L().Debug("Node experienced errors in healthchecks, marking it as unhealthy.", zap.String("nodeID", nodeID), zap.String("nodeStatus", fmt.Sprintf("%v", nodeStatus)))
+			continue
+		}
+
+		if nodeStatus.isSyncing {
+			zap.L().Debug("Node is still syncing, marking it is unhealthy.", zap.String("nodeID", nodeID), zap.String("nodeStatus", fmt.Sprintf("%v", nodeStatus)))
+			continue
+		}
+
+		if nodeStatus.currentBlockNumber > maxBlockHeight {
+			maxBlockHeight = nodeStatus.currentBlockNumber
+		}
+
+		healthyNodes[nodeID] = nodeStatus
+	}
+
+	for nodeID, nodeStatus := range healthyNodes {
+		if maxBlockHeight-nodeStatus.currentBlockNumber > HealthyBlockHeightBelowMax {
+			delete(healthyNodes, nodeID)
+		}
+	}
+
+	zap.L().Debug("Deteremined currently healthy nodes.", zap.String("healthyNodes", fmt.Sprintf("%v", healthyNodes)))
+
+	return healthyNodes
 }
 
 func (h *HealthCheckManager) monitorMaxBlockHeightByWebsocket(nodeID, websocketURL string) {
@@ -152,26 +171,28 @@ func subscribeNewHead(websocketClient EthClient, handler *newHeadHandler) error 
 	return nil
 }
 
-func (h *HealthCheckManager) runPeriodicChecks(configs []HealthCheckConfig) {
+func (h *HealthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
 	for {
 		for _, config := range configs {
-			httpClient, err := h.ethClientGetter(config.httpURL)
+			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%v", config)))
+
+			httpClient, err := h.ethClientGetter(config.HTTPURL)
 			if err != nil {
-				zap.L().Error("Failed to connect to node to run periodic checks.", zap.String("nodeID", config.nodeID), zap.Error(err))
+				zap.L().Error("Failed to connect to node to run periodic checks.", zap.String("nodeID", config.ID), zap.Error(err))
 				h.statusMutex.Lock()
-				h.nodeIDToStatus[config.nodeID].connectionError = err
+				h.nodeIDToStatus[config.ID].connectionError = err
 				h.statusMutex.Unlock()
 
 				continue
 			}
 
 			// Get the max block height if we're not doing `eth_subscribe` to `newHeads` via websockets
-			if !config.useWsForBlockHeight {
-				go h.checkMaxBlockHeightByHTTP(config.nodeID, httpClient)
+			if !config.UseWsForBlockHeight {
+				go h.checkMaxBlockHeightByHTTP(config.ID, httpClient)
 			}
 
-			go h.checkPeerCount(config.nodeID, httpClient)
-			go h.checkIsNodeSyncing(config.nodeID, httpClient)
+			go h.checkPeerCount(config.ID, httpClient)
+			go h.checkIsNodeSyncing(config.ID, httpClient)
 		}
 
 		time.Sleep(PeriodicHealthCheckInterval)
@@ -180,6 +201,8 @@ func (h *HealthCheckManager) runPeriodicChecks(configs []HealthCheckConfig) {
 
 func (h *HealthCheckManager) checkMaxBlockHeightByHTTP(nodeID string, httpClient EthClient) {
 	header, err := httpClient.HeaderByNumber(context.Background(), nil)
+
+	zap.L().Debug("Running checkMaxBlockHeightByHTTP on config", zap.Any("nodeID", nodeID), zap.Any("response", header), zap.Error(err))
 
 	h.statusMutex.Lock()
 	defer h.statusMutex.Unlock()
@@ -195,6 +218,8 @@ func (h *HealthCheckManager) checkMaxBlockHeightByHTTP(nodeID string, httpClient
 func (h *HealthCheckManager) checkPeerCount(nodeID string, httpClient EthClient) {
 	peerCount, err := httpClient.PeerCount(context.Background())
 
+	zap.L().Debug("Running checkPeerCount on config", zap.Any("nodeID", nodeID), zap.Any("response", peerCount), zap.Error(err))
+
 	h.statusMutex.Lock()
 	defer h.statusMutex.Unlock()
 
@@ -208,6 +233,8 @@ func (h *HealthCheckManager) checkPeerCount(nodeID string, httpClient EthClient)
 
 func (h *HealthCheckManager) checkIsNodeSyncing(nodeID string, httpClient EthClient) {
 	syncProgress, err := httpClient.SyncProgress(context.Background())
+
+	zap.L().Debug("Running checkIsNodeSyncing on config", zap.Any("nodeID", nodeID), zap.Any("response", syncProgress), zap.Error(err))
 
 	h.statusMutex.Lock()
 	defer h.statusMutex.Unlock()

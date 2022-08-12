@@ -7,64 +7,19 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/satsuma-data/node-gateway/mocks"
+	"github.com/satsuma-data/node-gateway/internal/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func TestHealthCheckConfig(t *testing.T) {
-	for _, testCase := range []struct {
-		name    string
-		config  HealthCheckConfig
-		isValid bool
-	}{
-		{
-			name: "A valid health check.",
-			config: HealthCheckConfig{
-				nodeID:              "mainnet",
-				httpURL:             "http://rpc.ankr.io/eth",
-				websocketURL:        "wss://something/something",
-				useWsForBlockHeight: false,
-			},
-			isValid: true,
-		},
-		{
-			name: "Healthcheck without httpURL.",
-			config: HealthCheckConfig{
-				nodeID:              "mainnet",
-				websocketURL:        "wss://something/something",
-				useWsForBlockHeight: true,
-			},
-			isValid: false,
-		},
-		{
-			name: "Healthcheck without websocketURL when useWsForBlockHeight: true.",
-			config: HealthCheckConfig{
-				nodeID:              "mainnet",
-				httpURL:             "http://rpc.ankr.io/eth",
-				useWsForBlockHeight: true,
-			},
-			isValid: false,
-		},
-	} {
-		healthCheckManager := NewHealthCheckManager(nil)
-
-		assert.Equal(t, testCase.isValid, testCase.config.isValid())
-
-		if !testCase.isValid {
-			assert.Panics(t, func() { healthCheckManager.StartHealthChecks([]HealthCheckConfig{testCase.config}) })
-		}
-	}
-}
-
 func TestHealthChecks(t *testing.T) {
-	configs := []HealthCheckConfig{
+	configs := []UpstreamConfig{
 		{
-			nodeID:              "mainnet",
-			httpURL:             "http://rpc.ankr.io/eth",
-			websocketURL:        "wss://something/something",
-			useWsForBlockHeight: false,
+			ID:                  "mainnet",
+			HTTPURL:             "http://rpc.ankr.io/eth",
+			WSURL:               "wss://something/something",
+			UseWsForBlockHeight: false,
 		},
 	}
 
