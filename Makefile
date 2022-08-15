@@ -3,9 +3,8 @@ clean:
 
 build_archives:
 	mkdir -p build/src_archive
-	$(eval CURRENT_COMMIT_HASH=$(shell git rev-parse HEAD))
-	git archive --format=tar.gz -o build/src_archive/v$(VERSION).tar.gz $(CURRENT_COMMIT_HASH)
-	git archive --format=zip -o build/src_archive/v$(VERSION).zip $(CURRENT_COMMIT_HASH)
+	git archive --format=tar.gz -o build/src_archive/v$(VERSION).tar.gz $(GIT_COMMIT_HASH)
+	git archive --format=zip -o build/src_archive/v$(VERSION).zip $(GIT_COMMIT_HASH)
 
 build_binary:
 	go build -v -o build/bin/gateway cmd/gateway/main.go
