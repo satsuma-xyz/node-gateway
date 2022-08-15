@@ -22,8 +22,9 @@ cd node-gateway
 cp configs/config.sample.yml config.yml
 
 docker run -d -p 8080:8080 \
-  -v $PWD/config.yml:/etc/node-gateway/configs/config.yml \
-  satsuma-data/node-gateway:v0
+  -v $PWD/config.yml:/satsuma/config.yml \
+  -e ENV=production \
+  satsumaxyz/node-gateway:latest
 ```
 
 #### Usage
