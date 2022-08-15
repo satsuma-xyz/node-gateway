@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/exp/maps"
 
-	"github.com/satsuma-data/node-gateway/internal/rpc"
+	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 )
 
 // This contains logic on where and how to route the request.
@@ -20,11 +19,11 @@ import (
 
 // go:generate mockery --output ./mocks --name Router
 type Router interface {
-	Route(requestBody rpc.JSONRPCRequestBody) (rpc.JSONRPCResponseBody, *http.Response, error)
+	Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
-	healthyNodesMutex  *sync.RWMutex
+	upstreamsMutex     *sync.RWMutex
 	healthCheckManager *HealthCheckManager
 	routingStrategy    RoutingStrategy
 	upstreamConfigs    []UpstreamConfig
@@ -34,7 +33,7 @@ func NewRouter(healthCheckManager *HealthCheckManager, upstreamConfigs []Upstrea
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
 		upstreamConfigs:    upstreamConfigs,
-		healthyNodesMutex:  &sync.RWMutex{},
+		upstreamsMutex:     &sync.RWMutex{},
 		// Only support RoundRobin for now.
 		routingStrategy: NewRoundRobinStrategy(),
 	}
@@ -43,16 +42,15 @@ func NewRouter(healthCheckManager *HealthCheckManager, upstreamConfigs []Upstrea
 	return r
 }
 
-// TODO: Make this configurable
+// :TODO: Make this configurable
 const HealthyNodeSyncInterval = 1 * time.Second
 
 func (r *SimpleRouter) startPollingHealthchecks() {
 	go func() {
 		for {
-			r.healthyNodesMutex.Lock()
-			healthyNodes := r.healthCheckManager.GetCurrentHealthyNodes()
-			r.routingStrategy.updateNodeIDs(maps.Keys(healthyNodes))
-			r.healthyNodesMutex.Unlock()
+			r.upstreamsMutex.Lock()
+			r.routingStrategy.setNodeIDs(r.healthCheckManager.GetHealthyNodes())
+			r.upstreamsMutex.Unlock()
 
 			time.Sleep(HealthyNodeSyncInterval)
 		}
@@ -60,7 +58,7 @@ func (r *SimpleRouter) startPollingHealthchecks() {
 }
 
 // Returns the JSONRPCResponseBody, HTTP status code, and error if encountered
-func (r *SimpleRouter) Route(requestBody rpc.JSONRPCRequestBody) (rpc.JSONRPCResponseBody, *http.Response, error) {
+func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
 	nodeID := r.routingStrategy.routeNextRequest()
 
 	var configToRoute UpstreamConfig
@@ -77,13 +75,13 @@ func (r *SimpleRouter) Route(requestBody rpc.JSONRPCRequestBody) (rpc.JSONRPCRes
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
 		zap.L().Error("Could not serialize request", zap.Any("request", requestBody), zap.Error(err))
-		return rpc.JSONRPCResponseBody{}, nil, err
+		return jsonrpc.ResponseBody{}, nil, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		zap.L().Error("Could not create new http request", zap.Any("request", requestBody), zap.Error(err))
-		return rpc.JSONRPCResponseBody{}, nil, err
+		return jsonrpc.ResponseBody{}, nil, err
 	}
 
 	httpReq.Header.Set("content-type", "application/json")
@@ -93,14 +91,14 @@ func (r *SimpleRouter) Route(requestBody rpc.JSONRPCRequestBody) (rpc.JSONRPCRes
 
 	if err != nil {
 		zap.L().Error("Error encountered when executing request", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
-		return rpc.JSONRPCResponseBody{}, nil, err
+		return jsonrpc.ResponseBody{}, nil, err
 	}
 	defer resp.Body.Close()
 
-	respBody, err := rpc.DecodeResponseBody(resp)
+	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
 		zap.L().Error("Could not deserialize response", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
-		return rpc.JSONRPCResponseBody{}, nil, err
+		return jsonrpc.ResponseBody{}, nil, err
 	}
 
 	zap.L().Debug("Successfully routed request to config.", zap.Any("request", requestBody), zap.Any("response", respBody), zap.Any("config", configToRoute))

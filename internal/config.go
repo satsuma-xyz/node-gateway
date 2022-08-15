@@ -9,12 +9,11 @@ import (
 )
 
 type UpstreamConfig struct {
-	ID      string `yaml:"id"`
-	Chain   string `yaml:"chain"`
-	HTTPURL string `yaml:"httpURL"`
-	WSURL   string `yaml:"wsURL"`
-	// Specifies whether to use a websocket subscription to `newHeads` for monitoring block height. Will fall back to HTTP polling if not set.
-	UseWsForBlockHeight bool `yaml:"useWsForBlockHeight"`
+	ID                string            `yaml:"id"`
+	Chain             string            `yaml:"chain"`
+	HTTPURL           string            `yaml:"httpURL"`
+	WSURL             string            `yaml:"wsURL"`
+	HealthCheckConfig HealthCheckConfig `yaml:"healthCheckConfig"`
 }
 
 func (c UpstreamConfig) isValid() bool {
@@ -25,13 +24,17 @@ func (c UpstreamConfig) isValid() bool {
 		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("nodeId", c.ID))
 	}
 
-	if c.UseWsForBlockHeight && c.WSURL == "" {
+	if c.HealthCheckConfig.UseWSForBlockHeight && c.WSURL == "" {
 		isValid = false
 
 		zap.L().Error("wsURL should be provided if useWsForBlockHeight=true.", zap.Any("config", c), zap.String("nodeId", c.ID))
 	}
 
 	return isValid
+}
+
+type HealthCheckConfig struct {
+	UseWSForBlockHeight bool `yaml:"useWsForBlockHeight"`
 }
 
 type GlobalConfig struct {
@@ -43,22 +46,20 @@ type Config struct {
 	Global    GlobalConfig
 }
 
-func LoadConfig(configFilePath string) (config Config, err error) {
+func LoadConfig(configFilePath string) (Config, error) {
 	configBytes, err := os.ReadFile(configFilePath)
 
 	if err != nil {
 		return Config{}, err
 	}
 
-	config, err = parseConfig(configBytes)
-
-	return config, err
+	return parseConfig(configBytes)
 }
 
-func parseConfig(configBytes []byte) (config Config, err error) {
-	config = Config{}
+func parseConfig(configBytes []byte) (Config, error) {
+	config := Config{}
 
-	err = yaml.Unmarshal(configBytes, &config)
+	err := yaml.Unmarshal(configBytes, &config)
 	if err != nil {
 		return config, err
 	}

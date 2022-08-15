@@ -9,7 +9,7 @@ import (
 type RoutingStrategy interface {
 	// Returns the next NodeID a request should route to.
 	routeNextRequest() string
-	updateNodeIDs([]string)
+	setNodeIDs([]string)
 }
 
 type RoundRobinStrategy struct {
@@ -36,7 +36,7 @@ func (s *RoundRobinStrategy) routeNextRequest() string {
 	return s.nodeIDs[int(s.counter)%len(s.nodeIDs)]
 }
 
-func (s *RoundRobinStrategy) updateNodeIDs(nodeIDs []string) {
+func (s *RoundRobinStrategy) setNodeIDs(nodeIDs []string) {
 	s.nodeIDMutex.Lock()
 	defer s.nodeIDMutex.Unlock()
 	sort.Strings(nodeIDs)

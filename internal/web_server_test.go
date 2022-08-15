@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
-	"github.com/satsuma-data/node-gateway/internal/rpc"
 )
 
 func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	router := mocks.NewRouter(t)
-	expectedRPCResponse := rpc.JSONRPCResponseBody{
-		JSONRPC: rpc.JSONRPCVersion,
+	expectedRPCResponse := jsonrpc.ResponseBody{
+		JSONRPC: jsonrpc.JSONRPCVersion,
 		Result:  "results",
 		ID:      2,
 	}
@@ -43,7 +43,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	jsonRPCResponse, _ := rpc.DecodeResponseBody(result)
+	jsonRPCResponse, _ := jsonrpc.DecodeResponseBody(result)
 
 	assert.Equal(t, result.StatusCode, http.StatusOK)
 	assert.Equal(t, expectedRPCResponse, jsonRPCResponse)

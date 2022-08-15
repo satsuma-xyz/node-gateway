@@ -22,7 +22,8 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 			  - id: alchemy-eth
 				chain: mainnet
 				wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				useWsForBlockHeight: true
+				healthCheckConfig:
+				  useWsForBlockHeight: true
 			`,
 		},
 		{
@@ -35,7 +36,8 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 			  - id: alchemy-eth
 				chain: mainnet
 				httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				useWsForBlockHeight: true
+				healthCheckConfig:
+				  useWsForBlockHeight: true
 			`,
 		},
 	} {
@@ -55,12 +57,12 @@ func TestParseConfig_ValidConfig(t *testing.T) {
         chain: mainnet
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-        useWsForBlockHeight: true
+        healthCheckConfig:
+          useWsForBlockHeight: true
       - id: ankr-polygon
         chain: polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
-        useWsForBlockHeight: false
   `
 	configBytes := []byte(config)
 
@@ -73,18 +75,22 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	expectedConfig := Config{
 		Upstreams: []UpstreamConfig{
 			{
-				ID:                  "alchemy-eth",
-				Chain:               "mainnet",
-				HTTPURL:             "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
-				WSURL:               "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
-				UseWsForBlockHeight: true,
+				ID:      "alchemy-eth",
+				Chain:   "mainnet",
+				HTTPURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+				WSURL:   "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+				HealthCheckConfig: HealthCheckConfig{
+					UseWSForBlockHeight: true,
+				},
 			},
 			{
-				ID:                  "ankr-polygon",
-				Chain:               "polygon",
-				HTTPURL:             "https://rpc.ankr.com/polygon",
-				WSURL:               "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
-				UseWsForBlockHeight: false,
+				ID:      "ankr-polygon",
+				Chain:   "polygon",
+				HTTPURL: "https://rpc.ankr.com/polygon",
+				WSURL:   "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
+				HealthCheckConfig: HealthCheckConfig{
+					UseWSForBlockHeight: false,
+				},
 			},
 		},
 		Global: GlobalConfig{

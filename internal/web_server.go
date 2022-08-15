@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/satsuma-data/node-gateway/internal/rpc"
+	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
@@ -47,9 +47,9 @@ func (s *Server) handleJSONRPCRequest(responseWriter http.ResponseWriter, req *h
 		return
 	}
 
-	body, err := rpc.DecodeRequestBody(req)
+	body, err := jsonrpc.DecodeRequestBody(req)
 	if err != nil {
-		resp := rpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), rpc.InternalServerErrorCode, int(body.ID))
+		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
 		respondJSONRPC(responseWriter, resp, http.StatusBadRequest)
 
 		return
@@ -61,7 +61,7 @@ func (s *Server) handleJSONRPCRequest(responseWriter http.ResponseWriter, req *h
 	defer resp.Body.Close()
 
 	if err != nil {
-		resp := rpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), rpc.InternalServerErrorCode, int(body.ID))
+		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
 		respondJSONRPC(responseWriter, resp, http.StatusInternalServerError)
 
 		return
@@ -72,7 +72,7 @@ func (s *Server) handleJSONRPCRequest(responseWriter http.ResponseWriter, req *h
 	zap.L().Debug("Request successfully routed", zap.Any("requestBody", body))
 }
 
-func respondJSONRPC(responseWriter http.ResponseWriter, response rpc.JSONRPCResponseBody, httpStatusCode int) {
+func respondJSONRPC(responseWriter http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
 	respBytes, err := response.EncodeResponseBody()
 	if err != nil {
 		zap.L().Error("Failed to serialize response.", zap.Error(err), zap.String("response", string(respBytes)))
@@ -83,7 +83,7 @@ func respondJSONRPC(responseWriter http.ResponseWriter, response rpc.JSONRPCResp
 	responseWriter.Header().Set("Content-Type", "application/json")
 
 	if i, err := responseWriter.Write(respBytes); err != nil {
-		zap.L().Error("Failed to write response body", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
+		zap.L().Error("Failed to write JSON RPC response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
 		return
 	}
 }
@@ -99,7 +99,7 @@ func respond(responseWriter http.ResponseWriter, message string, httpStatusCode 
 
 	jsonResp, _ := json.Marshal(resp)
 	if i, err := responseWriter.Write(jsonResp); err != nil {
-		zap.L().Error("Failed to write response body", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
+		zap.L().Error("Failed to write response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
 		return
 	}
 }
