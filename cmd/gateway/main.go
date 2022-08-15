@@ -8,6 +8,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// The 1st arg is the path to the program and the 2nd arg is the path to the
+// config file.
+const ExpectedNumArgs = 2
+
 func main() {
 	env := os.Getenv("ENV")
 	logger, loggerErr := setupGlobalLogger(env)
@@ -25,6 +29,10 @@ func main() {
 			fmt.Println("Failed to sync logger.", zap.Error(err))
 		}
 	}()
+
+	if len(os.Args) < ExpectedNumArgs {
+		logger.Fatal("No config file specified.")
+	}
 
 	config, err := internal.LoadConfig(os.Args[1])
 	if err != nil {
