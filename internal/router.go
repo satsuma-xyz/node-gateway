@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -37,34 +36,18 @@ func NewRouter(healthCheckManager *HealthCheckManager, upstreamConfigs []Upstrea
 		// Only support RoundRobin for now.
 		routingStrategy: NewRoundRobinStrategy(),
 	}
-	r.startPollingHealthchecks()
 
 	return r
 }
 
-// :TODO: Make this configurable
-const HealthyNodeSyncInterval = 1 * time.Second
-
-func (r *SimpleRouter) startPollingHealthchecks() {
-	go func() {
-		for {
-			r.upstreamsMutex.Lock()
-			r.routingStrategy.setNodeIDs(r.healthCheckManager.GetHealthyNodes())
-			r.upstreamsMutex.Unlock()
-
-			time.Sleep(HealthyNodeSyncInterval)
-		}
-	}()
-}
-
-// Returns the JSONRPCResponseBody, HTTP status code, and error if encountered
 func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
-	nodeID := r.routingStrategy.routeNextRequest()
+	healthyUpstreams := r.healthCheckManager.GetHealthyUpstreams()
+	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
 
 	var configToRoute UpstreamConfig
 
 	for _, config := range r.upstreamConfigs {
-		if config.ID == nodeID {
+		if config.ID == id {
 			configToRoute = config
 			break
 		}

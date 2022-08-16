@@ -10,16 +10,25 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+const (
+	defaultServerPort = 8080
+)
+
 func StartServer(config Config) error {
-	healthCheckManager := NewHealthCheckManager(NewEthClient)
-	healthCheckManager.StartHealthChecks(config.Upstreams)
+	healthCheckManager := NewHealthCheckManager(NewEthClient, config.Upstreams)
+	healthCheckManager.StartHealthChecks()
 
 	router := NewRouter(healthCheckManager, config.Upstreams)
 
 	server := NewServer(config, router)
 	http.HandleFunc("/", server.handleJSONRPCRequest)
 
-	return http.ListenAndServe(":8080", nil)
+	port := defaultServerPort
+	if config.Global.Port > 0 {
+		port = config.Global.Port
+	}
+
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
 
 type Server struct {

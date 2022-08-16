@@ -9,11 +9,10 @@ import (
 )
 
 type UpstreamConfig struct {
+	HealthCheckConfig HealthCheckConfig `yaml:"healthCheckConfig"`
 	ID                string            `yaml:"id"`
-	Chain             string            `yaml:"chain"`
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
-	HealthCheckConfig HealthCheckConfig `yaml:"healthCheckConfig"`
 }
 
 func (c UpstreamConfig) isValid() bool {
@@ -24,7 +23,7 @@ func (c UpstreamConfig) isValid() bool {
 		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("nodeId", c.ID))
 	}
 
-	if c.HealthCheckConfig.UseWSForBlockHeight && c.WSURL == "" {
+	if c.HealthCheckConfig.UseWSForBlockHeight != nil && *c.HealthCheckConfig.UseWSForBlockHeight && c.WSURL == "" {
 		isValid = false
 
 		zap.L().Error("wsURL should be provided if useWsForBlockHeight=true.", zap.Any("config", c), zap.String("nodeId", c.ID))
@@ -34,7 +33,8 @@ func (c UpstreamConfig) isValid() bool {
 }
 
 type HealthCheckConfig struct {
-	UseWSForBlockHeight bool `yaml:"useWsForBlockHeight"`
+	// If not set - method to identify block height is auto-detected. Use websockets is its URL is set, else fall back to use HTTP polling.
+	UseWSForBlockHeight *bool `yaml:"useWsForBlockHeight"`
 }
 
 type GlobalConfig struct {

@@ -20,7 +20,6 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 		
 			upstreams:
 			  - id: alchemy-eth
-				chain: mainnet
 				wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 				healthCheckConfig:
 				  useWsForBlockHeight: true
@@ -34,7 +33,6 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 		
 			upstreams:
 			  - id: alchemy-eth
-				chain: mainnet
 				httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 				healthCheckConfig:
 				  useWsForBlockHeight: true
@@ -47,6 +45,10 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 	}
 }
 
+func newBool(b bool) *bool {
+	return &b
+}
+
 func TestParseConfig_ValidConfig(t *testing.T) {
 	config := `
     global:
@@ -54,13 +56,11 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 
     upstreams:
       - id: alchemy-eth
-        chain: mainnet
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         healthCheckConfig:
           useWsForBlockHeight: true
       - id: ankr-polygon
-        chain: polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
   `
@@ -76,20 +76,18 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 		Upstreams: []UpstreamConfig{
 			{
 				ID:      "alchemy-eth",
-				Chain:   "mainnet",
 				HTTPURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
 				WSURL:   "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
 				HealthCheckConfig: HealthCheckConfig{
-					UseWSForBlockHeight: true,
+					UseWSForBlockHeight: newBool(true),
 				},
 			},
 			{
 				ID:      "ankr-polygon",
-				Chain:   "polygon",
 				HTTPURL: "https://rpc.ankr.com/polygon",
 				WSURL:   "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
 				HealthCheckConfig: HealthCheckConfig{
-					UseWSForBlockHeight: false,
+					UseWSForBlockHeight: nil,
 				},
 			},
 		},
@@ -112,11 +110,9 @@ func TestParseConfig_InvalidYaml(t *testing.T) {
 
     upstreams:
       - id: alchemy-eth
-        chain: mainnet
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
       - id: ankr-polygon
-        chain: polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
   `

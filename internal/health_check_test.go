@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -17,9 +18,10 @@ import (
 func TestHealthCheckManager(t *testing.T) {
 	configs := []UpstreamConfig{
 		{
-			ID:      "mainnet",
-			HTTPURL: "http://rpc.ankr.io/eth",
-			WSURL:   "wss://something/something",
+			ID:                "mainnet",
+			HTTPURL:           "http://rpc.ankr.io/eth",
+			WSURL:             "wss://something/something",
+			HealthCheckConfig: HealthCheckConfig{UseWSForBlockHeight: newBool(false)},
 		},
 	}
 
@@ -31,20 +33,21 @@ func TestHealthCheckManager(t *testing.T) {
 	ethereumClient.Mock.On("HeaderByNumber", mock.Anything, mock.Anything).
 		Return(&types.Header{Number: big.NewInt(100)}, nil).Once()
 	ethereumClient.Mock.On("PeerCount", mock.Anything).
-		Return(uint64(200), nil).Once()
+		Return(uint64(0), errors.New("an error")).Once()
 	ethereumClient.Mock.On("SyncProgress", mock.Anything).
 		Return(&ethereum.SyncProgress{}, nil).Once()
 
-	healthCheckManager := NewHealthCheckManager(mockEthClientGetter)
-	healthCheckManager.StartHealthChecks(configs)
+	healthCheckManager := NewHealthCheckManager(mockEthClientGetter, configs)
+	healthCheckManager.StartHealthChecks()
 
 	assert.Eventually(t, func() bool {
-		return healthCheckManager.nodeIDToStatus["mainnet"].currentBlockNumber == uint64(100) &&
-			healthCheckManager.nodeIDToStatus["mainnet"].peerCount == uint64(200) &&
-			healthCheckManager.nodeIDToStatus["mainnet"].isSyncing
-	}, 2*time.Second, 10*time.Millisecond, "NodeIDToStatus did not contain expected values")
+		return healthCheckManager.upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(100) &&
+			healthCheckManager.upstreamIDToStatus["mainnet"].peerCount == uint64(0) &&
+			healthCheckManager.upstreamIDToStatus["mainnet"].peerCountError != nil &&
+			healthCheckManager.upstreamIDToStatus["mainnet"].isSyncing
+	}, 2*time.Second, 10*time.Millisecond, "UpstreamIDToStatus did not contain expected values")
 
-	// Verify that NodeStatus is updated when the JSON RPC returns new values.
+	// Verify that UpstreamStatus is updated when the JSON RPC returns new values.
 	ethereumClient.Mock.On("HeaderByNumber", mock.Anything, mock.Anything).
 		Return(&types.Header{Number: big.NewInt(1000)}, nil)
 	ethereumClient.Mock.On("PeerCount", mock.Anything).
@@ -53,10 +56,11 @@ func TestHealthCheckManager(t *testing.T) {
 		Return(nil, nil)
 
 	assert.Eventually(t, func() bool {
-		return healthCheckManager.nodeIDToStatus["mainnet"].currentBlockNumber == uint64(1000) &&
-			healthCheckManager.nodeIDToStatus["mainnet"].peerCount == uint64(2000) &&
-			!healthCheckManager.nodeIDToStatus["mainnet"].isSyncing
-	}, 2*time.Second, 10*time.Millisecond, fmt.Sprintf("NodeIDToStatus did not contain expected values, actual: %+v", healthCheckManager.nodeIDToStatus["mainnet"]))
+		return healthCheckManager.upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(1000) &&
+			healthCheckManager.upstreamIDToStatus["mainnet"].peerCount == uint64(2000) &&
+			healthCheckManager.upstreamIDToStatus["mainnet"].peerCountError == nil &&
+			!healthCheckManager.upstreamIDToStatus["mainnet"].isSyncing
+	}, 2*time.Second, 10*time.Millisecond, fmt.Sprintf("UpstreamIDToStatus did not contain expected values, actual: %+v", healthCheckManager.upstreamIDToStatus["mainnet"]))
 }
 
 type rpcError struct{}
@@ -71,111 +75,99 @@ func (e methodNotSupportedError) ErrorCode() int { return JSONRPCErrCodeMethodNo
 
 func TestNodeStatus(t *testing.T) {
 	for _, testCase := range []struct {
-		nodeStatus  *NodeStatus
-		globalState *globalState
-		name        string
-		healthy     bool
+		upstreamStatus *UpstreamStatus
+		name           string
+		maxBlockHeight uint64
+		healthy        bool
 	}{
 		{
-			name: "A healthy node with no errors and passing all checks.",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{},
-				getPeerCountError:          healthCheckError{},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         20,
-				peerCount:                  5,
-				isSyncing:                  false,
+			name: "A healthy upstream node with no errors and passing all checks.",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          nil,
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               5,
+				isSyncing:               false,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: true,
+			maxBlockHeight: 20,
+			healthy:        true,
 		},
 		{
-			name: "A unhealthy node due to errors in healthchecking.",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{err: rpcError{}},
-				getPeerCountError:          healthCheckError{},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         20,
-				peerCount:                  5,
-				isSyncing:                  false,
+			name: "A unhealthy upstream node due to errors in healthchecking.",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: rpcError{},
+				peerCountError:          nil,
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               5,
+				isSyncing:               false,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: false,
+			maxBlockHeight: 20,
+			healthy:        false,
 		},
 		{
-			name: "A healthy node with that got 'method not supported errors' in healthchecks",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{},
-				getPeerCountError:          healthCheckError{err: methodNotSupportedError{}},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         20,
-				peerCount:                  5,
-				isSyncing:                  false,
+			name: "A healthy upstream node with that got 'method not supported errors' in healthchecks",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          methodNotSupportedError{},
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               5,
+				isSyncing:               false,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: true,
+			maxBlockHeight: 20,
+			healthy:        true,
 		},
 		{
-			name: "An unhealthy node with less than max block height.",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{},
-				getPeerCountError:          healthCheckError{},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         19,
-				peerCount:                  5,
-				isSyncing:                  false,
+			name: "An unhealthy upstream node with less than max block height.",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          nil,
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      19,
+				peerCount:               5,
+				isSyncing:               false,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: false,
+			maxBlockHeight: 20,
+			healthy:        false,
 		},
 		{
-			name: "An unhealthy node with less than minimum peer count.",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{},
-				getPeerCountError:          healthCheckError{},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         20,
-				peerCount:                  4,
-				isSyncing:                  false,
+			name: "An unhealthy upstream node with less than minimum peer count.",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          nil,
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               4,
+				isSyncing:               false,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: false,
+			maxBlockHeight: 20,
+			healthy:        false,
 		},
 		{
-			name: "An unhealthy node that is still syncing.",
-			nodeStatus: &NodeStatus{
-				getCurrentBlockNumberError: healthCheckError{},
-				getPeerCountError:          healthCheckError{},
-				getIsSyncingError:          healthCheckError{},
-				connectionError:            healthCheckError{},
-				currentBlockNumber:         20,
-				peerCount:                  5,
-				isSyncing:                  true,
+			name: "An unhealthy upstream node that is still syncing.",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          nil,
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               5,
+				isSyncing:               true,
 			},
-			globalState: &globalState{
-				maxBlockHeight: 20,
-			},
-			healthy: false,
+			maxBlockHeight: 20,
+			healthy:        false,
 		}} {
 		if testCase.healthy {
-			assert.True(t, testCase.nodeStatus.isHealthy(testCase.globalState), fmt.Sprintf("Test case: %s failed", testCase.name))
+			assert.True(t, testCase.upstreamStatus.isHealthy(testCase.maxBlockHeight), fmt.Sprintf("Test case: %s failed", testCase.name))
 		} else {
-			assert.False(t, testCase.nodeStatus.isHealthy(testCase.globalState), fmt.Sprintf("Test case: %s failed", testCase.name))
+			assert.False(t, testCase.upstreamStatus.isHealthy(testCase.maxBlockHeight), fmt.Sprintf("Test case: %s failed", testCase.name))
 		}
 	}
 }
