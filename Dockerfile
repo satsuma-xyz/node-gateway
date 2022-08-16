@@ -7,7 +7,7 @@ RUN apk add --no-cache make libc6-compat build-base
 WORKDIR /app
 ADD . .
 
-RUN make build_binary
+RUN make build-binary
 
 FROM docker.io/library/alpine:3.16
 
