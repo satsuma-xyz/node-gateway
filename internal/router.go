@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 
@@ -23,12 +24,12 @@ type Router interface {
 
 type SimpleRouter struct {
 	upstreamsMutex     *sync.RWMutex
-	healthCheckManager *HealthCheckManager
+	healthCheckManager HealthCheckManager
 	routingStrategy    RoutingStrategy
 	upstreamConfigs    []UpstreamConfig
 }
 
-func NewRouter(healthCheckManager *HealthCheckManager, upstreamConfigs []UpstreamConfig) Router {
+func NewRouter(healthCheckManager HealthCheckManager, upstreamConfigs []UpstreamConfig) Router {
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
 		upstreamConfigs:    upstreamConfigs,
@@ -42,6 +43,15 @@ func NewRouter(healthCheckManager *HealthCheckManager, upstreamConfigs []Upstrea
 
 func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
 	healthyUpstreams := r.healthCheckManager.GetHealthyUpstreams()
+	if len(healthyUpstreams) == 0 {
+		httpResp := &http.Response{
+			StatusCode: http.StatusServiceUnavailable,
+			Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
+		}
+
+		return jsonrpc.ResponseBody{}, httpResp, nil
+	}
+
 	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
 
 	var configToRoute UpstreamConfig
