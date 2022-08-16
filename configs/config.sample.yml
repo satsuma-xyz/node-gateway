@@ -6,18 +6,16 @@ upstreams:
   # Each upstream can have the following keys:
   #
   # id - Unique identifier for the upstream.
-  # chain - Chain name.
   # httpURL - HTTP JSON RPC URL.
   # wsURL - Websocket URL.
   - id: alchemy-eth
-    chain: mainnet
     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
     wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+    healthCheckConfig:
+      useWsForBlockHeight: false
   - id: ankr-polygon
-    chain: polygon
     httpURL: "https://rpc.ankr.com/polygon"
     wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
   - id: my-node
-    chain: bsc
     httpURL: "http://12.57.207.168:8545"
     wsURL: "wss://12.57.207.168:8546"
