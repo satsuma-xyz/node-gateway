@@ -37,14 +37,14 @@ func TestHealthCheckManager(t *testing.T) {
 	ethereumClient.Mock.On("SyncProgress", mock.Anything).
 		Return(&ethereum.SyncProgress{}, nil).Once()
 
-	healthCheckManager := NewHealthCheckManager(mockEthClientGetter, configs)
-	healthCheckManager.StartHealthChecks()
+	manager := NewHealthCheckManager(mockEthClientGetter, configs)
+	manager.StartHealthChecks()
 
 	assert.Eventually(t, func() bool {
-		return healthCheckManager.upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(100) &&
-			healthCheckManager.upstreamIDToStatus["mainnet"].peerCount == uint64(0) &&
-			healthCheckManager.upstreamIDToStatus["mainnet"].peerCountError != nil &&
-			healthCheckManager.upstreamIDToStatus["mainnet"].isSyncing
+		return manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(100) &&
+			manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].peerCount == uint64(0) &&
+			manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].peerCountError != nil &&
+			manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].isSyncing
 	}, 2*time.Second, 10*time.Millisecond, "UpstreamIDToStatus did not contain expected values")
 
 	// Verify that UpstreamStatus is updated when the JSON RPC returns new values.
@@ -56,11 +56,11 @@ func TestHealthCheckManager(t *testing.T) {
 		Return(nil, nil)
 
 	assert.Eventually(t, func() bool {
-		return healthCheckManager.upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(1000) &&
-			healthCheckManager.upstreamIDToStatus["mainnet"].peerCount == uint64(2000) &&
-			healthCheckManager.upstreamIDToStatus["mainnet"].peerCountError == nil &&
-			!healthCheckManager.upstreamIDToStatus["mainnet"].isSyncing
-	}, 2*time.Second, 10*time.Millisecond, fmt.Sprintf("UpstreamIDToStatus did not contain expected values, actual: %+v", healthCheckManager.upstreamIDToStatus["mainnet"]))
+		return manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].currentBlockNumber == uint64(1000) &&
+			manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].peerCount == uint64(2000) &&
+			manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].peerCountError == nil &&
+			!manager.(*healthCheckManager).upstreamIDToStatus["mainnet"].isSyncing
+	}, 2*time.Second, 10*time.Millisecond, fmt.Sprintf("UpstreamIDToStatus did not contain expected values, actual: %+v", manager.(*healthCheckManager).upstreamIDToStatus["mainnet"]))
 }
 
 type rpcError struct{}

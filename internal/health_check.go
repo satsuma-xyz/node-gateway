@@ -73,15 +73,21 @@ func (s *UpstreamStatus) isHealthy(maxBlockHeight uint64) bool {
 	return true
 }
 
-type HealthCheckManager struct {
+//go:generate mockery --output ./mocks --name HealthCheckManager
+type HealthCheckManager interface {
+	StartHealthChecks()
+	GetHealthyUpstreams() []string
+}
+
+type healthCheckManager struct {
 	upstreamIDToStatus map[string]*UpstreamStatus
 	statusMutex        *sync.RWMutex
 	ethClientGetter    EthClientGetter
 	configs            []UpstreamConfig
 }
 
-func NewHealthCheckManager(ethClientGetter EthClientGetter, config []UpstreamConfig) *HealthCheckManager {
-	return &HealthCheckManager{
+func NewHealthCheckManager(ethClientGetter EthClientGetter, config []UpstreamConfig) HealthCheckManager {
+	return &healthCheckManager{
 		upstreamIDToStatus: make(map[string]*UpstreamStatus),
 		statusMutex:        &sync.RWMutex{},
 		ethClientGetter:    ethClientGetter,
@@ -89,7 +95,7 @@ func NewHealthCheckManager(ethClientGetter EthClientGetter, config []UpstreamCon
 	}
 }
 
-func (h *HealthCheckManager) StartHealthChecks() {
+func (h *healthCheckManager) StartHealthChecks() {
 	zap.L().Info("Starting health checks.")
 
 	for _, config := range h.configs {
@@ -120,7 +126,7 @@ func shouldUseWSForBlockHeight(config UpstreamConfig) bool {
 	return false
 }
 
-func (h *HealthCheckManager) GetHealthyUpstreams() []string {
+func (h *healthCheckManager) GetHealthyUpstreams() []string {
 	h.statusMutex.Lock()
 	defer h.statusMutex.Unlock()
 
@@ -147,7 +153,7 @@ func (h *HealthCheckManager) GetHealthyUpstreams() []string {
 	return healthyUpstreams
 }
 
-func (h *HealthCheckManager) monitorMaxBlockHeightByWebsocket(upstreamID, websocketURL string) {
+func (h *healthCheckManager) monitorMaxBlockHeightByWebsocket(upstreamID, websocketURL string) {
 	zap.L().Debug("Monitoring max block height for upstream via websockets", zap.String("upstreamID", upstreamID), zap.String("websocketURL", websocketURL))
 	websocketClient, err := h.ethClientGetter(websocketURL)
 
@@ -218,7 +224,7 @@ func subscribeNewHead(websocketClient EthClient, handler *newHeadHandler) error 
 	return nil
 }
 
-func (h *HealthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
+func (h *healthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
 	for {
 		for _, config := range configs {
 			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%v", config)))
@@ -251,7 +257,7 @@ func (h *HealthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
 	}
 }
 
-func (h *HealthCheckManager) checkMaxBlockHeightByHTTP(upstreamID string, httpClient EthClient) {
+func (h *healthCheckManager) checkMaxBlockHeightByHTTP(upstreamID string, httpClient EthClient) {
 	header, err := httpClient.HeaderByNumber(context.Background(), nil)
 
 	zap.L().Debug("Running checkMaxBlockHeightByHTTP on config", zap.Any("upstreamID", upstreamID), zap.Any("response", header), zap.Error(err))
@@ -268,7 +274,7 @@ func (h *HealthCheckManager) checkMaxBlockHeightByHTTP(upstreamID string, httpCl
 	h.upstreamIDToStatus[upstreamID].currentBlockNumber = header.Number.Uint64()
 }
 
-func (h *HealthCheckManager) checkPeerCount(upstreamID string, httpClient EthClient) {
+func (h *healthCheckManager) checkPeerCount(upstreamID string, httpClient EthClient) {
 	peerCount, err := httpClient.PeerCount(context.Background())
 
 	zap.L().Debug("Running checkPeerCount on config", zap.Any("upstreamID", upstreamID), zap.Any("response", peerCount), zap.Error(err))
@@ -285,7 +291,7 @@ func (h *HealthCheckManager) checkPeerCount(upstreamID string, httpClient EthCli
 	h.upstreamIDToStatus[upstreamID].peerCount = peerCount
 }
 
-func (h *HealthCheckManager) checkIsUpstreamSyncing(upstreamID string, httpClient EthClient) {
+func (h *healthCheckManager) checkIsUpstreamSyncing(upstreamID string, httpClient EthClient) {
 	syncProgress, err := httpClient.SyncProgress(context.Background())
 
 	zap.L().Debug("Running checkIsUpstreamSyncing on config", zap.Any("upstreamID", upstreamID), zap.Any("response", syncProgress), zap.Error(err))
