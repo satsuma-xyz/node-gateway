@@ -48,14 +48,16 @@ func main() {
 		zap.L().Fatal("Failed to load config.", zap.Error(err))
 	}
 
-	var rpcServer, metricsServer *http.Server
+	var rpcServer internal.RPCServer
+
+	var metricsServer *http.Server
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", config))
 
 	go func() {
 		rpcServer = internal.NewRPCServer(config)
 
-		if err := rpcServer.ListenAndServe(); err != http.ErrServerClosed {
+		if err := rpcServer.Start(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start RPC server.", zap.Error(err))
 		}
 	}()
@@ -80,7 +82,7 @@ func main() {
 	// Perform graceful shutdown.
 	zap.L().Info("Shutting down")
 
-	if err := rpcServer.Shutdown(context.Background()); err != nil {
+	if err := rpcServer.Shutdown(); err != nil {
 		zap.L().Fatal("Failed to gracefully shut down RPC server", zap.Error(err))
 	}
 

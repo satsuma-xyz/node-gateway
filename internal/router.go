@@ -17,8 +17,9 @@ import (
 // For now this is pretty simple, but in the future we'll have things like
 // caching, rate limiting, API-based routing and more.
 
-// go:generate mockery --output ./mocks --name Router
+//go:generate mockery --output ./mocks --name Router
 type Router interface {
+	Start()
 	Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error)
 }
 
@@ -29,7 +30,9 @@ type SimpleRouter struct {
 	upstreamConfigs    []UpstreamConfig
 }
 
-func NewRouter(healthCheckManager HealthCheckManager, upstreamConfigs []UpstreamConfig) Router {
+func NewRouter(upstreamConfigs []UpstreamConfig) Router {
+	healthCheckManager := NewHealthCheckManager(NewEthClient, upstreamConfigs)
+
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
 		upstreamConfigs:    upstreamConfigs,
@@ -39,6 +42,10 @@ func NewRouter(healthCheckManager HealthCheckManager, upstreamConfigs []Upstream
 	}
 
 	return r
+}
+
+func (r *SimpleRouter) Start() {
+	r.healthCheckManager.StartHealthChecks()
 }
 
 func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {

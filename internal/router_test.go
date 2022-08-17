@@ -2,6 +2,7 @@ package internal
 
 import (
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -22,7 +23,12 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 		},
 	}
 
-	router := NewRouter(managerMock, configs)
+	router := SimpleRouter{
+		healthCheckManager: managerMock,
+		upstreamConfigs:    configs,
+		upstreamsMutex:     &sync.RWMutex{},
+		routingStrategy:    NewRoundRobinStrategy(),
+	}
 
 	jsonResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()

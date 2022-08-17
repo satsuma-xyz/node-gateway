@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,11 +18,14 @@ const (
 	defaultReadHeaderTimeout = 10 * time.Second
 )
 
-func NewRPCServer(config Config) *http.Server {
-	healthCheckManager := NewHealthCheckManager(NewEthClient, config.Upstreams)
-	healthCheckManager.StartHealthChecks()
+type RPCServer struct {
+	httpServer *http.Server
+	router     Router
+	config     Config
+}
 
-	router := NewRouter(healthCheckManager, config.Upstreams)
+func NewRPCServer(config Config) RPCServer {
+	router := NewRouter(config.Upstreams)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -40,12 +44,26 @@ func NewRPCServer(config Config) *http.Server {
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
-	return httpServer
+	rpcServer := &RPCServer{
+		httpServer: httpServer,
+		router:     router,
+		config:     config,
+	}
+
+	return *rpcServer
+}
+
+func (s *RPCServer) Start() error {
+	s.router.Start()
+	return s.httpServer.ListenAndServe()
+}
+
+func (s *RPCServer) Shutdown() error {
+	return s.httpServer.Shutdown(context.Background())
 }
 
 type RPCHandler struct {
 	router Router
-	config Config
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
