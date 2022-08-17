@@ -47,7 +47,8 @@ linters:
     - predeclared
     - revive
     - staticcheck
-    - structcheck
+    # Temporarily disabled until generics are supported.
+    # - structcheck
     - stylecheck
     - thelper
     - tparallel

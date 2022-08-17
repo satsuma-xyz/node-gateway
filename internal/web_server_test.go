@@ -30,7 +30,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader("dummy")),
 			}, nil)
 
-	server := NewServer(Config{}, router)
+	handler := &RPCHandler{router: router, config: Config{}}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
@@ -38,7 +38,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	server.handleJSONRPCRequest(recorder, req)
+	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
 	defer result.Body.Close()
@@ -51,7 +51,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 
 func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 	router := mocks.NewRouter(t)
-	server := NewServer(Config{}, router)
+	handler := &RPCHandler{router: router, config: Config{}}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(emptyJSONBody))
@@ -59,7 +59,7 @@ func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	server.handleJSONRPCRequest(recorder, req)
+	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
 	defer result.Body.Close()
@@ -69,14 +69,14 @@ func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 
 func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 	router := mocks.NewRouter(t)
-	server := NewServer(Config{}, router)
+	handler := &RPCHandler{router: router, config: Config{}}
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("body")))
 	req.Header.Add("Content-Type", "text/plain")
 
 	recorder := httptest.NewRecorder()
 
-	server.handleJSONRPCRequest(recorder, req)
+	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
 	defer result.Body.Close()
@@ -86,14 +86,14 @@ func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 
 func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 	router := mocks.NewRouter(t)
-	server := NewServer(Config{}, router)
+	handler := &RPCHandler{router: router, config: Config{}}
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("{\"bad_json\": ")))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
 
-	server.handleJSONRPCRequest(recorder, req)
+	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
 	defer result.Body.Close()
@@ -103,7 +103,7 @@ func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 
 func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 	router := mocks.NewRouter(t)
-	server := NewServer(Config{}, router)
+	handler := &RPCHandler{router: router, config: Config{}}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{"unknown_field": "value"})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
@@ -111,7 +111,7 @@ func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 
-	server.handleJSONRPCRequest(recorder, req)
+	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
 	defer result.Body.Close()
