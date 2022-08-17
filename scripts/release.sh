@@ -92,10 +92,10 @@ go test -v ./...
 make clean
 
 LogStep "Creating archives for the GitHub release."
-make VERSION=$RELEASE_VERSION GIT_COMMIT_HASH=$COMMIT_HASH build_archives
+make VERSION=$RELEASE_VERSION GIT_COMMIT_HASH=$COMMIT_HASH build-archives
 
 LogStep "Building and pushing the image."
-make GIT_COMMIT_HASH=$COMMIT_HASH DOCKER_HUB_REPO=$DOCKER_HUB_REPO VERSION=$RELEASE_VERSION build_and_push_image
+make GIT_COMMIT_HASH=$COMMIT_HASH DOCKER_HUB_REPO=$DOCKER_HUB_REPO VERSION=$RELEASE_VERSION build-and-push-image
 
 LogStep "Checking out the original commit."
 git checkout $CURRENT_BRANCH
