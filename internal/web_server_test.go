@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,7 @@ import (
 
 func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	router := mocks.NewRouter(t)
-	expectedRPCResponse := jsonrpc.ResponseBody{
+	expectedRPCResponse := &jsonrpc.ResponseBody{
 		JSONRPC: jsonrpc.JSONRPCVersion,
 		Result:  "results",
 		ID:      2,
@@ -117,4 +118,57 @@ func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 	defer result.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, result.StatusCode)
+}
+
+func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
+	router := mocks.NewRouter(t)
+
+	router.On("Route", mock.Anything).
+		Return(nil,
+			&http.Response{
+				StatusCode: http.StatusAccepted,
+				Body:       io.NopCloser(strings.NewReader("dummy")),
+			}, nil)
+
+	handler := &RPCHandler{router: router}
+
+	emptyJSONBody, _ := json.Marshal(map[string]any{})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req.Header.Add("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	result := recorder.Result()
+	defer result.Body.Close()
+
+	assert.Equal(t, http.StatusAccepted, result.StatusCode)
+	body, _ := io.ReadAll(result.Body)
+	assert.Empty(t, body)
+}
+
+func TestHandleJSONRPCRequest_JSONRPCDecodeError(t *testing.T) {
+	router := mocks.NewRouter(t)
+	undecodableContent := []byte("content")
+
+	router.On("Route", mock.Anything).
+		Return(nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
+
+	handler := &RPCHandler{router: router}
+
+	emptyJSONBody, _ := json.Marshal(map[string]any{})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req.Header.Add("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	result := recorder.Result()
+	defer result.Body.Close()
+
+	assert.Equal(t, http.StatusOK, result.StatusCode)
+	body, _ := io.ReadAll(result.Body)
+	assert.Equal(t, undecodableContent, body)
 }
