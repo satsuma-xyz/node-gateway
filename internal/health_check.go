@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +28,10 @@ func isMethodNotSupportedErr(err error) bool {
 	case rpc.Error:
 		return e.ErrorCode() == JSONRPCErrCodeMethodNotFound
 	default:
-		return false
+		// Some node providers like Alchemy do not follow the JSON-RPC spec and
+		// return errors that don't use JSONRPCErrCodeMethodNotFound and don't
+		// match rpc.Error.
+		return strings.Contains(strings.ToLower(err.Error()), "unsupported method")
 	}
 }
 
@@ -58,7 +62,7 @@ func (s *UpstreamStatus) isHealthy(maxBlockHeight uint64) bool {
 		return false
 	}
 
-	if s.peerCount < minimumPeerCount {
+	if !isMethodNotSupportedErr(s.peerCountError) && s.peerCount < minimumPeerCount {
 		zap.L().Debug("Upstream beneath the minimum peer count, marking it is unhealthy.", zap.String("upstreamID", s.ID), zap.Int("minPeerCount", minimumPeerCount), zap.String("upstreamStatus", fmt.Sprintf("%v", s)))
 		return false
 	}

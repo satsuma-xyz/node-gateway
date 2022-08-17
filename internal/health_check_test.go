@@ -73,6 +73,10 @@ type methodNotSupportedError struct{}
 func (e methodNotSupportedError) Error() string  { return "Method Not Supported." }
 func (e methodNotSupportedError) ErrorCode() int { return JSONRPCErrCodeMethodNotFound }
 
+type alchemyMethodNotSupportedError struct{}
+
+func (e alchemyMethodNotSupportedError) Error() string { return "Unsupported method: net_peerCount." }
+
 func TestNodeStatus(t *testing.T) {
 	for _, testCase := range []struct {
 		upstreamStatus *UpstreamStatus
@@ -116,7 +120,21 @@ func TestNodeStatus(t *testing.T) {
 				isSyncingError:          nil,
 				connectionError:         nil,
 				currentBlockNumber:      20,
-				peerCount:               5,
+				peerCount:               0,
+				isSyncing:               false,
+			},
+			maxBlockHeight: 20,
+			healthy:        true,
+		},
+		{
+			name: "A healthy upstream node with that got 'method not supported errors' without a proper JSON RPC error code in healthchecks",
+			upstreamStatus: &UpstreamStatus{
+				currentBlockNumberError: nil,
+				peerCountError:          alchemyMethodNotSupportedError{},
+				isSyncingError:          nil,
+				connectionError:         nil,
+				currentBlockNumber:      20,
+				peerCount:               0,
 				isSyncing:               false,
 			},
 			maxBlockHeight: 20,
