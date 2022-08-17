@@ -58,6 +58,11 @@ See the [sample config](/configs/config.sample.yml).
 
 Interested in a specific feature? Join our [Discord community]() to let us know.
 
+## Metrics
+
+By default, Prometheus metrics are exposed on port 9090. See
+[metrics.go](/internal/metrics/metrics.go) for more details.
+
 ## Development
 
 #### Running locally
