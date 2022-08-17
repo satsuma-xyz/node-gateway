@@ -113,7 +113,7 @@ func TestNodeStatus(t *testing.T) {
 			healthy:        false,
 		},
 		{
-			name: "A healthy upstream node with that got 'method not supported errors' in healthchecks",
+			name: "A healthy upstream node with a 'method not supported' error in healthchecks",
 			upstreamStatus: &UpstreamStatus{
 				currentBlockNumberError: nil,
 				peerCountError:          methodNotSupportedError{},
@@ -127,7 +127,7 @@ func TestNodeStatus(t *testing.T) {
 			healthy:        true,
 		},
 		{
-			name: "A healthy upstream node with that got 'method not supported errors' without a proper JSON RPC error code in healthchecks",
+			name: "A healthy upstream node with a 'method not supported' error that has an improper JSON RPC error code in healthchecks",
 			upstreamStatus: &UpstreamStatus{
 				currentBlockNumberError: nil,
 				peerCountError:          alchemyMethodNotSupportedError{},
