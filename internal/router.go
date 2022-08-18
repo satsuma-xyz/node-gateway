@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -78,6 +79,9 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 	}
 
 	httpReq.Header.Set("content-type", "application/json")
+
+	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
+	httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
 
 	client := &http.Client{}
 	resp, err := client.Do(httpReq)

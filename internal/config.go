@@ -9,13 +9,14 @@ import (
 )
 
 type UpstreamConfig struct {
-	HealthCheckConfig HealthCheckConfig `yaml:"healthCheckConfig"`
+	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
+	HealthCheckConfig HealthCheckConfig `yaml:"healthCheck"`
 	ID                string            `yaml:"id"`
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
 }
 
-func (c UpstreamConfig) isValid() bool {
+func (c *UpstreamConfig) isValid() bool {
 	isValid := true
 	if c.HTTPURL == "" {
 		isValid = false
@@ -35,6 +36,11 @@ func (c UpstreamConfig) isValid() bool {
 type HealthCheckConfig struct {
 	// If not set - method to identify block height is auto-detected. Use websockets is its URL is set, else fall back to use HTTP polling.
 	UseWSForBlockHeight *bool `yaml:"useWsForBlockHeight"`
+}
+
+type BasicAuthConfig struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type GlobalConfig struct {

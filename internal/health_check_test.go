@@ -26,7 +26,7 @@ func TestHealthCheckManager(t *testing.T) {
 	}
 
 	ethereumClient := mocks.NewEthClient(t)
-	mockEthClientGetter := func(url string) (EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *BasicAuthCredentials) (EthClient, error) {
 		return ethereumClient, nil
 	}
 
