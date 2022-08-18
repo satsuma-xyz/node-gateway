@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
@@ -21,10 +22,10 @@ const (
 type RPCServer struct {
 	httpServer *http.Server
 	router     Router
-	config     Config
+	config     conf.Config
 }
 
-func NewRPCServer(config Config) RPCServer {
+func NewRPCServer(config conf.Config) RPCServer {
 	router := NewRouter(config.Upstreams)
 	handler := &RPCHandler{
 		router: router,

@@ -1,4 +1,4 @@
-package internal
+package client
 
 import (
 	"context"
@@ -13,7 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-//go:generate mockery --output ./mocks --name EthClient
+type NewHeadHandler struct {
+	OnNewHead func(header *types.Header)
+	OnError   func(failure string)
+}
+
+//go:generate mockery --output ../mocks --name EthClient
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
