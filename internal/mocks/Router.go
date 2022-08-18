@@ -45,6 +45,11 @@ func (_m *Router) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, 
 	return r0, r1, r2
 }
 
+// Start provides a mock function with given fields:
+func (_m *Router) Start() {
+	_m.Called()
+}
+
 type mockConstructorTestingTNewRouter interface {
 	mock.TestingT
 	Cleanup(func())

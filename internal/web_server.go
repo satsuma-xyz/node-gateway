@@ -1,49 +1,76 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
 const (
-	defaultServerPort = 8080
+	defaultServerPort        = 8080
+	defaultReadHeaderTimeout = 10 * time.Second
 )
 
-func StartServer(config Config) error {
-	healthCheckManager := NewHealthCheckManager(NewEthClient, config.Upstreams)
-	healthCheckManager.StartHealthChecks()
+type RPCServer struct {
+	httpServer *http.Server
+	router     Router
+	config     Config
+}
 
-	router := NewRouter(healthCheckManager, config.Upstreams)
-
-	server := NewServer(config, router)
-	http.HandleFunc("/", server.handleJSONRPCRequest)
+func NewRPCServer(config Config) RPCServer {
+	router := NewRouter(config.Upstreams)
+	handler := &RPCHandler{
+		router: router,
+	}
 
 	port := defaultServerPort
 	if config.Global.Port > 0 {
 		port = config.Global.Port
 	}
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	mux := http.NewServeMux()
+	mux.Handle("/", handler)
+
+	httpServer := &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           mux,
+		ReadHeaderTimeout: defaultReadHeaderTimeout,
+	}
+
+	rpcServer := &RPCServer{
+		httpServer: httpServer,
+		router:     router,
+		config:     config,
+	}
+
+	return *rpcServer
 }
 
-type Server struct {
+func (s *RPCServer) Start() error {
+	s.router.Start()
+	return s.httpServer.ListenAndServe()
+}
+
+func (s *RPCServer) Shutdown() error {
+	return s.httpServer.Shutdown(context.Background())
+}
+
+type RPCHandler struct {
 	router Router
 }
 
-func NewServer(config Config, router Router) *Server {
-	return &Server{
-		router: router,
-	}
-}
+func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
+	metrics.RPCRequestsCounter.Inc()
 
-func (s *Server) handleJSONRPCRequest(responseWriter http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		respond(responseWriter, "Method not allowed.", http.StatusMethodNotAllowed)
+		respond(writer, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -52,62 +79,62 @@ func (s *Server) handleJSONRPCRequest(responseWriter http.ResponseWriter, req *h
 	// 'application/json' or 'application/jsonrequest'.
 	// See https://www.jsonrpc.org/historical/json-rpc-over-http.html.
 	if !slices.Contains([]string{"application/json", "application/json-rpc", "application/jsonrequest"}, headerContentType) {
-		respond(responseWriter, "Content-Type not supported.", http.StatusUnsupportedMediaType)
+		respond(writer, "Content-Type not supported.", http.StatusUnsupportedMediaType)
 		return
 	}
 
 	body, err := jsonrpc.DecodeRequestBody(req)
 	if err != nil {
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
-		respondJSONRPC(responseWriter, resp, http.StatusBadRequest)
+		respondJSONRPC(writer, resp, http.StatusBadRequest)
 
 		return
 	}
 
 	zap.L().Info("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
-	respBody, resp, err := s.router.Route(body)
+	respBody, resp, err := h.router.Route(body)
 	defer resp.Body.Close()
 
 	if err != nil {
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
-		respondJSONRPC(responseWriter, resp, http.StatusInternalServerError)
+		respondJSONRPC(writer, resp, http.StatusInternalServerError)
 
 		return
 	}
 
-	respondJSONRPC(responseWriter, respBody, resp.StatusCode)
+	respondJSONRPC(writer, respBody, resp.StatusCode)
 
 	zap.L().Debug("Request successfully routed", zap.Any("requestBody", body))
 }
 
-func respondJSONRPC(responseWriter http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
+func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
 	respBytes, err := response.EncodeResponseBody()
 	if err != nil {
 		zap.L().Error("Failed to serialize response.", zap.Error(err), zap.String("response", string(respBytes)))
 		return
 	}
 
-	responseWriter.WriteHeader(httpStatusCode)
-	responseWriter.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(httpStatusCode)
+	writer.Header().Set("Content-Type", "application/json")
 
-	if i, err := responseWriter.Write(respBytes); err != nil {
+	if i, err := writer.Write(respBytes); err != nil {
 		zap.L().Error("Failed to write JSON RPC response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
 		return
 	}
 }
 
-func respond(responseWriter http.ResponseWriter, message string, httpStatusCode int) {
+func respond(writer http.ResponseWriter, message string, httpStatusCode int) {
 	resp := make(map[string]string)
 	if message != "" {
 		resp["message"] = message
 	}
 
-	responseWriter.WriteHeader(httpStatusCode)
-	responseWriter.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(httpStatusCode)
+	writer.Header().Set("Content-Type", "application/json")
 
 	jsonResp, _ := json.Marshal(resp)
-	if i, err := responseWriter.Write(jsonResp); err != nil {
+	if i, err := writer.Write(jsonResp); err != nil {
 		zap.L().Error("Failed to write response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
 		return
 	}
