@@ -110,17 +110,18 @@ func (h *healthCheckManager) StartHealthChecks() {
 		}
 	}
 
-	for _, config := range h.configs {
-		if shouldUseWSForBlockHeight(config) {
+	for i := range h.configs {
+		config := h.configs[i]
+		if shouldUseWSForBlockHeight(&config) {
 			// :TODO: handle case of subscribe failure, fall back to using HTTP polling
-			go h.monitorMaxBlockHeightByWebsocket(config.ID, config.WSURL)
+			go h.monitorMaxBlockHeightByWebsocket(&config)
 		}
 	}
 
 	go h.runPeriodicChecks(h.configs)
 }
 
-func shouldUseWSForBlockHeight(config UpstreamConfig) bool {
+func shouldUseWSForBlockHeight(config *UpstreamConfig) bool {
 	if config.WSURL != "" {
 		if config.HealthCheckConfig.UseWSForBlockHeight == nil || *config.HealthCheckConfig.UseWSForBlockHeight {
 			return true
@@ -157,9 +158,14 @@ func (h *healthCheckManager) GetHealthyUpstreams() []string {
 	return healthyUpstreams
 }
 
-func (h *healthCheckManager) monitorMaxBlockHeightByWebsocket(upstreamID, websocketURL string) {
+func (h *healthCheckManager) monitorMaxBlockHeightByWebsocket(upstreamConfig *UpstreamConfig) {
+	upstreamID := upstreamConfig.ID
+	websocketURL := upstreamConfig.WSURL
+	authConfig := upstreamConfig.BasicAuthConfig
+
 	zap.L().Debug("Monitoring max block height for upstream via websockets", zap.String("upstreamID", upstreamID), zap.String("websocketURL", websocketURL))
-	websocketClient, err := h.ethClientGetter(websocketURL)
+
+	websocketClient, err := h.ethClientGetter(websocketURL, &BasicAuthCredentials{Username: authConfig.Username, Password: authConfig.Password})
 
 	if err != nil {
 		zap.L().Error("Failed to connect to upstream to monitor max block height.", zap.String("upstreamID", upstreamID), zap.Error(err))
@@ -230,10 +236,12 @@ func subscribeNewHead(websocketClient EthClient, handler *newHeadHandler) error 
 
 func (h *healthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
 	for {
-		for _, config := range configs {
+		for i := range configs {
+			config := configs[i]
 			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%v", config)))
 
-			httpClient, err := h.ethClientGetter(config.HTTPURL)
+			authConfig := config.BasicAuthConfig
+			httpClient, err := h.ethClientGetter(config.HTTPURL, &BasicAuthCredentials{Username: authConfig.Username, Password: authConfig.Password})
 			h.statusMutex.Lock()
 			h.upstreamIDToStatus[config.ID].connectionError = err
 			h.statusMutex.Unlock()
@@ -244,7 +252,7 @@ func (h *healthCheckManager) runPeriodicChecks(configs []UpstreamConfig) {
 			}
 
 			// Already doing `eth_subscribe` to `newHeads` via websockets to get max block height
-			if !shouldUseWSForBlockHeight(config) {
+			if !shouldUseWSForBlockHeight(&config) {
 				go h.checkMaxBlockHeightByHTTP(config.ID, httpClient)
 			}
 

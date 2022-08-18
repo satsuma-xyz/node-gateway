@@ -21,7 +21,7 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 			upstreams:
 			  - id: alchemy-eth
 				wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				healthCheckConfig:
+				healthCheck:
 				  useWsForBlockHeight: true
 			`,
 		},
@@ -34,7 +34,7 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 			upstreams:
 			  - id: alchemy-eth
 				httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				healthCheckConfig:
+				healthCheck:
 				  useWsForBlockHeight: true
 			`,
 		},
@@ -58,7 +58,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
       - id: alchemy-eth
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-        healthCheckConfig:
+        healthCheck:
           useWsForBlockHeight: true
       - id: ankr-polygon
         httpURL: "https://rpc.ankr.com/polygon"
