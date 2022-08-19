@@ -11,6 +11,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 )
 
@@ -28,11 +30,11 @@ type SimpleRouter struct {
 	upstreamsMutex     *sync.RWMutex
 	healthCheckManager HealthCheckManager
 	routingStrategy    RoutingStrategy
-	upstreamConfigs    []UpstreamConfig
+	upstreamConfigs    []config.UpstreamConfig
 }
 
-func NewRouter(upstreamConfigs []UpstreamConfig) Router {
-	healthCheckManager := NewHealthCheckManager(NewEthClient, upstreamConfigs)
+func NewRouter(upstreamConfigs []config.UpstreamConfig) Router {
+	healthCheckManager := NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
 
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
@@ -62,7 +64,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 
 	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
 
-	var configToRoute UpstreamConfig
+	var configToRoute config.UpstreamConfig
 
 	for _, config := range r.upstreamConfigs {
 		if config.ID == id {
@@ -90,8 +92,8 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
 	httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
 
-	client := &http.Client{}
-	resp, err := client.Do(httpReq)
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(httpReq)
 
 	if err != nil {
 		zap.L().Error("Error encountered when executing request", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))

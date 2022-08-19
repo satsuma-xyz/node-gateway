@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
@@ -14,12 +15,12 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
 	managerMock.On("GetHealthyUpstreams").Return([]string{})
 
-	configs := []UpstreamConfig{
+	configs := []config.UpstreamConfig{
 		{
 			ID:                "mainnet",
 			HTTPURL:           "http://rpc.ankr.io/eth",
 			WSURL:             "wss://something/something",
-			HealthCheckConfig: HealthCheckConfig{UseWSForBlockHeight: newBool(false)},
+			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: newBool(false)},
 		},
 	}
 
