@@ -63,10 +63,10 @@ func main() {
 		}
 	}()
 
-	zap.L().Info("Starting metrics server.", zap.String("env", env), zap.Int("port", metrics.DefaultPort))
+	zap.L().Info("Starting metrics server.", zap.String("env", env), zap.Int("port", conf.Global.MetricsPort))
 
 	go func() {
-		metricsServer = metrics.NewMetricsServer()
+		metricsServer = metrics.NewMetricsServer(conf)
 
 		if err := metricsServer.ListenAndServe(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start metrics server.", zap.Error(err))

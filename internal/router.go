@@ -33,8 +33,11 @@ type SimpleRouter struct {
 	upstreamConfigs    []config.UpstreamConfig
 }
 
-func NewRouter(upstreamConfigs []config.UpstreamConfig) Router {
-	healthCheckManager := NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+func NewRouter(upstreamConfigs []config.UpstreamConfig, enableHealthChecks bool) Router {
+	var healthCheckManager HealthCheckManager
+	if enableHealthChecks {
+		healthCheckManager = NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+	}
 
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
@@ -48,18 +51,30 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig) Router {
 }
 
 func (r *SimpleRouter) Start() {
-	r.healthCheckManager.StartHealthChecks()
+	if r.healthCheckManager != nil {
+		r.healthCheckManager.StartHealthChecks()
+	}
 }
 
 func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
-	healthyUpstreams := r.healthCheckManager.GetHealthyUpstreams()
-	if len(healthyUpstreams) == 0 {
-		httpResp := &http.Response{
-			StatusCode: http.StatusServiceUnavailable,
-			Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
-		}
+	healthyUpstreams := make([]string, 0)
 
-		return jsonrpc.ResponseBody{}, httpResp, nil
+	if r.healthCheckManager == nil {
+		for _, upstreamConfig := range r.upstreamConfigs {
+			healthyUpstreams = append(healthyUpstreams, upstreamConfig.ID)
+		}
+	}
+
+	if r.healthCheckManager != nil {
+		healthyUpstreams = r.healthCheckManager.GetHealthyUpstreams()
+		if len(healthyUpstreams) == 0 {
+			httpResp := &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
+			}
+
+			return jsonrpc.ResponseBody{}, httpResp, nil
+		}
 	}
 
 	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
@@ -73,7 +88,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 		}
 	}
 
-	zap.L().Debug("Routing request to config.", zap.Any("request", requestBody), zap.Any("config", configToRoute))
+	zap.L().Info("Routing request to upstream.", zap.Any("upstreamID", configToRoute.ID))
 
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
@@ -97,9 +112,9 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 
 	if err != nil {
 		zap.L().Error("Error encountered when executing request", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+
 		return jsonrpc.ResponseBody{}, nil, err
 	}
-	defer resp.Body.Close()
 
 	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
@@ -107,7 +122,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 		return jsonrpc.ResponseBody{}, nil, err
 	}
 
-	zap.L().Debug("Successfully routed request to config.", zap.Any("request", requestBody), zap.Any("response", respBody), zap.Any("config", configToRoute))
+	zap.L().Debug("Successfully routed request to upstream.", zap.Any("response", respBody), zap.Any("upstreamID", configToRoute.ID))
 
 	return respBody, resp, nil
 }

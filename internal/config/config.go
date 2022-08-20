@@ -44,7 +44,9 @@ type BasicAuthConfig struct {
 }
 
 type GlobalConfig struct {
-	Port int `yaml:"port"`
+	Port               int  `yaml:"port"`
+	MetricsPort        int  `yaml:"metricsPort"`
+	EnableHealthChecks bool `yaml:"enableHealthChecks"`
 }
 
 type Config struct {

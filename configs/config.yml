@@ -1,0 +1,14 @@
+global:
+  port: 9091
+  metricsPort: 9092
+  enableHealthChecks: false
+
+# List of upstream node RPCs.
+upstreams:
+  # Each upstream can have the following keys:
+  #
+  # id - Unique identifier for the upstream.
+  # httpURL - HTTP JSON RPC URL.
+  # wsURL - Websocket URL.
+  - id: my-node
+    httpURL: "http://localhost:8545"

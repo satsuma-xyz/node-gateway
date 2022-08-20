@@ -26,7 +26,7 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := NewRouter(config.Upstreams)
+	router := NewRouter(config.Upstreams, config.Global.EnableHealthChecks)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -95,7 +95,9 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	zap.L().Info("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
 	respBody, resp, err := h.router.Route(body)
-	defer resp.Body.Close()
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 
 	if err != nil {
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
@@ -105,8 +107,6 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	respondJSONRPC(writer, respBody, resp.StatusCode)
-
-	zap.L().Debug("Request successfully routed", zap.Any("requestBody", body))
 }
 
 func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
