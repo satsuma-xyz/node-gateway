@@ -64,21 +64,10 @@ func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf
 func (h *healthCheckManager) StartHealthChecks() {
 	zap.L().Info("Starting health checks.")
 
-	for i := range h.configs {
-		config := h.configs[i]
-		blockHeightCheck := h.newBlockHeightCheck(&config, client.NewEthClient)
-		peerCheck := h.newPeerCheck(&config, client.NewEthClient)
-		syncingCheck := h.newSyncingCheck(&config, client.NewEthClient)
-
-		h.upstreamIDToStatus[config.ID] = &UpstreamStatus{
-			ID:               config.ID,
-			blockHeightCheck: blockHeightCheck,
-			peerCheck:        peerCheck,
-			syncingCheck:     syncingCheck,
-		}
-	}
-
-	go h.runPeriodicChecks(h.configs)
+	go func() {
+		h.initializeChecks()
+		h.runPeriodicChecks()
+	}()
 }
 
 func (h *healthCheckManager) GetHealthyUpstreams() []string {
@@ -105,13 +94,75 @@ func (h *healthCheckManager) GetHealthyUpstreams() []string {
 	return healthyUpstreams
 }
 
-func (h *healthCheckManager) runPeriodicChecks(configs []conf.UpstreamConfig) {
+func (h *healthCheckManager) initializeChecks() {
+	var mutex sync.RWMutex
+
+	var outerWG sync.WaitGroup
+
+	// Parallelize to speed up gateway startup.
+	for i := range h.configs {
+		config := h.configs[i]
+
+		outerWG.Add(1)
+
+		go func() {
+			defer outerWG.Done()
+
+			var innerWG sync.WaitGroup
+
+			var blockHeightCheck BlockHeightChecker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient)
+			}()
+
+			var peerCheck Checker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				peerCheck = h.newPeerCheck(&config, client.NewEthClient)
+			}()
+
+			var syncingCheck Checker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient)
+			}()
+
+			innerWG.Wait()
+
+			mutex.Lock()
+			h.upstreamIDToStatus[config.ID] = &UpstreamStatus{
+				ID:               config.ID,
+				blockHeightCheck: blockHeightCheck,
+				peerCheck:        peerCheck,
+				syncingCheck:     syncingCheck,
+			}
+			mutex.Unlock()
+		}()
+	}
+
+	outerWG.Wait()
+}
+
+func (h *healthCheckManager) runPeriodicChecks() {
 	for {
 		var wg sync.WaitGroup
 
-		for i := range configs {
-			config := configs[i]
-			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%+v", config)))
+		for i := range h.configs {
+			config := h.configs[i]
+			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%v", config)))
 
 			wg.Add(1)
 

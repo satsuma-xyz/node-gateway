@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"math/big"
 	netUrl "net/url"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+)
+
+const (
+	clientDialTimeout = 10 * time.Second
 )
 
 type NewHeadHandler struct {
@@ -35,7 +40,10 @@ type EthClientGetter func(url string, credentials *BasicAuthCredentials) (EthCli
 
 func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, error) {
 	if credentials == nil {
-		return ethclient.Dial(url)
+		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
+		defer cancel()
+
+		return ethclient.DialContext(ctx, url)
 	}
 
 	parsedURL, err := netUrl.Parse(url)
@@ -49,7 +57,10 @@ func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, err
 	// Consider implementing our own client if we need to hack around it more.
 	switch parsedURL.Scheme {
 	case "http", "https":
-		c, err := rpc.DialContext(context.Background(), url)
+		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
+		defer cancel()
+
+		c, err := rpc.DialContext(ctx, url)
 
 		if err != nil {
 			return nil, err
@@ -62,7 +73,11 @@ func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, err
 	case "ws", "wss":
 		parsedURL.User = netUrl.UserPassword(credentials.Username, credentials.Password)
 		urlWithUser := parsedURL.String()
-		c, err := rpc.DialContext(context.Background(), urlWithUser)
+
+		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
+		defer cancel()
+
+		c, err := rpc.DialContext(ctx, urlWithUser)
 
 		if err != nil {
 			return nil, err
