@@ -34,7 +34,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	jsonResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
 
-	assert.Equal(t, jsonrpc.ResponseBody{}, jsonResp)
+	assert.Nil(t, jsonResp)
 	assert.Equal(t, 503, httpResp.StatusCode)
 	assert.Equal(t, "No healthy upstream", readyBody(httpResp.Body))
 	assert.Nil(t, err)

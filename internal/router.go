@@ -23,7 +23,7 @@ import (
 //go:generate mockery --output ./mocks --name Router
 type Router interface {
 	Start()
-	Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error)
+	Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -51,7 +51,7 @@ func (r *SimpleRouter) Start() {
 	r.healthCheckManager.StartHealthChecks()
 }
 
-func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
+func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
 	healthyUpstreams := r.healthCheckManager.GetHealthyUpstreams()
 	if len(healthyUpstreams) == 0 {
 		httpResp := &http.Response{
@@ -59,7 +59,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 			Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
 		}
 
-		return jsonrpc.ResponseBody{}, httpResp, nil
+		return nil, httpResp, nil
 	}
 
 	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
@@ -78,13 +78,13 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
 		zap.L().Error("Could not serialize request", zap.Any("request", requestBody), zap.Error(err))
-		return jsonrpc.ResponseBody{}, nil, err
+		return nil, nil, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		zap.L().Error("Could not create new http request", zap.Any("request", requestBody), zap.Error(err))
-		return jsonrpc.ResponseBody{}, nil, err
+		return nil, nil, err
 	}
 
 	httpReq.Header.Set("content-type", "application/json")
@@ -97,14 +97,14 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseB
 
 	if err != nil {
 		zap.L().Error("Error encountered when executing request", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
-		return jsonrpc.ResponseBody{}, nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
 		zap.L().Error("Could not deserialize response", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
-		return jsonrpc.ResponseBody{}, nil, err
+		return nil, nil, err
 	}
 
 	zap.L().Debug("Successfully routed request to config.", zap.Any("request", requestBody), zap.Any("response", respBody), zap.Any("config", configToRoute))

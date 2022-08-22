@@ -71,7 +71,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	metrics.RPCRequestsCounter.Inc()
 
 	if req.Method != http.MethodPost {
-		respond(writer, "Method not allowed.", http.StatusMethodNotAllowed)
+		respondJSON(writer, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -80,14 +80,14 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	// 'application/json' or 'application/jsonrequest'.
 	// See https://www.jsonrpc.org/historical/json-rpc-over-http.html.
 	if !slices.Contains([]string{"application/json", "application/json-rpc", "application/jsonrequest"}, headerContentType) {
-		respond(writer, "Content-Type not supported.", http.StatusUnsupportedMediaType)
+		respondJSON(writer, "Content-Type not supported.", http.StatusUnsupportedMediaType)
 		return
 	}
 
 	body, err := jsonrpc.DecodeRequestBody(req)
 	if err != nil {
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
-		respondJSONRPC(writer, resp, http.StatusBadRequest)
+		respondJSONRPC(writer, &resp, http.StatusBadRequest)
 
 		return
 	}
@@ -95,13 +95,21 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	zap.L().Info("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
 	respBody, resp, err := h.router.Route(body)
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 
 	if err != nil {
-		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
-		respondJSONRPC(writer, resp, http.StatusInternalServerError)
+		switch e := err.(type) {
+		case jsonrpc.DecodeError:
+			respondRaw(writer, e.Content, http.StatusOK)
+			return
+		default:
+			resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
+			respondJSONRPC(writer, &resp, http.StatusInternalServerError)
 
-		return
+			return
+		}
 	}
 
 	respondJSONRPC(writer, respBody, resp.StatusCode)
@@ -109,7 +117,12 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	zap.L().Debug("Request successfully routed", zap.Any("requestBody", body))
 }
 
-func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
+func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, httpStatusCode int) {
+	if response == nil {
+		writer.WriteHeader(httpStatusCode)
+		return
+	}
+
 	respBytes, err := response.EncodeResponseBody()
 	if err != nil {
 		zap.L().Error("Failed to serialize response.", zap.Error(err), zap.String("response", string(respBytes)))
@@ -125,7 +138,7 @@ func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, h
 	}
 }
 
-func respond(writer http.ResponseWriter, message string, httpStatusCode int) {
+func respondJSON(writer http.ResponseWriter, message string, httpStatusCode int) {
 	resp := make(map[string]string)
 	if message != "" {
 		resp["message"] = message
@@ -137,6 +150,15 @@ func respond(writer http.ResponseWriter, message string, httpStatusCode int) {
 	jsonResp, _ := json.Marshal(resp)
 	if i, err := writer.Write(jsonResp); err != nil {
 		zap.L().Error("Failed to write response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
+		return
+	}
+}
+
+func respondRaw(writer http.ResponseWriter, body []byte, httpStatusCode int) {
+	writer.WriteHeader(httpStatusCode)
+
+	if i, err := writer.Write(body); err != nil {
+		zap.L().Error("Failed to write raw response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(body)))
 		return
 	}
 }

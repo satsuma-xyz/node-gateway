@@ -16,14 +16,16 @@ type Router struct {
 }
 
 // Route provides a mock function with given fields: requestBody
-func (_m *Router) Route(requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
+func (_m *Router) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
 	ret := _m.Called(requestBody)
 
-	var r0 jsonrpc.ResponseBody
-	if rf, ok := ret.Get(0).(func(jsonrpc.RequestBody) jsonrpc.ResponseBody); ok {
+	var r0 *jsonrpc.ResponseBody
+	if rf, ok := ret.Get(0).(func(jsonrpc.RequestBody) *jsonrpc.ResponseBody); ok {
 		r0 = rf(requestBody)
 	} else {
-		r0 = ret.Get(0).(jsonrpc.ResponseBody)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*jsonrpc.ResponseBody)
+		}
 	}
 
 	var r1 *http.Response

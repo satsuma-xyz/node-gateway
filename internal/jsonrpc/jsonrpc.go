@@ -1,7 +1,10 @@
 package jsonrpc
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -51,17 +54,46 @@ func (b *ResponseBody) EncodeResponseBody() ([]byte, error) {
 	return json.Marshal(b)
 }
 
-func DecodeResponseBody(resp *http.Response) (ResponseBody, error) {
+type DecodeError struct {
+	Err     error
+	Content []byte // Content that couldn't be decoded.
+}
+
+func NewDecodeError(err error, content []byte) DecodeError {
+	return DecodeError{
+		Err:     err,
+		Content: content,
+	}
+}
+
+func (e DecodeError) Error() string {
+	return fmt.Sprintf("decode error: %s, content: %s", e.Err.Error(), string(e.Content))
+}
+
+func DecodeResponseBody(resp *http.Response) (*ResponseBody, error) {
 	// As per the spec, it is the caller's responsibility to close the response body.
 	defer resp.Body.Close()
-	decoder := json.NewDecoder(resp.Body)
+	responseRawBytes, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, NewDecodeError(err, responseRawBytes)
+	}
+
+	// Empty JSON RPC responses are valid for "Notifications" (requests without "ID") https://www.jsonrpc.org/specification#notification
+	if len(responseRawBytes) == 0 {
+		return nil, nil
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(responseRawBytes))
 	decoder.DisallowUnknownFields()
 
 	var body ResponseBody
 
-	err := decoder.Decode(&body)
+	if err = decoder.Decode(&body); err != nil {
+		err = NewDecodeError(err, responseRawBytes)
+	}
 
-	return body, err
+	return &body, err
 }
 
 func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode, id int) ResponseBody {

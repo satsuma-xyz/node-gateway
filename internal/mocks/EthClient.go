@@ -3,10 +3,9 @@
 package mocks
 
 import (
-	context "context"
 	big "math/big"
 
-	client "github.com/satsuma-data/node-gateway/internal/client"
+	context "context"
 
 	ethereum "github.com/ethereum/go-ethereum"
 
@@ -85,20 +84,6 @@ func (_m *EthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Head
 	}
 
 	return r0, r1
-}
-
-// SubscribeNewHeadWrapper provides a mock function with given fields: ctx, handler
-func (_m *EthClient) SubscribeNewHeadWrapper(ctx context.Context, handler *client.NewHeadHandler) error {
-	ret := _m.Called(ctx, handler)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *client.NewHeadHandler) error); ok {
-		r0 = rf(ctx, handler)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // SyncProgress provides a mock function with given fields: ctx
