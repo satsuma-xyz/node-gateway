@@ -8,6 +8,13 @@ upstreams:
   # id - Unique identifier for the upstream.
   # httpURL - HTTP JSON RPC URL.
   # wsURL - Websocket URL.
+  # basicAuth - Basic HTTP authentication username and password.
+  # healthCheck - Health check-specific configuration.
+  #   useWsForBlockHeight - Whether or not we subscribe to newHeads using
+  #     websockets to detect the latest block height. This is preferred because
+  #     it quickly updates the gateway with the latest block height. If this
+  #     setting is undefined, the gateway will attempt to subscribe to new
+  #     heads if the upstream supports it.
   - id: infura-eth
     httpURL: "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
     wsURL: "wss://mainnet.infura.io/ws/v3/${INFURA_API_KEY}"
