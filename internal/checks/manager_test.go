@@ -1,10 +1,9 @@
-package internal
+package checks
 
 import (
 	"testing"
 	"time"
 
-	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
@@ -45,13 +44,13 @@ func TestHealthCheckManager(t *testing.T) {
 	}
 
 	manager := NewHealthCheckManager(mockEthClientGetter, configs)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter) checks.BlockHeightChecker {
+	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
-	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) checks.Checker {
+	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
 		return mockPeerChecker
 	}
-	manager.(*healthCheckManager).newSyncingCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) checks.Checker {
+	manager.(*healthCheckManager).newSyncingCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
 		return mockSyncingChecker
 	}
 

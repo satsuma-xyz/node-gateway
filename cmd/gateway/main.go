@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/satsuma-data/node-gateway/internal"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"github.com/satsuma-data/node-gateway/internal/server"
 	"go.uber.org/zap"
 )
 
@@ -49,14 +49,14 @@ func main() {
 		zap.L().Fatal("Failed to load config.", zap.Error(err))
 	}
 
-	var rpcServer internal.RPCServer
+	var rpcServer server.RPCServer
 
 	var metricsServer *http.Server
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", conf))
 
 	go func() {
-		rpcServer = internal.NewRPCServer(conf)
+		rpcServer = server.NewRPCServer(conf)
 
 		if err := rpcServer.Start(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start RPC server.", zap.Error(err))
