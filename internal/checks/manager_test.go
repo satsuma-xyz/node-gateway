@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -12,10 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func newBool(b bool) *bool {
-	return &b
-}
-
 func TestHealthCheckManager(t *testing.T) {
 	ethereumClient := mocks.NewEthClient(t)
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
@@ -26,6 +23,7 @@ func TestHealthCheckManager(t *testing.T) {
 	mockPeerChecker := mocks.NewSimpleChecker(t)
 	mockSyncingChecker := mocks.NewSimpleChecker(t)
 
+	mockBlockHeightChecker.Mock.On("GetError").Return(nil)
 	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(true)
 	mockBlockHeightChecker.Mock.On("RunCheck").Return(nil)
 	mockBlockHeightChecker.Mock.On("GetBlockHeight").Return(uint64(5))
@@ -39,7 +37,7 @@ func TestHealthCheckManager(t *testing.T) {
 			ID:                "mainnet",
 			HTTPURL:           "http://rpc.ankr.io/eth",
 			WSURL:             "wss://something/something",
-			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: newBool(false)},
+			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: new(bool)},
 		},
 	}
 
@@ -61,12 +59,15 @@ func TestHealthCheckManager(t *testing.T) {
 		return len(healthyUpstreams) == 1 && healthyUpstreams[0] == "mainnet"
 	}, 2*time.Second, 10*time.Millisecond, "Healthy upstreams did not include expected values.")
 
-	mockPeerChecker.ExpectedCalls = nil
-	mockPeerChecker.Mock.On("IsPassing").Return(false)
+	mockBlockHeightChecker.ExpectedCalls = nil
+	mockBlockHeightChecker.Calls = nil
+	mockBlockHeightChecker.Mock.On("GetError").Return(errors.New("some error"))
+	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(false)
 
 	// Verify that no healthy upstreams are returned after a check starts failing.
 	assert.Eventually(t, func() bool {
 		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams()
 		return len(healthyUpstreams) == 0
 	}, 2*time.Second, 10*time.Millisecond, "Found healthy upstreams when expected none.")
+	mockBlockHeightChecker.AssertNotCalled(t, "GetBlockHeight")
 }

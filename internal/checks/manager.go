@@ -87,7 +87,7 @@ func (h *healthCheckManager) GetHealthyUpstreams() []string {
 	var maxBlockHeight uint64 = 0
 
 	for _, upstreamStatus := range h.upstreamIDToStatus {
-		if upstreamStatus.blockHeightCheck.GetBlockHeight() > maxBlockHeight {
+		if upstreamStatus.blockHeightCheck.GetError() == nil && upstreamStatus.blockHeightCheck.GetBlockHeight() > maxBlockHeight {
 			maxBlockHeight = upstreamStatus.blockHeightCheck.GetBlockHeight()
 		}
 	}
