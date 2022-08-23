@@ -1,4 +1,4 @@
-package internal
+package route
 
 import (
 	"io"
@@ -20,7 +20,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 			ID:                "mainnet",
 			HTTPURL:           "http://rpc.ankr.io/eth",
 			WSURL:             "wss://something/something",
-			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: newBool(false)},
+			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: new(bool)},
 		},
 	}
 

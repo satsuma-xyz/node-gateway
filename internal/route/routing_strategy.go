@@ -1,4 +1,4 @@
-package internal
+package route
 
 import (
 	"sync/atomic"

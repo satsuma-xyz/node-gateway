@@ -6,7 +6,6 @@ import (
 	http "net/http"
 
 	jsonrpc "github.com/satsuma-data/node-gateway/internal/jsonrpc"
-
 	mock "github.com/stretchr/testify/mock"
 )
 

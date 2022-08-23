@@ -1,4 +1,4 @@
-package internal
+package server
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"github.com/satsuma-data/node-gateway/internal/route"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
@@ -21,12 +22,12 @@ const (
 
 type RPCServer struct {
 	httpServer *http.Server
-	router     Router
+	router     route.Router
 	config     conf.Config
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := NewRouter(config.Upstreams)
+	router := route.NewRouter(config.Upstreams)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -64,7 +65,7 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type RPCHandler struct {
-	router Router
+	router route.Router
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {

@@ -1,4 +1,4 @@
-package internal
+package route
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -20,7 +21,7 @@ import (
 // For now this is pretty simple, but in the future we'll have things like
 // caching, rate limiting, API-based routing and more.
 
-//go:generate mockery --output ./mocks --name Router
+//go:generate mockery --output ../mocks --name Router
 type Router interface {
 	Start()
 	Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
@@ -28,13 +29,13 @@ type Router interface {
 
 type SimpleRouter struct {
 	upstreamsMutex     *sync.RWMutex
-	healthCheckManager HealthCheckManager
+	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
 	upstreamConfigs    []config.UpstreamConfig
 }
 
 func NewRouter(upstreamConfigs []config.UpstreamConfig) Router {
-	healthCheckManager := NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
 
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
