@@ -75,7 +75,7 @@ func (c *SyncingCheck) runCheck() {
 	c.err = err
 	c.isSyncing = syncProgress != nil
 
-	zap.L().Debug("Ran SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Any("syncProgress", syncProgress), zap.Error(err))
+	zap.L().Debug("Ran SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("syncProgress", syncProgress), zap.Error(err))
 }
 
 func (c *SyncingCheck) IsPassing() bool {

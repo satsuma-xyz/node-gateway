@@ -42,8 +42,9 @@ See the [sample config](/configs/config.sample.yml).
 ## Features
 
 - Round-robin load balancing for EVM-based JSON RPCs.
-- Health checks for block height, uptime, and response time.
+- Health checks for block height, peer count, and sync status.
 - Automated routing to nodes at max block height for data consistency.
+- Node grouping which supports priority load balancing (e.g. primary/fallback).
 
 #### 🔮 Roadmap
 
@@ -53,7 +54,7 @@ See the [sample config](/configs/config.sample.yml).
 - Caching.
 - WebSockets.
 - Additional data consistency measures (broadcasting to multiple nodes, uncled blocks, etc).
-- Additional routing strategies (archive/full node, primary/fallback, etc).
+- Additional routing strategies (archive/full node, etc).
 - Filter support (`eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`).
 
 Interested in a specific feature? Join our [Discord community]() to let us know.
