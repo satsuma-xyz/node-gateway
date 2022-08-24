@@ -1,26 +1,42 @@
 package route
 
 import (
+	"sort"
 	"sync/atomic"
+
+	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 type RoutingStrategy interface {
 	// Returns the next UpstreamID a request should route to.
-	routeNextRequest(upstreamIDs []string) string
+	routeNextRequest(upstreamsByPriority map[int][]string) string
 }
-
-type RoundRobinStrategy struct {
+type PriorityRoundRobinStrategy struct {
 	counter uint64
 }
 
-func NewRoundRobinStrategy() *RoundRobinStrategy {
-	return &RoundRobinStrategy{
+func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
+	return &PriorityRoundRobinStrategy{
 		counter: 0,
 	}
 }
 
-func (s *RoundRobinStrategy) routeNextRequest(upstreamIDs []string) string {
-	// Don't worry about this overflowing. Wraps around to 0 past `math.MaxUint64`.
-	atomic.AddUint64(&s.counter, 1)
-	return upstreamIDs[int(s.counter)%len(upstreamIDs)]
+func (s *PriorityRoundRobinStrategy) routeNextRequest(upstreamsByPriority map[int][]string) string {
+	prioritySorted := maps.Keys(upstreamsByPriority)
+	sort.Ints(prioritySorted)
+
+	for _, priority := range prioritySorted {
+		upstreams := upstreamsByPriority[priority]
+
+		if len(upstreams) > 0 {
+			atomic.AddUint64(&s.counter, 1)
+
+			return upstreams[int(s.counter)%len(upstreams)]
+		}
+
+		zap.L().Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
+	}
+
+	return ""
 }

@@ -95,7 +95,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 
 	c.BlockHeight = header.Number.Uint64()
 
-	zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+	zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL), zap.Uint64("blockHeight", c.BlockHeight))
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {

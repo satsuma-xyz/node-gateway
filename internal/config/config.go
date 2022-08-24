@@ -14,20 +14,42 @@ type UpstreamConfig struct {
 	ID                string            `yaml:"id"`
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
+	GroupID           string            `yaml:"group"`
 }
 
-func (c *UpstreamConfig) isValid() bool {
+func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 	isValid := true
 	if c.HTTPURL == "" {
 		isValid = false
 
-		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("nodeId", c.ID))
+		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("upstreamId", c.ID))
 	}
 
 	if c.HealthCheckConfig.UseWSForBlockHeight != nil && *c.HealthCheckConfig.UseWSForBlockHeight && c.WSURL == "" {
 		isValid = false
 
-		zap.L().Error("wsURL should be provided if useWsForBlockHeight=true.", zap.Any("config", c), zap.String("nodeId", c.ID))
+		zap.L().Error("wsURL should be provided if useWsForBlockHeight=true.", zap.Any("config", c), zap.String("upstreamId", c.ID))
+	}
+
+	if len(groups) > 0 {
+		if c.GroupID == "" {
+			isValid = false
+
+			zap.L().Error("A Group must be specified on upstreams since groups are defined.", zap.Any("config", c), zap.String("upstreamId", c.ID))
+		} else {
+			groupIsValid := false
+			for _, group := range groups {
+				if group.ID == c.GroupID {
+					groupIsValid = true
+				}
+			}
+
+			if !groupIsValid {
+				isValid = false
+
+				zap.L().Error("Invalid group specified on upstream.", zap.Any("config", c), zap.String("upstreamId", c.ID))
+			}
+		}
 	}
 
 	return isValid
@@ -43,12 +65,44 @@ type BasicAuthConfig struct {
 	Password string `yaml:"password"`
 }
 
+type GroupConfig struct {
+	ID       string `yaml:"id"`
+	Priority int    `yaml:"priority"`
+}
+
+func IsGroupsValid(groups []GroupConfig) bool {
+	var uniqueIDs = make(map[string]bool)
+	for _, group := range groups {
+		if _, ok := uniqueIDs[group.ID]; ok {
+			zap.L().Error("Group IDs should be unique.", zap.Any("duplicate ID", group.ID))
+
+			return false
+		}
+
+		uniqueIDs[group.ID] = true
+	}
+
+	var uniquePriorities = make(map[int]bool)
+	for _, group := range groups {
+		if _, ok := uniquePriorities[group.Priority]; ok {
+			zap.L().Error("Group priorities should be unique.", zap.Any("duplicate priority", group.ID))
+
+			return false
+		}
+
+		uniquePriorities[group.Priority] = true
+	}
+
+	return true
+}
+
 type GlobalConfig struct {
 	Port int `yaml:"port"`
 }
 
 type Config struct {
 	Upstreams []UpstreamConfig
+	Groups    []GroupConfig
 	Global    GlobalConfig
 }
 
@@ -70,9 +124,10 @@ func parseConfig(configBytes []byte) (Config, error) {
 		return config, err
 	}
 
-	isValid := true
+	isValid := IsGroupsValid(config.Groups)
+
 	for _, upstream := range config.Upstreams {
-		isValid = isValid && upstream.isValid()
+		isValid = isValid && upstream.isValid(config.Groups)
 	}
 
 	if !isValid {

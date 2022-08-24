@@ -1,6 +1,24 @@
 global:
   port: 8080
 
+# (Optional) List of upstream node groups.
+# If defined, all upstreams must define group membership via the `group` field.
+groups:
+  # Each group must have the following keys
+  # 
+  # id - Unique identifer for the group.
+  # priority - Defines the routing priority for nodes in the group.
+  #            The lower the number, the higher the priority. 
+  #            Priority routing works by identifying the highest priority group with at least 
+  #              one healthy upstream. For example, if the highest priority group doesn't have any healthy upstreams, 
+  #              the gateway will look at the group at the next priority level to see if it has any healthy upstreams. It will continue 
+  #              until it finds a group that has at least one healthy upstream. If there are multiple upstreams in that group, requests are
+  #              spread across the upstreams in a round-robin fashion.
+  - id: primary
+    priority: 0
+  - id: fallback
+    priority: 1
+  
 # List of upstream node RPCs.
 upstreams:
   # Each upstream can have the following keys:
@@ -15,20 +33,20 @@ upstreams:
   #     it quickly updates the gateway with the latest block height. If this
   #     setting is undefined, the gateway will attempt to subscribe to new
   #     heads if the upstream supports it.
+  - id: my-node
+    httpURL: "http://12.57.207.168:8545"
+    wsURL: "wss://12.57.207.168:8546"
+    group: primary
   - id: infura-eth
     httpURL: "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
     wsURL: "wss://mainnet.infura.io/ws/v3/${INFURA_API_KEY}"
     basicAuth:
       username: ~
       password: ${INFURA_API_KEY_SECRET}
+    group: fallback
   - id: alchemy-eth
     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
     wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
     healthCheck:
       useWsForBlockHeight: false
-  - id: ankr-polygon
-    httpURL: "https://rpc.ankr.com/polygon"
-    wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
-  - id: my-node
-    httpURL: "http://12.57.207.168:8545"
-    wsURL: "wss://12.57.207.168:8546"
+    group: fallback

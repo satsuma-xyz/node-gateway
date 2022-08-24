@@ -27,7 +27,7 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := route.NewRouter(config.Upstreams)
+	router := route.NewRouter(config.Upstreams, config.Groups)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -93,7 +93,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	zap.L().Info("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
+	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
 	respBody, resp, err := h.router.Route(body)
 	if resp != nil {

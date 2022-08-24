@@ -15,20 +15,10 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
 	managerMock.On("GetHealthyUpstreams").Return([]string{})
 
-	configs := []config.UpstreamConfig{
-		{
-			ID:                "mainnet",
-			HTTPURL:           "http://rpc.ankr.io/eth",
-			WSURL:             "wss://something/something",
-			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: new(bool)},
-		},
-	}
-
 	router := SimpleRouter{
 		healthCheckManager: managerMock,
-		upstreamConfigs:    configs,
 		upstreamsMutex:     &sync.RWMutex{},
-		routingStrategy:    NewRoundRobinStrategy(),
+		routingStrategy:    NewPriorityRoundRobinStrategy(),
 	}
 
 	jsonResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
@@ -43,4 +33,45 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 func readyBody(body io.ReadCloser) string {
 	bodyBytes, _ := io.ReadAll(body)
 	return string(bodyBytes)
+}
+
+func TestGroupUpstreamsByPriority(t *testing.T) {
+	upstreams := []string{"geth", "erigon", "openethereum"}
+	upstreamConfigs := map[string]config.UpstreamConfig{
+		"geth":           {GroupID: "primary"},
+		"erigon":         {GroupID: "fallback"},
+		"openethereum":   {GroupID: "backup"},
+		"something-else": {GroupID: "backup"},
+	}
+	groupConfigs := map[string]config.GroupConfig{
+		"primary":  {Priority: 0},
+		"fallback": {Priority: 1},
+		"backup":   {Priority: 2},
+	}
+
+	upstreamsByPriority := groupUpstreamsByPriority(upstreams, upstreamConfigs, groupConfigs)
+	expectedPriorityMap := map[int][]string{
+		0: {"geth"},
+		1: {"erigon"},
+		2: {"openethereum"},
+	}
+	assert.Equal(t, expectedPriorityMap, upstreamsByPriority)
+}
+
+func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
+	upstreams := []string{"geth", "erigon", "openethereum"}
+	upstreamConfigs := map[string]config.UpstreamConfig{
+		"geth":           {},
+		"erigon":         {},
+		"openethereum":   {},
+		"something-else": {},
+	}
+	groupConfigs := make(map[string]config.GroupConfig)
+
+	// Verify they are all on the same priority
+	upstreamsByPriority := groupUpstreamsByPriority(upstreams, upstreamConfigs, groupConfigs)
+	expectedPriorityMap := map[int][]string{
+		0: {"geth", "erigon", "openethereum"},
+	}
+	assert.Equal(t, expectedPriorityMap, upstreamsByPriority)
 }

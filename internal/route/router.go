@@ -31,18 +31,31 @@ type SimpleRouter struct {
 	upstreamsMutex     *sync.RWMutex
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
-	upstreamConfigs    []config.UpstreamConfig
+	// Map from UpstreamID => `config.UpstreamConfig`
+	upstreamConfigs map[string]config.UpstreamConfig
+	// Map from GroupID => `config.GroupConfig`
+	groupConfigs map[string]config.GroupConfig
 }
 
-func NewRouter(upstreamConfigs []config.UpstreamConfig) Router {
+func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+
+	upstreamConfigMap := make(map[string]config.UpstreamConfig)
+	for _, upstreamConfig := range upstreamConfigs {
+		upstreamConfigMap[upstreamConfig.ID] = upstreamConfig
+	}
+
+	groupMap := make(map[string]config.GroupConfig)
+	for _, groupConfig := range groupConfigs {
+		groupMap[groupConfig.ID] = groupConfig
+	}
 
 	r := &SimpleRouter{
 		healthCheckManager: healthCheckManager,
-		upstreamConfigs:    upstreamConfigs,
+		upstreamConfigs:    upstreamConfigMap,
+		groupConfigs:       groupMap,
 		upstreamsMutex:     &sync.RWMutex{},
-		// Only support RoundRobin for now.
-		routingStrategy: NewRoundRobinStrategy(),
+		routingStrategy:    NewPriorityRoundRobinStrategy(),
 	}
 
 	return r
@@ -54,6 +67,7 @@ func (r *SimpleRouter) Start() {
 
 func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
 	healthyUpstreams := r.healthCheckManager.GetHealthyUpstreams()
+
 	if len(healthyUpstreams) == 0 {
 		httpResp := &http.Response{
 			StatusCode: http.StatusServiceUnavailable,
@@ -63,16 +77,9 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 		return nil, httpResp, nil
 	}
 
-	id := r.routingStrategy.routeNextRequest(healthyUpstreams)
-
-	var configToRoute config.UpstreamConfig
-
-	for _, config := range r.upstreamConfigs {
-		if config.ID == id {
-			configToRoute = config
-			break
-		}
-	}
+	upstreamsByPriority := groupUpstreamsByPriority(healthyUpstreams, r.upstreamConfigs, r.groupConfigs)
+	id := r.routingStrategy.routeNextRequest(upstreamsByPriority)
+	configToRoute := r.upstreamConfigs[id]
 
 	zap.L().Debug("Routing request to config.", zap.Any("request", requestBody), zap.Any("config", configToRoute))
 
@@ -111,4 +118,22 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	zap.L().Debug("Successfully routed request to config.", zap.Any("request", requestBody), zap.Any("response", respBody), zap.Any("config", configToRoute))
 
 	return respBody, resp, nil
+}
+
+func groupUpstreamsByPriority(upstreams []string, upstreamConfigs map[string]config.UpstreamConfig, groupConfigs map[string]config.GroupConfig) map[int][]string {
+	priorityMap := make(map[int][]string)
+	usingGroups := len(groupConfigs) > 0
+
+	for _, upstream := range upstreams {
+		groupID := upstreamConfigs[upstream].GroupID
+
+		groupPriority := 0
+		if usingGroups {
+			groupPriority = groupConfigs[groupID].Priority
+		}
+
+		priorityMap[groupPriority] = append(priorityMap[groupPriority], upstream)
+	}
+
+	return priorityMap
 }

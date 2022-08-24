@@ -15,33 +15,86 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 		{
 			name: "Upstream config without httpURL.",
 			config: `
-			global:
-			  port: 8080
-		
-			upstreams:
-			  - id: alchemy-eth
-				wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				healthCheck:
-				  useWsForBlockHeight: true
-			`,
+            global:
+              port: 8080
+
+            upstreams:
+              - id: alchemy-eth
+                wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                healthCheck:
+                  useWsForBlockHeight: true
+            `,
 		},
 		{
 			name: "UpstreamConfig without wssURL when useWsForBlockHeight: true.",
 			config: `
-			global:
-			  port: 8080
-		
-			upstreams:
-			  - id: alchemy-eth
-				httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-				healthCheck:
-				  useWsForBlockHeight: true
-			`,
+            global:
+              port: 8080
+
+            upstreams:
+              - id: alchemy-eth
+                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                healthCheck:
+                  useWsForBlockHeight: true
+            `,
+		},
+		{
+			name: "Groups with same priority.",
+			config: `
+            global:
+              port: 8080
+
+            upstreams:
+              - id: alchemy-eth
+                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                group: primary
+            
+            groups:
+              - id: primary
+                priority: 0
+              - id: fallback
+                priority: 0
+            `,
+		},
+		{
+			name: "Groups block defined but upstream does not declare group.",
+			config: `
+            global:
+              port: 8080
+
+            upstreams:
+              - id: alchemy-eth
+                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            
+            groups:
+              - id: primary
+                priority: 0
+            `,
+		},
+		{
+			name: "Group name on upstream does not exist.",
+			config: `
+            global:
+              port: 8080
+
+            upstreams:
+              - id: alchemy-eth
+                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                group: something-that-doesnt-exist
+            
+            groups:
+              - id: primary
+                priority: 0
+            `,
 		},
 	} {
 		configBytes := []byte(testCase.config)
 		_, err := parseConfig(configBytes)
 		assert.NotNil(t, err)
+
+		// To prevent catching formatting errors, that's not what we're checking for in this test.
+		assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
+		assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
 	}
 }
 
@@ -54,15 +107,23 @@ func TestParseConfig_ValidConfig(t *testing.T) {
     global:
       port: 8080
 
+    groups:
+      - id: primary
+        priority: 0
+      - id: fallback
+        priority: 1
+
     upstreams:
       - id: alchemy-eth
         httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
         healthCheck:
           useWsForBlockHeight: true
+        group: primary
       - id: ankr-polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
+        group: fallback
   `
 	configBytes := []byte(config)
 
@@ -81,6 +142,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 				HealthCheckConfig: HealthCheckConfig{
 					UseWSForBlockHeight: newBool(true),
 				},
+				GroupID: "primary",
 			},
 			{
 				ID:      "ankr-polygon",
@@ -89,10 +151,21 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 				HealthCheckConfig: HealthCheckConfig{
 					UseWSForBlockHeight: nil,
 				},
+				GroupID: "fallback",
 			},
 		},
 		Global: GlobalConfig{
 			Port: 8080,
+		},
+		Groups: []GroupConfig{
+			{
+				ID:       "primary",
+				Priority: 0,
+			},
+			{
+				ID:       "fallback",
+				Priority: 1,
+			},
 		},
 	}
 
