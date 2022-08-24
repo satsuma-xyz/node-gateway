@@ -13,18 +13,19 @@ import (
 //go:generate mockery --output ../mocks --name BlockHeightChecker
 type BlockHeightChecker interface {
 	RunCheck()
+	GetError() error
 	GetBlockHeight() uint64
 	IsPassing(maxBlockHeight uint64) bool
 }
 
 type BlockHeightCheck struct {
 	httpClient          client.EthClient
-	WebSocketError      error
-	BlockHeightError    error
+	webSocketError      error
+	blockHeightError    error
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
-	BlockHeight         uint64
-	UseWSForBlockHeight bool
+	blockHeight         uint64
+	useWSForBlockHeight bool
 }
 
 func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker {
@@ -51,7 +52,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 		(c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight == nil || *c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight) {
 		zap.L().Debug("Subscribing over Websockets to check block height.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
-		c.UseWSForBlockHeight = true
+		c.useWSForBlockHeight = true
 
 		return c.subscribeNewHead()
 	}
@@ -64,7 +65,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		c.BlockHeightError = err
+		c.blockHeightError = err
 		return
 	}
 
@@ -72,7 +73,7 @@ func (c *BlockHeightCheck) initializeHTTP() {
 }
 
 func (c *BlockHeightCheck) RunCheck() {
-	if !c.UseWSForBlockHeight || (c.UseWSForBlockHeight && c.WebSocketError != nil) {
+	if !c.useWSForBlockHeight || (c.useWSForBlockHeight && c.webSocketError != nil) {
 		if c.httpClient == nil {
 			c.initializeHTTP()
 		}
@@ -89,18 +90,18 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	}
 
 	header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
-	if c.BlockHeightError = err; c.BlockHeightError != nil {
+	if c.blockHeightError = err; c.blockHeightError != nil {
 		return
 	}
 
-	c.BlockHeight = header.Number.Uint64()
+	c.blockHeight = header.Number.Uint64()
 
-	zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL), zap.Uint64("blockHeight", c.BlockHeight))
+	zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL), zap.Uint64("blockHeight", c.blockHeight))
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
-	if c.BlockHeightError != nil && c.BlockHeight < maxBlockHeight {
-		zap.L().Debug("BlockHeightCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("blockHeight", c.BlockHeight), zap.Error(c.BlockHeightError))
+	if c.blockHeightError != nil || c.blockHeight < maxBlockHeight {
+		zap.L().Debug("BlockHeightCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("blockHeight", c.blockHeight), zap.Error(c.blockHeightError))
 
 		return false
 	}
@@ -109,31 +110,35 @@ func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
 }
 
 func (c *BlockHeightCheck) GetBlockHeight() uint64 {
-	return c.BlockHeight
+	return c.blockHeight
+}
+
+func (c *BlockHeightCheck) GetError() error {
+	return c.blockHeightError
 }
 
 func (c *BlockHeightCheck) subscribeNewHead() error {
 	onNewHead := func(header *types.Header) {
-		c.BlockHeight = header.Number.Uint64()
-		c.WebSocketError = nil
-		c.BlockHeightError = nil
+		c.blockHeight = header.Number.Uint64()
+		c.webSocketError = nil
+		c.blockHeightError = nil
 	}
 
 	onError := func(failure string) {
 		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
-		c.WebSocketError = errors.New(failure)
-		c.BlockHeightError = c.WebSocketError
+		c.webSocketError = errors.New(failure)
+		c.blockHeightError = c.webSocketError
 	}
 
 	wsClient, err := c.clientGetter(c.upstreamConfig.WSURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		c.WebSocketError = err
+		c.webSocketError = err
 		return err
 	}
 
 	if err = subscribeNewHeads(wsClient, &newHeadHandler{onNewHead: onNewHead, onError: onError}); err != nil {
-		c.WebSocketError = err
+		c.webSocketError = err
 		return err
 	}
 

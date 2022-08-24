@@ -23,6 +23,20 @@ func (_m *BlockHeightChecker) GetBlockHeight() uint64 {
 	return r0
 }
 
+// GetError provides a mock function with given fields:
+func (_m *BlockHeightChecker) GetError() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // IsPassing provides a mock function with given fields: maxBlockHeight
 func (_m *BlockHeightChecker) IsPassing(maxBlockHeight uint64) bool {
 	ret := _m.Called(maxBlockHeight)
