@@ -28,14 +28,14 @@ func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.
 	}
 
 	if err := c.Initialize(); err != nil {
-		zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
+		zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 	}
 
 	return c
 }
 
 func (c *SyncingCheck) Initialize() error {
-	zap.L().Debug("Initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig))
+	zap.L().Debug("Initializing SyncingCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
@@ -48,7 +48,7 @@ func (c *SyncingCheck) Initialize() error {
 	c.runCheck()
 
 	if isMethodNotSupportedErr(c.err) {
-		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig))
+		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
 		c.shouldRun = false
 	}
@@ -59,7 +59,7 @@ func (c *SyncingCheck) Initialize() error {
 func (c *SyncingCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
-			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
+			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 		}
 	}
 
@@ -82,7 +82,7 @@ func (c *SyncingCheck) runCheck() {
 
 func (c *SyncingCheck) IsPassing() bool {
 	if c.shouldRun && (c.isSyncing || c.err != nil) {
-		zap.L().Error("SyncingCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("peerCount", c.isSyncing), zap.Error(c.err))
+		zap.L().Error("SyncingCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("isSyncing", c.isSyncing), zap.Error(c.err))
 
 		return false
 	}

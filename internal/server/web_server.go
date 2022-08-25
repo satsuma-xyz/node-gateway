@@ -115,7 +115,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	respondJSONRPC(writer, respBody, resp.StatusCode)
 
-	zap.L().Debug("Request successfully routed", zap.Any("requestBody", body))
+	zap.L().Debug("Request successfully routed.", zap.Any("requestBody", body))
 }
 
 func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, httpStatusCode int) {

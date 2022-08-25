@@ -130,7 +130,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	parsedConfig, err := parseConfig(configBytes)
 
 	if err != nil {
-		t.Errorf("parseConfig returned error: %v", err)
+		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
 	expectedConfig := Config{
@@ -170,7 +170,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(parsedConfig, expectedConfig) {
-		t.Errorf("parseConfig returned unexpected config: %v", parsedConfig)
+		t.Errorf("ParseConfig returned unexpected config: %v.", parsedConfig)
 	}
 }
 

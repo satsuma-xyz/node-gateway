@@ -40,8 +40,10 @@ func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthC
 }
 
 func (c *BlockHeightCheck) Initialize() {
+	zap.L().Debug("Initializing BlockHeightCheck.", zap.Any("config", c.upstreamConfig))
+
 	if err := c.initializeWebsockets(); err != nil {
-		zap.L().Error("Encountered error when calling SubscribeNewHead over Websockets, falling back to using HTTP polling.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+		zap.L().Error("Encountered error when calling SubscribeNewHead over Websockets, falling back to using HTTP polling for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 	}
 
 	c.initializeHTTP()
@@ -50,14 +52,14 @@ func (c *BlockHeightCheck) Initialize() {
 func (c *BlockHeightCheck) initializeWebsockets() error {
 	if c.upstreamConfig.WSURL != "" &&
 		(c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight == nil || *c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight) {
-		zap.L().Debug("Subscribing over Websockets to check block height.", zap.Any("upstreamID", c.upstreamConfig.ID))
+		zap.L().Debug("Subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
 		c.useWSForBlockHeight = true
 
 		return c.subscribeNewHead()
 	}
 
-	zap.L().Debug("Not subscribing over Websockets to check block height.", zap.Any("upstreamID", c.upstreamConfig.ID))
+	zap.L().Debug("Not subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
 	return nil
 }

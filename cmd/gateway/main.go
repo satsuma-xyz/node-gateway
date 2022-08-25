@@ -81,14 +81,14 @@ func main() {
 	zap.L().Info("Exiting due to signal", zap.Any("signal", exitSignal))
 
 	// Perform graceful shutdown.
-	zap.L().Info("Shutting down")
+	zap.L().Info("Shutting down.")
 
 	if err := rpcServer.Shutdown(); err != nil {
-		zap.L().Fatal("Failed to gracefully shut down RPC server", zap.Error(err))
+		zap.L().Fatal("Failed to gracefully shut down RPC server.", zap.Error(err))
 	}
 
 	if err := metricsServer.Shutdown(context.Background()); err != nil {
-		zap.L().Fatal("Failed to gracefully shut down metrics server", zap.Error(err))
+		zap.L().Fatal("Failed to gracefully shut down metrics server.", zap.Error(err))
 	}
 }
 
