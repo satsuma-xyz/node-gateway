@@ -48,6 +48,8 @@ func (c *SyncingCheck) Initialize() error {
 	c.runCheck()
 
 	if isMethodNotSupportedErr(c.err) {
+		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig))
+
 		c.shouldRun = false
 	}
 
