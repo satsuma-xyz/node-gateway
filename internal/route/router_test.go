@@ -2,24 +2,31 @@ package route
 
 import (
 	"io"
-	"sync"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
-	managerMock.On("GetHealthyUpstreams").Return([]string{})
+	managerMock.On("GetHealthyUpstreams", mock.Anything).Return([]string{})
 
-	router := SimpleRouter{
-		healthCheckManager: managerMock,
-		upstreamsMutex:     &sync.RWMutex{},
-		routingStrategy:    NewPriorityRoundRobinStrategy(),
+	upstreamConfigs := []config.UpstreamConfig{
+		{
+			ID:      "geth",
+			GroupID: "primary",
+			HTTPURL: "gethURL",
+		},
 	}
+
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0))
+	router.(*SimpleRouter).healthCheckManager = managerMock
 
 	jsonResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
@@ -35,43 +42,117 @@ func readyBody(body io.ReadCloser) string {
 	return string(bodyBytes)
 }
 
-func TestGroupUpstreamsByPriority(t *testing.T) {
-	upstreams := []string{"geth", "erigon", "openethereum"}
-	upstreamConfigs := map[string]config.UpstreamConfig{
-		"geth":           {GroupID: "primary"},
-		"erigon":         {GroupID: "fallback"},
-		"openethereum":   {GroupID: "backup"},
-		"something-else": {GroupID: "backup"},
+func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
+	managerMock := mocks.NewHealthCheckManager(t)
+	managerMock.On("GetHealthyUpstreams", []string{"geth"}).Return([]string{})
+	managerMock.On("GetHealthyUpstreams", []string{"erigon"}).Return([]string{"erigon"})
+	managerMock.On("GetHealthyUpstreams", []string{"openethereum", "something-else"}).Return([]string{"openethereum"})
+
+	httpClientMock := mocks.NewHTTPClient(t)
+	httpResp := &http.Response{
+		StatusCode: 203,
+		Body:       io.NopCloser(strings.NewReader("{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":\"hello\"}")),
 	}
-	groupConfigs := map[string]config.GroupConfig{
-		"primary":  {Priority: 0},
-		"fallback": {Priority: 1},
-		"backup":   {Priority: 2},
+	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
+
+	routingStrategyMock := mocks.NewRoutingStrategy(t)
+	routingStrategyMock.On("RouteNextRequest", mock.Anything).Return("erigon")
+
+	upstreamConfigs := []config.UpstreamConfig{
+		{
+			ID:      "geth",
+			GroupID: "primary",
+			HTTPURL: "gethURL",
+		},
+		{
+			ID:      "erigon",
+			GroupID: "fallback",
+			HTTPURL: "erigonURL",
+		},
+		{
+			ID:      "openethereum",
+			GroupID: "backup",
+			HTTPURL: "openEthURL",
+		},
+		{
+			ID:      "something-else",
+			GroupID: "backup",
+			HTTPURL: "something-elseURL",
+		},
 	}
 
-	upstreamsByPriority := groupUpstreamsByPriority(upstreams, upstreamConfigs, groupConfigs)
-	expectedPriorityMap := map[int][]string{
-		0: {"geth"},
+	groupConfigs := []config.GroupConfig{
+		{
+			ID:       "primary",
+			Priority: 0,
+		},
+		{
+			ID:       "fallback",
+			Priority: 1,
+		},
+		{
+			ID:       "backup",
+			Priority: 2,
+		},
+	}
+	router := NewRouter(upstreamConfigs, groupConfigs)
+	router.(*SimpleRouter).healthCheckManager = managerMock
+	router.(*SimpleRouter).httpClient = httpClientMock
+	router.(*SimpleRouter).routingStrategy = routingStrategyMock
+
+	jsonRcpResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
+	defer httpResp.Body.Close()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 203, httpResp.StatusCode)
+	assert.NotNil(t, "hello", jsonRcpResp.Result)
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]string{
+		0: {},
 		1: {"erigon"},
 		2: {"openethereum"},
-	}
-	assert.Equal(t, expectedPriorityMap, upstreamsByPriority)
+	})
+	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
 
 func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
-	upstreams := []string{"geth", "erigon", "openethereum"}
-	upstreamConfigs := map[string]config.UpstreamConfig{
-		"geth":           {},
-		"erigon":         {},
-		"openethereum":   {},
-		"something-else": {},
-	}
-	groupConfigs := make(map[string]config.GroupConfig)
+	managerMock := mocks.NewHealthCheckManager(t)
+	managerMock.On("GetHealthyUpstreams", []string{"geth", "erigon"}).Return([]string{"geth", "erigon"})
 
-	// Verify they are all on the same priority
-	upstreamsByPriority := groupUpstreamsByPriority(upstreams, upstreamConfigs, groupConfigs)
-	expectedPriorityMap := map[int][]string{
-		0: {"geth", "erigon", "openethereum"},
+	httpClientMock := mocks.NewHTTPClient(t)
+	httpResp := &http.Response{
+		StatusCode: 203,
+		Body:       io.NopCloser(strings.NewReader("{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":\"hello\"}")),
 	}
-	assert.Equal(t, expectedPriorityMap, upstreamsByPriority)
+	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
+
+	routingStrategyMock := mocks.NewRoutingStrategy(t)
+	routingStrategyMock.On("RouteNextRequest", mock.Anything).Return("erigon")
+
+	upstreamConfigs := []config.UpstreamConfig{
+		{
+			ID:      "geth",
+			HTTPURL: "gethURL",
+		},
+		{
+			ID:      "erigon",
+			GroupID: "fallback",
+			HTTPURL: "erigonURL",
+		},
+	}
+
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0))
+	router.(*SimpleRouter).healthCheckManager = managerMock
+	router.(*SimpleRouter).httpClient = httpClientMock
+	router.(*SimpleRouter).routingStrategy = routingStrategyMock
+
+	jsonRcpResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
+	defer httpResp.Body.Close()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 203, httpResp.StatusCode)
+	assert.NotNil(t, "hello", jsonRcpResp.Result)
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]string{
+		0: {"geth", "erigon"},
+	})
+	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }

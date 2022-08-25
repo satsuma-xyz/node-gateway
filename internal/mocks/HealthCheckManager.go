@@ -9,13 +9,13 @@ type HealthCheckManager struct {
 	mock.Mock
 }
 
-// GetHealthyUpstreams provides a mock function with given fields:
-func (_m *HealthCheckManager) GetHealthyUpstreams() []string {
-	ret := _m.Called()
+// GetHealthyUpstreams provides a mock function with given fields: candidateUpstreams
+func (_m *HealthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []string {
+	ret := _m.Called(candidateUpstreams)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func() []string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func([]string) []string); ok {
+		r0 = rf(candidateUpstreams)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)

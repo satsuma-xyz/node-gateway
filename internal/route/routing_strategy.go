@@ -8,9 +8,10 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+//go:generate mockery --output ../mocks --name RoutingStrategy
 type RoutingStrategy interface {
 	// Returns the next UpstreamID a request should route to.
-	routeNextRequest(upstreamsByPriority map[int][]string) string
+	RouteNextRequest(upstreamsByPriority map[int][]string) string
 }
 type PriorityRoundRobinStrategy struct {
 	counter uint64
@@ -22,7 +23,7 @@ func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
 	}
 }
 
-func (s *PriorityRoundRobinStrategy) routeNextRequest(upstreamsByPriority map[int][]string) string {
+func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[int][]string) string {
 	prioritySorted := maps.Keys(upstreamsByPriority)
 	sort.Ints(prioritySorted)
 
