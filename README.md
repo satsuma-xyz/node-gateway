@@ -1,4 +1,5 @@
 # ⛩ node-gateway
+[![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
 
 A L7 load balancer for blockchain nodes that provides better reliability and
 proper data consistency.
