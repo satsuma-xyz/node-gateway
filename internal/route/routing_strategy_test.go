@@ -15,8 +15,8 @@ func TestPriorityStrategy_HighPriority(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "something-else", strategy.routeNextRequest(upstreams))
-		assert.Equal(t, "geth", strategy.routeNextRequest(upstreams))
+		assert.Equal(t, "something-else", strategy.RouteNextRequest(upstreams))
+		assert.Equal(t, "geth", strategy.RouteNextRequest(upstreams))
 	}
 }
 
@@ -29,8 +29,8 @@ func TestPriorityStrategy_LowerPriority(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "fallback2", strategy.routeNextRequest(upstreams))
-		assert.Equal(t, "fallback1", strategy.routeNextRequest(upstreams))
+		assert.Equal(t, "fallback2", strategy.RouteNextRequest(upstreams))
+		assert.Equal(t, "fallback1", strategy.RouteNextRequest(upstreams))
 	}
 }
 
@@ -43,6 +43,6 @@ func TestPriorityStrategy_NoUpstreams(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "", strategy.routeNextRequest(upstreams))
+		assert.Equal(t, "", strategy.RouteNextRequest(upstreams))
 	}
 }

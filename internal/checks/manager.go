@@ -38,7 +38,7 @@ func (s *UpstreamStatus) isHealthy(maxBlockHeight uint64) bool {
 //go:generate mockery --output ../mocks --name HealthCheckManager
 type HealthCheckManager interface {
 	StartHealthChecks()
-	GetHealthyUpstreams() []string
+	GetHealthyUpstreams(candidateUpstreams []string) []string
 }
 
 type healthCheckManager struct {
@@ -70,26 +70,26 @@ func (h *healthCheckManager) StartHealthChecks() {
 	}()
 }
 
-func (h *healthCheckManager) GetHealthyUpstreams() []string {
-	zap.L().Debug("Determining healthy upstreams.", zap.String("upstreamIDToStatus", fmt.Sprintf("%v", h.upstreamIDToStatus)))
+func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []string {
+	zap.L().Debug("Determining healthy upstreams from candidates.", zap.Any("candidateUpstreams", candidateUpstreams))
 
 	var maxBlockHeight uint64 = 0
 
-	for _, upstreamStatus := range h.upstreamIDToStatus {
-		if upstreamStatus.blockHeightCheck.GetError() == nil && upstreamStatus.blockHeightCheck.GetBlockHeight() > maxBlockHeight {
-			maxBlockHeight = upstreamStatus.blockHeightCheck.GetBlockHeight()
+	for _, upstreamID := range candidateUpstreams {
+		if h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetError() == nil && h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetBlockHeight() > maxBlockHeight {
+			maxBlockHeight = h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetBlockHeight()
 		}
 	}
 
 	healthyUpstreams := make([]string, 0)
 
-	for upstreamID, upstreamStatus := range h.upstreamIDToStatus {
-		if upstreamStatus.isHealthy(maxBlockHeight) {
+	for _, upstreamID := range candidateUpstreams {
+		if h.upstreamIDToStatus[upstreamID].isHealthy(maxBlockHeight) {
 			healthyUpstreams = append(healthyUpstreams, upstreamID)
 		}
 	}
 
-	zap.L().Debug("Determined currently healthy upstreams.", zap.String("healthyUpstreams", fmt.Sprintf("%v", healthyUpstreams)))
+	zap.L().Debug("Determined currently healthy upstreams.", zap.Any("healthyUpstreams", healthyUpstreams), zap.Any("candidateUpstreams", candidateUpstreams))
 
 	return healthyUpstreams
 }

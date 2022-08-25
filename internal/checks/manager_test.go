@@ -55,7 +55,7 @@ func TestHealthCheckManager(t *testing.T) {
 	manager.StartHealthChecks()
 
 	assert.Eventually(t, func() bool {
-		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams()
+		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
 		return len(healthyUpstreams) == 1 && healthyUpstreams[0] == "mainnet"
 	}, 2*time.Second, 10*time.Millisecond, "Healthy upstreams did not include expected values.")
 
@@ -66,7 +66,7 @@ func TestHealthCheckManager(t *testing.T) {
 
 	// Verify that no healthy upstreams are returned after a check starts failing.
 	assert.Eventually(t, func() bool {
-		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams()
+		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
 		return len(healthyUpstreams) == 0
 	}, 2*time.Second, 10*time.Millisecond, "Found healthy upstreams when expected none.")
 	mockBlockHeightChecker.AssertNotCalled(t, "GetBlockHeight")
