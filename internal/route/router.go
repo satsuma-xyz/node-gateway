@@ -85,13 +85,13 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
-		zap.L().Error("Could not serialize request", zap.Any("request", requestBody), zap.Error(err))
+		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
 		return nil, nil, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		zap.L().Error("Could not create new http request", zap.Any("request", requestBody), zap.Error(err))
+		zap.L().Error("Could not create new http request.", zap.Any("request", requestBody), zap.Error(err))
 		return nil, nil, err
 	}
 
@@ -104,14 +104,14 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	resp, err := httpClient.Do(httpReq)
 
 	if err != nil {
-		zap.L().Error("Error encountered when executing request", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
-		zap.L().Error("Could not deserialize response", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
 		return nil, nil, err
 	}
 

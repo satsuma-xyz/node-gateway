@@ -130,8 +130,11 @@ func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, 
 		return
 	}
 
-	writer.WriteHeader(httpStatusCode)
 	writer.Header().Set("Content-Type", "application/json")
+
+	// Note: Call `WriteHeader` last otherwise headers won't get written.
+	// See Header() on the http.ResponseWriter interface for more information.
+	writer.WriteHeader(httpStatusCode)
 
 	if i, err := writer.Write(respBytes); err != nil {
 		zap.L().Error("Failed to write JSON RPC response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
@@ -145,8 +148,11 @@ func respondJSON(writer http.ResponseWriter, message string, httpStatusCode int)
 		resp["message"] = message
 	}
 
-	writer.WriteHeader(httpStatusCode)
 	writer.Header().Set("Content-Type", "application/json")
+
+	// Note: Call `WriteHeader` last otherwise headers won't get written.
+	// See Header() on the http.ResponseWriter interface for more information.
+	writer.WriteHeader(httpStatusCode)
 
 	jsonResp, _ := json.Marshal(resp)
 	if i, err := writer.Write(jsonResp); err != nil {
