@@ -29,25 +29,19 @@ type Router interface {
 type SimpleRouter struct {
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
-	// Map from UpstreamID => `config.UpstreamConfig`
-	upstreamConfigs map[string]config.UpstreamConfig
+	httpClient         client.HTTPClient
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams map[int][]string
-	httpClient          client.HTTPClient
+	upstreamConfigs     []config.UpstreamConfig
 }
 
 func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
 
-	upstreamConfigMap := make(map[string]config.UpstreamConfig)
-	for _, upstreamConfig := range upstreamConfigs {
-		upstreamConfigMap[upstreamConfig.ID] = upstreamConfig
-	}
-
 	r := &SimpleRouter{
 		healthCheckManager:  healthCheckManager,
-		upstreamConfigs:     upstreamConfigMap,
-		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigMap, groupConfigs),
+		upstreamConfigs:     upstreamConfigs,
+		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     NewPriorityRoundRobinStrategy(),
 		httpClient:          &http.Client{},
 	}
@@ -55,7 +49,7 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 	return r
 }
 
-func groupUpstreamsByPriority(upstreamConfigs map[string]config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]string {
+func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]string {
 	priorityMap := make(map[int][]string)
 
 	for _, upstreamConfig := range upstreamConfigs {
@@ -102,7 +96,14 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	}
 
 	id := r.routingStrategy.RouteNextRequest(healthyUpstreams)
-	configToRoute := r.upstreamConfigs[id]
+
+	var configToRoute config.UpstreamConfig
+
+	for _, upstreamConfig := range r.upstreamConfigs {
+		if upstreamConfig.ID == id {
+			configToRoute = upstreamConfig
+		}
+	}
 
 	zap.L().Debug("Routing request to config.", zap.Any("request", requestBody), zap.Any("config", configToRoute))
 
