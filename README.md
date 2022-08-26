@@ -45,16 +45,19 @@ See the [sample config](/configs/config.sample.yml).
 - Health checks for block height, peer count, and sync status.
 - Automated routing to nodes at max block height for data consistency.
 - Node grouping which supports priority load balancing (e.g. primary/fallback).
+- Support for self-hosted nodes and node providers with basic authentication.
+- Prometheus metrics
+- And much more!
 
 #### 🔮 Roadmap
 
-- Better support for managed node providers (rate limits/throttling, authentication).
+- Better support for managed node providers (e.g. rate limits/throttling).
 - Automatic retry / fallback.
-- Monitoring (metrics, UI dashboard).
+- Monitoring (more metrics, UI dashboard).
 - Caching.
 - WebSockets.
 - Additional data consistency measures (broadcasting to multiple nodes, uncled blocks, etc).
-- Additional routing strategies (archive/full node, etc).
+- Additional routing strategies (intelligent routing to archive/full nodes based on recency of data requested, etc).
 - Filter support (`eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`).
 
 Interested in a specific feature? Join our [Discord community]() to let us know.
