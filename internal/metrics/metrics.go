@@ -53,6 +53,7 @@ var (
 	UpstreamRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
+			Subsystem: metricsSubsystem,
 			Name:      "upstream_rpc_requests_total",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
@@ -62,10 +63,11 @@ var (
 	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
+			Subsystem: metricsSubsystem,
 			Name:      "upstream_rpc_request_errors_total",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"endpoint_id", "url", "response_code", "jsonrpc_error_code"},
 	)
 )
 

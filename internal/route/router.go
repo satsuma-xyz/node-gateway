@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"go.uber.org/zap"
 
@@ -112,10 +113,20 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	body, response, err := r.routeToConfig(requestBody, &configToRoute)
 
 	if err != nil {
-		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(id, configToRoute.HTTPURL).Inc()
+		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			id,
+			configToRoute.HTTPURL,
+			strconv.Itoa(response.StatusCode),
+			"",
+		).Inc()
 	} else if body.Error != nil {
 		zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error))
-		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(id, configToRoute.HTTPURL).Inc()
+		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			id,
+			configToRoute.HTTPURL,
+			strconv.Itoa(response.StatusCode),
+			strconv.Itoa(body.Error.Code),
+		).Inc()
 	}
 
 	return body, response, err
