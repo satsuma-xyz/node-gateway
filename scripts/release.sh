@@ -67,14 +67,8 @@ then
   fi
 fi
 
-if [ "$DOCKER_HUB_REPO" == "$PRODUCTION_DOCKER_HUB_REPO" ]
-then
-  LogStep "Log in to the satsumaxyz Docker account."
-  docker login -u satsumaxyz
-else
-  LogStep "Log in to the dianwen Docker account."
-  docker login -u dianwen
-fi
+LogStep "Log in to the dianwen Docker account."
+docker login -u dianwen
 
 LogStep "Releasing version $RELEASE_VERSION using commit $COMMIT_HASH."
 
