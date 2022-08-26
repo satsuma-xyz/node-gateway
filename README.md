@@ -1,7 +1,10 @@
 # ⛩ node-gateway
 
-A L7 load balancer for blockchain nodes that provides better reliability and
-proper data consistency.
+[![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues)
+
+A L7 load balancer for EVM-based blockchain nodes that provides better
+reliability and proper data consistency.
 
 ## Introduction
 
@@ -10,7 +13,7 @@ often go down or fall behind. Naive load balancing between nodes doesn't
 account for [data consistency issues](https://alchemy.com/blog/data-accuracy).
 
 node-gateway makes it easier to run reliable and accurate node infrastructure
-for serving dApps, trading, and staking.
+for dApp developers, traders, and stakers.
 
 ## Quick start
 
@@ -44,9 +47,9 @@ See the [sample config](/configs/config.sample.yml).
 - Round-robin load balancing for EVM-based JSON RPCs.
 - Health checks for block height, peer count, and sync status.
 - Automated routing to nodes at max block height for data consistency.
-- Node grouping which supports priority load balancing (e.g. primary/fallback).
+- Node groups with priority levels (e.g. primary/fallback).
 - Support for self-hosted nodes and node providers with basic authentication.
-- Prometheus metrics
+- Prometheus metrics.
 - And much more!
 
 #### 🔮 Roadmap
@@ -60,7 +63,7 @@ See the [sample config](/configs/config.sample.yml).
 - Additional routing strategies (intelligent routing to archive/full nodes based on recency of data requested, etc).
 - Filter support (`eth_newBlockFilter`, `eth_newFilter`, and `eth_newPendingTransactionFilter`).
 
-Interested in a specific feature? Join our [Discord community]() to let us know.
+Interested in a specific feature? Join our [Telegram group chat](https://t.me/+9X-jV6P1z45hN2Ux) to let us know.
 
 ## Metrics
 
