@@ -1,7 +1,4 @@
 # ⛩ node-gateway
-[![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues)
-
 
 [![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues)
