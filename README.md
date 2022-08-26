@@ -1,5 +1,7 @@
 # ⛩ node-gateway
 [![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues)
+
 
 A L7 load balancer for blockchain nodes that provides better reliability and
 proper data consistency.
@@ -66,6 +68,7 @@ By default, Prometheus metrics are exposed on port 9090. See
 [metrics.go](/internal/metrics/metrics.go) for more details.
 
 ## Development
+
 
 #### Running locally
 
