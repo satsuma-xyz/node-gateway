@@ -74,7 +74,7 @@ func IsGroupsValid(groups []GroupConfig) bool {
 	var uniqueIDs = make(map[string]bool)
 	for _, group := range groups {
 		if _, ok := uniqueIDs[group.ID]; ok {
-			zap.L().Error("Group IDs should be unique.", zap.Any("duplicate ID", group.ID))
+			zap.L().Error("Group IDs should be unique.", zap.Any("group", group))
 
 			return false
 		}
@@ -85,7 +85,7 @@ func IsGroupsValid(groups []GroupConfig) bool {
 	var uniquePriorities = make(map[int]bool)
 	for _, group := range groups {
 		if _, ok := uniquePriorities[group.Priority]; ok {
-			zap.L().Error("Group priorities should be unique.", zap.Any("duplicate priority", group.ID))
+			zap.L().Error("Group priorities should be unique.", zap.Any("group", group))
 
 			return false
 		}

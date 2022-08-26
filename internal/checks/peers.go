@@ -33,7 +33,7 @@ func NewPeerChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.Eth
 }
 
 func (c *PeerCheck) Initialize() error {
-	zap.L().Debug("Initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig))
+	zap.L().Debug("Initializing PeerCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
@@ -46,7 +46,7 @@ func (c *PeerCheck) Initialize() error {
 	c.runCheck()
 
 	if isMethodNotSupportedErr(c.err) {
-		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig))
+		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
 		c.shouldRun = false
 	}
@@ -57,7 +57,7 @@ func (c *PeerCheck) Initialize() error {
 func (c *PeerCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
-			zap.L().Error("Error initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
+			zap.L().Error("Error initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 		}
 	}
 
@@ -75,7 +75,7 @@ func (c *PeerCheck) runCheck() {
 	c.peerCount = peerCount
 	c.err = err
 
-	zap.L().Debug("Ran PeerCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Any("peerCount", c.peerCount), zap.Error(c.err))
+	zap.L().Debug("Ran PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("peerCount", c.peerCount), zap.Error(c.err))
 }
 
 func (c *PeerCheck) IsPassing() bool {

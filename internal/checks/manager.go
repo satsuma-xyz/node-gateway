@@ -162,7 +162,7 @@ func (h *healthCheckManager) runPeriodicChecks() {
 
 		for i := range h.configs {
 			config := h.configs[i]
-			zap.L().Debug("Running healthchecks on config", zap.String("config", fmt.Sprintf("%v", config)))
+			zap.L().Debug("Running healthchecks on upstream.", zap.String("upstreamID", config.ID))
 
 			wg.Add(1)
 

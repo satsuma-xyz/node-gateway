@@ -105,7 +105,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 		}
 	}
 
-	zap.L().Debug("Routing request to config.", zap.Any("request", requestBody), zap.Any("config", configToRoute))
+	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody))
 
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
@@ -138,7 +138,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 		return nil, nil, err
 	}
 
-	zap.L().Debug("Successfully routed request to config.", zap.Any("request", requestBody), zap.Any("response", respBody), zap.Any("config", configToRoute))
+	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.Any("response", respBody))
 
 	return respBody, resp, nil
 }
@@ -146,7 +146,10 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 // Health checks need to be calculated by priority due to Block Height needs to be calculated by priority.
 func (r *SimpleRouter) getHealthyUpstreamsByPriority() map[int][]string {
 	priorityToHealthyUpstreams := make(map[int][]string)
+
 	for priority, upstreamIDs := range r.priorityToUpstreams {
+		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamIDs))
+
 		priorityToHealthyUpstreams[priority] = r.healthCheckManager.GetHealthyUpstreams(upstreamIDs)
 	}
 
