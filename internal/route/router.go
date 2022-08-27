@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"go.uber.org/zap"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 )
 
 // This contains logic on where and how to route the request.
@@ -106,7 +108,34 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	}
 
 	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody))
+	metrics.UpstreamRPCRequestsTotal.WithLabelValues(id, configToRoute.HTTPURL).Inc()
 
+	body, response, err := r.routeToConfig(requestBody, &configToRoute)
+
+	if err != nil {
+		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			id,
+			configToRoute.HTTPURL,
+			strconv.Itoa(response.StatusCode),
+			"",
+		).Inc()
+	} else if body.Error != nil {
+		zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error))
+		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			id,
+			configToRoute.HTTPURL,
+			strconv.Itoa(response.StatusCode),
+			strconv.Itoa(body.Error.Code),
+		).Inc()
+	}
+
+	return body, response, err
+}
+
+func (r *SimpleRouter) routeToConfig(
+	requestBody jsonrpc.RequestBody,
+	configToRoute *config.UpstreamConfig,
+) (*jsonrpc.ResponseBody, *http.Response, error) {
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
 		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
@@ -138,7 +167,7 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 		return nil, nil, err
 	}
 
-	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.Any("response", respBody))
+	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody))
 
 	return respBody, resp, nil
 }
