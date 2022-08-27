@@ -38,7 +38,7 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", handler)
+	mux.Handle("/", metrics.InstrumentHandler(handler))
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -69,8 +69,6 @@ type RPCHandler struct {
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
-	metrics.RPCRequestsCounter.Inc()
-
 	if req.Method != http.MethodPost {
 		respondJSON(writer, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
