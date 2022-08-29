@@ -1,7 +1,9 @@
 # ⛩ node-gateway
 [![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml) 
+
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/satsuma-xyz/node-gateway)](https://github.com/satsuma-xyz/node-gateway/releases) 
 [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/satsumaxyz/node-gateway?logo=docker)](https://hub.docker.com/r/satsumaxyz/node-gateway/tags) 
+
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues) 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/satsuma-xyz/node-gateway/blob/main/LICENSE)
 
