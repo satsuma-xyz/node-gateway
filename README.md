@@ -19,6 +19,10 @@ account for [data consistency issues](https://alchemy.com/blog/data-accuracy).
 node-gateway makes it easier to run reliable and accurate node infrastructure
 for dApp developers, traders, and stakers.
 
+## Example use cases
+- Run your own nodes instead of paying for node providers. For very high availability, fall back on node providers in case your own nodes are unavailable. In our benchmarks, a single on-demand im4gn.4xlarge AWS EC2 machine that costs ~$1050 can serve over 1000 requests / second. This is > 10x cheaper than the well known node providers.
+- Use a primary node provider and fall back on another node provider for even higher availability. The well known node providers tout 99.9% uptime (~9 hours of downtime a year) but often have degraded performance even if they're "up".
+
 ## Quick start
 
 #### Run with Docker
