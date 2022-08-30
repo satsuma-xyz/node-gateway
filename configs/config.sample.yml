@@ -38,15 +38,15 @@ upstreams:
     wsURL: "wss://12.57.207.168:8546"
     group: primary
   - id: infura-eth
-    httpURL: "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
-    wsURL: "wss://mainnet.infura.io/ws/v3/${INFURA_API_KEY}"
+    httpURL: "https://mainnet.infura.io/v3/<YOUR_INFURA_API_KEY_GOES_HERE>"
+    wsURL: "wss://mainnet.infura.io/ws/v3/<YOUR_INFURA_API_KEY_GOES_HERE>"
     basicAuth:
       username: ~
       password: ${INFURA_API_KEY_SECRET}
     group: fallback
   - id: alchemy-eth
-    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-    wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+    httpURL: "https://eth-mainnet.g.alchemy.com/v2/<YOUR_ALCHEMY_API_KEY_GOES_HERE>"
+    wsURL: "wss://eth-mainnet.g.alchemy.com/v2/<YOUR_ALCHEMY_API_KEY_GOES_HERE>"
     healthCheck:
       useWsForBlockHeight: false
     group: fallback
