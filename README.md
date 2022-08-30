@@ -32,7 +32,7 @@ git clone https://github.com/satsuma-data/node-gateway.git
 cd node-gateway
 cp configs/config.sample.yml config.yml
 
-docker run -d -p 8080:8080 \
+docker run -d -p 8080:8080 -p 9090:9090 \
   -v $PWD/config.yml:/satsuma/config.yml \
   -e ENV=production \
   satsumaxyz/node-gateway:latest
