@@ -22,6 +22,11 @@ Help()
    echo
 }
 
+IsProductionRelease()
+{
+  [ "$DOCKER_HUB_REPO" == "$PRODUCTION_DOCKER_HUB_REPO" ]
+}
+
 COMMIT_HASH=$1
 RELEASE_VERSION=$2
 DOCKER_HUB_REPO=$3
@@ -58,9 +63,9 @@ fi
 #   exit 1
 # fi
 
-if [ "$DOCKER_HUB_REPO" == "$PRODUCTION_DOCKER_HUB_REPO" ]
+if IsProductionRelease
 then
-  read -r -p "Have you already tested this image by pushing it up to the $TEST_DOCKER_HUB_REPO Docker registry? [y/N] " response
+  read -r -p "Have you already tested this image by pushing it up to the $PRODUCTION_DOCKER_HUB_REPO Docker registry? [y/N] " response
   if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
   then
       exit 1
@@ -90,6 +95,14 @@ make VERSION=$RELEASE_VERSION GIT_COMMIT_HASH=$COMMIT_HASH build-archives
 
 LogStep "Building and pushing the image."
 make GIT_COMMIT_HASH=$COMMIT_HASH DOCKER_HUB_REPO=$DOCKER_HUB_REPO VERSION=$RELEASE_VERSION build-and-push-image
+
+if IsProductionRelease
+then
+  GITHUB_TAG="v${RELEASE_VERSION}"
+  LogStep "Pushing tag: $GITHUB_TAG to GitHub."
+  git tag $GITHUB_TAG
+  git push origin $GITHUB_TAG
+fi
 
 LogStep "Checking out the original commit."
 git checkout $CURRENT_BRANCH
