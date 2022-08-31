@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	context "context"
 	http "net/http"
 
 	jsonrpc "github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -14,13 +15,13 @@ type Router struct {
 	mock.Mock
 }
 
-// Route provides a mock function with given fields: requestBody
-func (_m *Router) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
-	ret := _m.Called(requestBody)
+// Route provides a mock function with given fields: ctx, requestBody
+func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
+	ret := _m.Called(ctx, requestBody)
 
 	var r0 *jsonrpc.ResponseBody
-	if rf, ok := ret.Get(0).(func(jsonrpc.RequestBody) *jsonrpc.ResponseBody); ok {
-		r0 = rf(requestBody)
+	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) *jsonrpc.ResponseBody); ok {
+		r0 = rf(ctx, requestBody)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*jsonrpc.ResponseBody)
@@ -28,8 +29,8 @@ func (_m *Router) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody,
 	}
 
 	var r1 *http.Response
-	if rf, ok := ret.Get(1).(func(jsonrpc.RequestBody) *http.Response); ok {
-		r1 = rf(requestBody)
+	if rf, ok := ret.Get(1).(func(context.Context, jsonrpc.RequestBody) *http.Response); ok {
+		r1 = rf(ctx, requestBody)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*http.Response)
@@ -37,8 +38,8 @@ func (_m *Router) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody,
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(jsonrpc.RequestBody) error); ok {
-		r2 = rf(requestBody)
+	if rf, ok := ret.Get(2).(func(context.Context, jsonrpc.RequestBody) error); ok {
+		r2 = rf(ctx, requestBody)
 	} else {
 		r2 = ret.Error(2)
 	}

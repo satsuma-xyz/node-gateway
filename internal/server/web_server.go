@@ -11,6 +11,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/route"
+	"github.com/satsuma-data/node-gateway/internal/util"
 	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
@@ -74,6 +75,8 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	ctx := util.NewContext(context.Background(), getClientID(req))
+
 	headerContentType := req.Header.Get("Content-Type")
 	// Content-Type SHOULD be 'application/json-rpc' but MAY be
 	// 'application/json' or 'application/jsonrequest'.
@@ -93,7 +96,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
-	respBody, resp, err := h.router.Route(body)
+	respBody, resp, err := h.router.Route(ctx, body)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
@@ -114,6 +117,15 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	respondJSONRPC(writer, respBody, resp.StatusCode)
 
 	zap.L().Debug("Request successfully routed.", zap.Any("requestBody", body))
+}
+
+func getClientID(req *http.Request) string {
+	// Try to get the id of the `client` via query parameter. Admittedly this is a little hacky, but it won't break
+	// functionality as query params aren't used in JSON RPC.
+	// The reason we're using query param is because client code may be hard to modify, e.g. graph-nodes, while using
+	// query param is part of the RPC URL which is usually supplied as a config to the client.
+	// A better solution is to pass the client via an HTTP header.
+	return req.URL.Query().Get("client")
 }
 
 func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, httpStatusCode int) {
