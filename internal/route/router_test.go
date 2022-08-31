@@ -1,6 +1,7 @@
 package route
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -28,7 +29,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0))
 	router.(*SimpleRouter).healthCheckManager = managerMock
 
-	jsonResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
+	jsonResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, jsonResp)
@@ -100,7 +101,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRcpResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
+	jsonRcpResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
@@ -145,7 +146,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRcpResp, httpResp, err := router.Route(jsonrpc.RequestBody{})
+	jsonRcpResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)

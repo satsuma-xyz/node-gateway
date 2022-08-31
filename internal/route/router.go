@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"github.com/satsuma-data/node-gateway/internal/util"
 )
 
 // This contains logic on where and how to route the request.
@@ -25,7 +27,7 @@ import (
 //go:generate mockery --output ../mocks --name Router
 type Router interface {
 	Start()
-	Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
+	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -76,7 +78,7 @@ func (r *SimpleRouter) Start() {
 	r.healthCheckManager.StartHealthChecks()
 }
 
-func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
+func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
 	healthyUpstreams := r.getHealthyUpstreamsByPriority()
 
 	hasHealthyUpstreams := false
@@ -108,31 +110,55 @@ func (r *SimpleRouter) Route(requestBody jsonrpc.RequestBody) (*jsonrpc.Response
 	}
 
 	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody))
-	metrics.UpstreamRPCRequestsTotal.WithLabelValues(id, configToRoute.HTTPURL).Inc()
+	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+		util.GetClientFromContext(ctx),
+		id,
+		configToRoute.HTTPURL,
+		requestBody.Method,
+	).Inc()
 
-	body, response, err := r.routeToConfig(requestBody, &configToRoute)
+	start := time.Now()
+	body, response, err := r.routeToConfig(ctx, requestBody, &configToRoute)
+	HTTPReponseCode := ""
 
-	if err != nil {
+	if response != nil {
+		HTTPReponseCode = strconv.Itoa(response.StatusCode)
+	}
+
+	isJSONRPCError := body != nil && body.Error != nil
+	if err != nil || isJSONRPCError {
+		JSONRPCResponseCode := ""
+
+		if isJSONRPCError {
+			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error))
+
+			JSONRPCResponseCode = strconv.Itoa(body.Error.Code)
+		}
+
 		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			util.GetClientFromContext(ctx),
 			id,
 			configToRoute.HTTPURL,
-			strconv.Itoa(response.StatusCode),
-			"",
-		).Inc()
-	} else if body.Error != nil {
-		zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error))
-		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
-			id,
-			configToRoute.HTTPURL,
-			strconv.Itoa(response.StatusCode),
-			strconv.Itoa(body.Error.Code),
+			requestBody.Method,
+			HTTPReponseCode,
+			JSONRPCResponseCode,
 		).Inc()
 	}
+
+	metrics.UpstreamRPCDuration.WithLabelValues(
+		util.GetClientFromContext(ctx),
+		configToRoute.ID,
+		configToRoute.HTTPURL,
+		requestBody.Method,
+		HTTPReponseCode,
+		"",
+	).Observe(time.Since(start).Seconds())
 
 	return body, response, err
 }
 
 func (r *SimpleRouter) routeToConfig(
+	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
 	configToRoute *config.UpstreamConfig,
 ) (*jsonrpc.ResponseBody, *http.Response, error) {
@@ -142,7 +168,7 @@ func (r *SimpleRouter) routeToConfig(
 		return nil, nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		zap.L().Error("Could not create new http request.", zap.Any("request", requestBody), zap.Error(err))
 		return nil, nil, err

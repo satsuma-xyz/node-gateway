@@ -57,7 +57,7 @@ var (
 			Name:      "upstream_rpc_requests_total",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"client", "endpoint_id", "url", "jsonrpc_method"},
 	)
 
 	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -67,7 +67,18 @@ var (
 			Name:      "upstream_rpc_request_errors_total",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
-		[]string{"endpoint_id", "url", "response_code", "jsonrpc_error_code"},
+		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+	)
+
+	UpstreamRPCDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: metricsSubsystem,
+			Name:      "upstream_rpc_duration_seconds",
+			Help:      "Latency of RPC requests forwarded to upstreams.",
+			Buckets:   []float64{0.1, .5, 1, 5, 10, 30, 60},
+		},
+		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 )
 

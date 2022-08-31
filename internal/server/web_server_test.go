@@ -24,7 +24,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 		Result:  "results",
 		ID:      2,
 	}
-	router.On("Route", mock.Anything).
+	router.On("Route", mock.Anything, mock.Anything).
 		Return(expectedRPCResponse,
 			&http.Response{
 				StatusCode: http.StatusOK,
@@ -123,7 +123,7 @@ func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
 	router := mocks.NewRouter(t)
 
-	router.On("Route", mock.Anything).
+	router.On("Route", mock.Anything, mock.Anything).
 		Return(nil,
 			&http.Response{
 				StatusCode: http.StatusAccepted,
@@ -152,7 +152,7 @@ func TestHandleJSONRPCRequest_JSONRPCDecodeError(t *testing.T) {
 	router := mocks.NewRouter(t)
 	undecodableContent := []byte("content")
 
-	router.On("Route", mock.Anything).
+	router.On("Route", mock.Anything, mock.Anything).
 		Return(nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
 
 	handler := &RPCHandler{router: router}
