@@ -39,6 +39,8 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/health", handleHealthCheck)
+
 	mux.Handle("/", metrics.InstrumentHandler(handler))
 
 	httpServer := &http.Server{
@@ -54,6 +56,10 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	return *rpcServer
+}
+
+func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {
+	respondRaw(writer, []byte("OK"), http.StatusOK)
 }
 
 func (s *RPCServer) Start() error {
