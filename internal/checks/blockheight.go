@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +68,9 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
+		metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 		c.blockHeightError = err
+
 		return
 	}
 
@@ -91,14 +94,22 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 		return
 	}
 
-	header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
-	if c.blockHeightError = err; c.blockHeightError != nil {
-		return
+	runCheck := func() {
+		header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
+		if c.blockHeightError = err; c.blockHeightError != nil {
+			metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			return
+		}
+
+		c.blockHeight = header.Number.Uint64()
+		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+
+		zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 	}
 
-	c.blockHeight = header.Number.Uint64()
-
-	zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
+	runCheckWithMetrics(runCheck,
+		metrics.BlockHeightTotalRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		metrics.BlockHeightDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
@@ -122,6 +133,7 @@ func (c *BlockHeightCheck) GetError() error {
 func (c *BlockHeightCheck) subscribeNewHead() error {
 	onNewHead := func(header *types.Header) {
 		c.blockHeight = header.Number.Uint64()
+		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 		c.webSocketError = nil
 		c.blockHeightError = nil
 	}
@@ -129,6 +141,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	onError := func(failure string) {
 		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
+		metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 		c.webSocketError = errors.New(failure)
 		c.blockHeightError = c.webSocketError
 	}

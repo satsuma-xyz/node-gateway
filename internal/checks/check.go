@@ -2,8 +2,10 @@ package checks
 
 import (
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -25,6 +27,14 @@ func isMethodNotSupportedErr(err error) bool {
 		// match rpc.Error.
 		return strings.Contains(strings.ToLower(err.Error()), "unsupported method")
 	}
+}
+
+func runCheckWithMetrics(runCheck func(), counterMetrics prometheus.Counter, durationMetrics prometheus.Observer) {
+	start := time.Now()
+
+	counterMetrics.Inc()
+	runCheck()
+	durationMetrics.Observe(time.Since(start).Seconds())
 }
 
 //go:generate mockery --output ../mocks --name Checker
