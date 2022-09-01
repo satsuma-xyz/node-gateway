@@ -96,32 +96,32 @@ var (
 		[]string{"endpoint_id", "url"},
 	)
 
-	BlockHeightTotalRequests = promauto.NewCounterVec(
+	BlockHeightCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "block_height_total",
+			Name:      "block_height_check_requests",
 			Help:      "Total block height requests made.",
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	BlockHeightDuration = promauto.NewHistogramVec(
+	BlockHeightCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "block_height_duration_seconds",
+			Name:      "block_height_check_duration_seconds",
 			Help:      "Latency of block height requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	BlockHeightErrors = promauto.NewCounterVec(
+	BlockHeightCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "block_height_errors",
+			Name:      "block_height_check_errors",
 			Help:      "Errors when retrieving block height of upstream.",
 		},
 		[]string{"endpoint_id", "url"},
@@ -137,32 +137,32 @@ var (
 		[]string{"endpoint_id", "url"},
 	)
 
-	PeerCountTotalRequests = promauto.NewCounterVec(
+	PeerCountCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "peer_count_total",
+			Name:      "peer_count_check_requests",
 			Help:      "Total peer count requests made.",
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	PeerCountDuration = promauto.NewHistogramVec(
+	PeerCountCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "peer_count_duration_seconds",
+			Name:      "peer_count_check_duration_seconds",
 			Help:      "Latency of peer count requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	PeerCountErrors = promauto.NewCounterVec(
+	PeerCountCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "peer_count_errors",
+			Name:      "peer_count_check_errors",
 			Help:      "Errors when retrieving peer count of upstream.",
 		},
 		[]string{"endpoint_id", "url"},
@@ -179,32 +179,32 @@ var (
 		[]string{"endpoint_id", "url"},
 	)
 
-	SyncStatusTotalRequests = promauto.NewCounterVec(
+	SyncStatusCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "sync_status_total",
+			Name:      "sync_status_check_requests",
 			Help:      "Total sync status requests made.",
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	SyncStatusDuration = promauto.NewHistogramVec(
+	SyncStatusCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "sync_status_duration_seconds",
+			Name:      "sync_status_check_duration_seconds",
 			Help:      "Latency of sync status requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		[]string{"endpoint_id", "url"},
 	)
 
-	SyncStatusErrors = promauto.NewCounterVec(
+	SyncStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "sync_status_errors",
+			Name:      "sync_status_check_errors",
 			Help:      "Errors when retrieving sync status of upstream.",
 		},
 		[]string{"endpoint_id", "url"},

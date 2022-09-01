@@ -68,7 +68,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 		c.blockHeightError = err
 
 		return
@@ -97,7 +97,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	runCheck := func() {
 		header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
 		if c.blockHeightError = err; c.blockHeightError != nil {
-			metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 			return
 		}
 
@@ -108,8 +108,8 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	}
 
 	runCheckWithMetrics(runCheck,
-		metrics.BlockHeightTotalRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		metrics.BlockHeightDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		metrics.BlockHeightCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		metrics.BlockHeightCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
@@ -141,7 +141,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	onError := func(failure string) {
 		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
-		metrics.BlockHeightErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 		c.webSocketError = errors.New(failure)
 		c.blockHeightError = c.webSocketError
 	}

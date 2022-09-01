@@ -61,7 +61,7 @@ func (c *SyncingCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
 			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			metrics.SyncStatusErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 		}
 	}
 
@@ -78,7 +78,7 @@ func (c *SyncingCheck) runCheck() {
 	runCheck := func() {
 		result, err := c.client.SyncProgress(context.Background())
 		if c.err = err; err != nil {
-			metrics.SyncStatusErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
 			return
 		}
 
@@ -95,8 +95,8 @@ func (c *SyncingCheck) runCheck() {
 	}
 
 	runCheckWithMetrics(runCheck,
-		metrics.SyncStatusTotalRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		metrics.SyncStatusDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		metrics.SyncStatusCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		metrics.SyncStatusCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *SyncingCheck) IsPassing() bool {
