@@ -14,6 +14,11 @@ const (
 	DefaultPort              = 9090
 	metricsNamespace         = "node_gateway"
 	defaultReadHeaderTimeout = 10 * time.Second
+
+	// Metric labels
+	BlockHeightCheckErrorTypeWSSubscribe = "wsSubscribe"
+	BlockHeightCheckErrorTypeWSError     = "wsError"
+	BlockHeightCheckErrorTypeHTTP        = "http"
 )
 
 var (
@@ -124,7 +129,7 @@ var (
 			Name:      "block_height_check_errors",
 			Help:      "Errors when retrieving block height of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"endpoint_id", "url", "errorType"},
 	)
 
 	PeerCount = promauto.NewGaugeVec(

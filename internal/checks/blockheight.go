@@ -68,7 +68,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.BlockHeightCheckErrorTypeHTTP).Inc()
 		c.blockHeightError = err
 
 		return
@@ -97,7 +97,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	runCheck := func() {
 		header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
 		if c.blockHeightError = err; c.blockHeightError != nil {
-			metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.BlockHeightCheckErrorTypeHTTP).Inc()
 			return
 		}
 
@@ -141,7 +141,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	onError := func(failure string) {
 		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
-		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.BlockHeightCheckErrorTypeWSError).Inc()
 		c.webSocketError = errors.New(failure)
 		c.blockHeightError = c.webSocketError
 	}
@@ -153,7 +153,9 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	}
 
 	if err = subscribeNewHeads(wsClient, &newHeadHandler{onNewHead: onNewHead, onError: onError}); err != nil {
+		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.BlockHeightCheckErrorTypeWSSubscribe).Inc()
 		c.webSocketError = err
+
 		return err
 	}
 
