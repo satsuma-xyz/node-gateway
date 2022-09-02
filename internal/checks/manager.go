@@ -2,6 +2,7 @@ package checks
 
 import (
 	"fmt"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"sync"
 	"time"
 
@@ -15,44 +16,25 @@ const (
 	periodicHealthCheckInterval = 5 * time.Second
 )
 
-type UpstreamStatus struct {
-	blockHeightCheck BlockHeightChecker
-	peerCheck        Checker
-	syncingCheck     Checker
-	ID               string
-}
-
-// Provide the max block height found across node providers.
-func (s *UpstreamStatus) isHealthy(maxBlockHeight uint64) bool {
-	if !s.peerCheck.IsPassing() || !s.syncingCheck.IsPassing() || !s.blockHeightCheck.IsPassing(maxBlockHeight) {
-		zap.L().Debug("Upstream identifed as unhealthy.", zap.String("upstreamID", s.ID), zap.String("upstreamStatus", fmt.Sprintf("%+v", s)))
-
-		return false
-	}
-
-	zap.L().Debug("Upstream identifed as healthy.", zap.String("upstreamID", s.ID), zap.String("upstreamStatus", fmt.Sprintf("%+v", s)))
-
-	return true
-}
-
 //go:generate mockery --output ../mocks --name HealthCheckManager
 type HealthCheckManager interface {
 	StartHealthChecks()
 	GetHealthyUpstreams(candidateUpstreams []string) []string
+	GetUpstreamStatus(upstreamId string) *types.UpstreamStatus
 }
 
 type healthCheckManager struct {
-	upstreamIDToStatus  map[string]*UpstreamStatus
+	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker
-	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) Checker
-	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) Checker
+	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.BlockHeightChecker
+	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
+	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	configs             []conf.UpstreamConfig
 }
 
 func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig) HealthCheckManager {
 	return &healthCheckManager{
-		upstreamIDToStatus:  make(map[string]*UpstreamStatus),
+		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
 		configs:             config,
 		newBlockHeightCheck: NewBlockHeightChecker,
@@ -76,15 +58,15 @@ func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []
 	var maxBlockHeight uint64 = 0
 
 	for _, upstreamID := range candidateUpstreams {
-		if h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetError() == nil && h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetBlockHeight() > maxBlockHeight {
-			maxBlockHeight = h.upstreamIDToStatus[upstreamID].blockHeightCheck.GetBlockHeight()
+		if h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetError() == nil && h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetBlockHeight() > maxBlockHeight {
+			maxBlockHeight = h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetBlockHeight()
 		}
 	}
 
 	healthyUpstreams := make([]string, 0)
 
 	for _, upstreamID := range candidateUpstreams {
-		if h.upstreamIDToStatus[upstreamID].isHealthy(maxBlockHeight) {
+		if h.upstreamIDToStatus[upstreamID].IsHealthy(maxBlockHeight) {
 			healthyUpstreams = append(healthyUpstreams, upstreamID)
 		}
 	}
@@ -92,6 +74,15 @@ func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []
 	zap.L().Debug("Determined currently healthy upstreams.", zap.Any("healthyUpstreams", healthyUpstreams), zap.Any("candidateUpstreams", candidateUpstreams))
 
 	return healthyUpstreams
+}
+
+func (h *healthCheckManager) GetUpstreamStatus(upstreamId string) *types.UpstreamStatus {
+	if status, ok := h.upstreamIDToStatus[upstreamId]; ok {
+		return status
+	} else {
+		// Panic because an unknown upstream ID implies a bug in the code.
+		panic(fmt.Sprintf("Upstream ID %s not found!", upstreamId))
+	}
 }
 
 func (h *healthCheckManager) initializeChecks() {
@@ -110,7 +101,7 @@ func (h *healthCheckManager) initializeChecks() {
 
 			var innerWG sync.WaitGroup
 
-			var blockHeightCheck BlockHeightChecker
+			var blockHeightCheck types.BlockHeightChecker
 
 			innerWG.Add(1)
 
@@ -120,7 +111,7 @@ func (h *healthCheckManager) initializeChecks() {
 				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient)
 			}()
 
-			var peerCheck Checker
+			var peerCheck types.Checker
 
 			innerWG.Add(1)
 
@@ -130,7 +121,7 @@ func (h *healthCheckManager) initializeChecks() {
 				peerCheck = h.newPeerCheck(&config, client.NewEthClient)
 			}()
 
-			var syncingCheck Checker
+			var syncingCheck types.Checker
 
 			innerWG.Add(1)
 
@@ -143,11 +134,11 @@ func (h *healthCheckManager) initializeChecks() {
 			innerWG.Wait()
 
 			mutex.Lock()
-			h.upstreamIDToStatus[config.ID] = &UpstreamStatus{
+			h.upstreamIDToStatus[config.ID] = &types.UpstreamStatus{
 				ID:               config.ID,
-				blockHeightCheck: blockHeightCheck,
-				peerCheck:        peerCheck,
-				syncingCheck:     syncingCheck,
+				BlockHeightCheck: blockHeightCheck,
+				PeerCheck:        peerCheck,
+				SyncingCheck:     syncingCheck,
 			}
 			mutex.Unlock()
 		}()
@@ -166,24 +157,24 @@ func (h *healthCheckManager) runPeriodicChecks() {
 
 			wg.Add(1)
 
-			go func(c BlockHeightChecker) {
+			go func(c types.BlockHeightChecker) {
 				defer wg.Done()
 				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].blockHeightCheck)
+			}(h.upstreamIDToStatus[config.ID].BlockHeightCheck)
 
 			wg.Add(1)
 
-			go func(c Checker) {
+			go func(c types.Checker) {
 				defer wg.Done()
 				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].peerCheck)
+			}(h.upstreamIDToStatus[config.ID].PeerCheck)
 
 			wg.Add(1)
 
-			go func(c Checker) {
+			go func(c types.Checker) {
 				defer wg.Done()
 				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].syncingCheck)
+			}(h.upstreamIDToStatus[config.ID].SyncingCheck)
 		}
 
 		wg.Wait()

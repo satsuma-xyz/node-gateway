@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
@@ -18,7 +19,7 @@ type PeerCheck struct {
 	shouldRun      bool
 }
 
-func NewPeerChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
+func NewPeerChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
 	c := &PeerCheck{
 		upstreamConfig: upstreamConfig,
 		clientGetter:   clientGetter,

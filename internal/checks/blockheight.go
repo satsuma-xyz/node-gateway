@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"errors"
+	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -10,14 +11,6 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
-
-//go:generate mockery --output ../mocks --name BlockHeightChecker
-type BlockHeightChecker interface {
-	RunCheck()
-	GetError() error
-	GetBlockHeight() uint64
-	IsPassing(maxBlockHeight uint64) bool
-}
 
 type BlockHeightCheck struct {
 	httpClient          client.EthClient
@@ -29,7 +22,7 @@ type BlockHeightCheck struct {
 	useWSForBlockHeight bool
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker {
+func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig: config,
 		clientGetter:   clientGetter,

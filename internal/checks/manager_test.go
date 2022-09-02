@@ -2,6 +2,7 @@ package checks
 
 import (
 	"errors"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"testing"
 	"time"
 
@@ -42,13 +43,13 @@ func TestHealthCheckManager(t *testing.T) {
 	}
 
 	manager := NewHealthCheckManager(mockEthClientGetter, configs)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker {
+	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
-	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
+	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
 		return mockPeerChecker
 	}
-	manager.(*healthCheckManager).newSyncingCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
+	manager.(*healthCheckManager).newSyncingCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
 		return mockSyncingChecker
 	}
 
