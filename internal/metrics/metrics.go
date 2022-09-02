@@ -16,9 +16,14 @@ const (
 	defaultReadHeaderTimeout = 10 * time.Second
 
 	// Metric labels
-	BlockHeightCheckErrorTypeWSSubscribe = "wsSubscribe"
-	BlockHeightCheckErrorTypeWSError     = "wsError"
-	BlockHeightCheckErrorTypeHTTP        = "http"
+
+	// General health check error types
+	HTTPInit    = "httpInit"
+	HTTPRequest = "httpReq"
+
+	// BlockHeightCheck-specific errors
+	WSSubscribe = "wsSubscribe"
+	WSError     = "wsError"
 )
 
 var (
@@ -28,7 +33,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "server",
-			Name:      "rpc_requests_total",
+			Name:      "rpc_requests",
 			Help:      "Count of total RPC requests.",
 		},
 		[]string{"code", "method"},
@@ -62,7 +67,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
-			Name:      "upstream_rpc_requests_total",
+			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
 		[]string{"client", "endpoint_id", "url", "jsonrpc_method"},
@@ -72,7 +77,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
-			Name:      "upstream_rpc_request_errors_total",
+			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
 		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
@@ -105,7 +110,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "block_height_check_requests",
+			Name:      "block_height_check",
 			Help:      "Total block height requests made.",
 		},
 		[]string{"endpoint_id", "url"},
@@ -170,7 +175,7 @@ var (
 			Name:      "peer_count_check_errors",
 			Help:      "Errors when retrieving peer count of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"endpoint_id", "url", "errorType"},
 	)
 
 	// Use 0 or 1
@@ -212,7 +217,7 @@ var (
 			Name:      "sync_status_check_errors",
 			Help:      "Errors when retrieving sync status of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"endpoint_id", "url", "errorType"},
 	)
 )
 

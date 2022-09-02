@@ -61,7 +61,7 @@ func (c *SyncingCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
 			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
 
@@ -78,7 +78,7 @@ func (c *SyncingCheck) runCheck() {
 	runCheck := func() {
 		result, err := c.client.SyncProgress(context.Background())
 		if c.err = err; err != nil {
-			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Inc()
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
 		}
 
