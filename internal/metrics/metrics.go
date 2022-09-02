@@ -12,17 +12,28 @@ import (
 
 const (
 	DefaultPort              = 9090
-	metricsNamespace         = "satsuma"
-	metricsSubsystem         = "node_gateway"
+	metricsNamespace         = "node_gateway"
 	defaultReadHeaderTimeout = 10 * time.Second
+
+	// Metric labels
+
+	// General health check error types
+	HTTPInit    = "httpInit"
+	HTTPRequest = "httpReq"
+
+	// BlockHeightCheck-specific errors
+	WSSubscribe = "wsSubscribe"
+	WSError     = "wsError"
 )
 
 var (
+	// Overall metrics
+
 	rpcRequestsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
-			Name:      "rpc_requests_total",
+			Subsystem: "server",
+			Name:      "rpc_requests",
 			Help:      "Count of total RPC requests.",
 		},
 		[]string{"code", "method"},
@@ -31,10 +42,10 @@ var (
 	rpcRequestsDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
+			Subsystem: "server",
 			Name:      "rpc_request_duration_seconds",
 			Help:      "Histogram of RPC request latencies.",
-			Buckets:   []float64{0.1, .5, 1, 5, 10, 30, 60},
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		[]string{"code", "method"},
 	)
@@ -42,7 +53,7 @@ var (
 	rpcResponseSizes = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
+			Subsystem: "server",
 			Name:      "rpc_response_size_bytes",
 			Help:      "Histogram of RPC response sizes.",
 			Buckets:   []float64{100, 500, 1000, 5000, 10000},
@@ -50,11 +61,13 @@ var (
 		[]string{"code", "method"},
 	)
 
+	// Upstream routing metrics
+
 	UpstreamRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
-			Name:      "upstream_rpc_requests_total",
+			Subsystem: "router",
+			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
 		[]string{"client", "endpoint_id", "url", "jsonrpc_method"},
@@ -63,8 +76,8 @@ var (
 	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
-			Name:      "upstream_rpc_request_errors_total",
+			Subsystem: "router",
+			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
 		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
@@ -73,12 +86,138 @@ var (
 	UpstreamRPCDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
-			Subsystem: metricsSubsystem,
+			Subsystem: "router",
 			Name:      "upstream_rpc_duration_seconds",
 			Help:      "Latency of RPC requests forwarded to upstreams.",
-			Buckets:   []float64{0.1, .5, 1, 5, 10, 30, 60},
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+	)
+
+	// Health check metrics
+
+	BlockHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "block_height",
+			Help:      "Block height of upstream.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	BlockHeightCheckRequests = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "block_height_check",
+			Help:      "Total block height requests made.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	BlockHeightCheckDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "block_height_check_duration_seconds",
+			Help:      "Latency of block height requests.",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	BlockHeightCheckErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "block_height_check_errors",
+			Help:      "Errors when retrieving block height of upstream.",
+		},
+		[]string{"endpoint_id", "url", "errorType"},
+	)
+
+	PeerCount = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "peer_count",
+			Help:      "Block height of upstream.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	PeerCountCheckRequests = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "peer_count_check_requests",
+			Help:      "Total peer count requests made.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	PeerCountCheckDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "peer_count_check_duration_seconds",
+			Help:      "Latency of peer count requests.",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	PeerCountCheckErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "peer_count_check_errors",
+			Help:      "Errors when retrieving peer count of upstream.",
+		},
+		[]string{"endpoint_id", "url", "errorType"},
+	)
+
+	// Use 0 or 1
+	SyncStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "sync_status",
+			Help:      "Sync Status of upstream.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	SyncStatusCheckRequests = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "sync_status_check_requests",
+			Help:      "Total sync status requests made.",
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	SyncStatusCheckDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "sync_status_check_duration_seconds",
+			Help:      "Latency of sync status requests.",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+		},
+		[]string{"endpoint_id", "url"},
+	)
+
+	SyncStatusCheckErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "sync_status_check_errors",
+			Help:      "Errors when retrieving sync status of upstream.",
+		},
+		[]string{"endpoint_id", "url", "errorType"},
 	)
 )
 

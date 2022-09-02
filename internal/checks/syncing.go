@@ -5,6 +5,7 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -60,6 +61,7 @@ func (c *SyncingCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
 			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
 
@@ -73,11 +75,28 @@ func (c *SyncingCheck) runCheck() {
 		return
 	}
 
-	syncProgress, err := c.client.SyncProgress(context.Background())
-	c.err = err
-	c.isSyncing = syncProgress != nil
+	runCheck := func() {
+		result, err := c.client.SyncProgress(context.Background())
+		if c.err = err; err != nil {
+			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+			return
+		}
 
-	zap.L().Debug("Ran SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("syncProgress", syncProgress), zap.Error(err))
+		c.isSyncing = result != nil
+
+		gauge := 0
+		if c.isSyncing {
+			gauge = 1
+		}
+
+		metrics.SyncStatus.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(gauge))
+
+		zap.L().Debug("Ran SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("syncProgress", result))
+	}
+
+	runCheckWithMetrics(runCheck,
+		metrics.SyncStatusCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		metrics.SyncStatusCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *SyncingCheck) IsPassing() bool {
