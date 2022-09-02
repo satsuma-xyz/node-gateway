@@ -70,7 +70,7 @@ var (
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
-		[]string{"client", "endpoint_id", "url", "jsonrpc_method"},
+		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
 	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -80,7 +80,7 @@ var (
 			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
-		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
 	UpstreamRPCDuration = promauto.NewHistogramVec(
@@ -91,7 +91,7 @@ var (
 			Help:      "Latency of RPC requests forwarded to upstreams.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"client", "endpoint_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
 	// Health check metrics
@@ -103,7 +103,7 @@ var (
 			Name:      "block_height",
 			Help:      "Block height of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	BlockHeightCheckRequests = promauto.NewCounterVec(
@@ -113,7 +113,7 @@ var (
 			Name:      "block_height_check",
 			Help:      "Total block height requests made.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	BlockHeightCheckDuration = promauto.NewHistogramVec(
@@ -124,7 +124,7 @@ var (
 			Help:      "Latency of block height requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	BlockHeightCheckErrors = promauto.NewCounterVec(
@@ -134,7 +134,7 @@ var (
 			Name:      "block_height_check_errors",
 			Help:      "Errors when retrieving block height of upstream.",
 		},
-		[]string{"endpoint_id", "url", "errorType"},
+		[]string{"upstream_id", "url", "errorType"},
 	)
 
 	PeerCount = promauto.NewGaugeVec(
@@ -144,7 +144,7 @@ var (
 			Name:      "peer_count",
 			Help:      "Block height of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	PeerCountCheckRequests = promauto.NewCounterVec(
@@ -154,7 +154,7 @@ var (
 			Name:      "peer_count_check_requests",
 			Help:      "Total peer count requests made.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	PeerCountCheckDuration = promauto.NewHistogramVec(
@@ -165,7 +165,7 @@ var (
 			Help:      "Latency of peer count requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	PeerCountCheckErrors = promauto.NewCounterVec(
@@ -175,7 +175,7 @@ var (
 			Name:      "peer_count_check_errors",
 			Help:      "Errors when retrieving peer count of upstream.",
 		},
-		[]string{"endpoint_id", "url", "errorType"},
+		[]string{"upstream_id", "url", "errorType"},
 	)
 
 	// Use 0 or 1
@@ -186,7 +186,7 @@ var (
 			Name:      "sync_status",
 			Help:      "Sync Status of upstream.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	SyncStatusCheckRequests = promauto.NewCounterVec(
@@ -196,7 +196,7 @@ var (
 			Name:      "sync_status_check_requests",
 			Help:      "Total sync status requests made.",
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	SyncStatusCheckDuration = promauto.NewHistogramVec(
@@ -207,7 +207,7 @@ var (
 			Help:      "Latency of sync status requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"endpoint_id", "url"},
+		[]string{"upstream_id", "url"},
 	)
 
 	SyncStatusCheckErrors = promauto.NewCounterVec(
@@ -217,7 +217,7 @@ var (
 			Name:      "sync_status_check_errors",
 			Help:      "Errors when retrieving sync status of upstream.",
 		},
-		[]string{"endpoint_id", "url", "errorType"},
+		[]string{"upstream_id", "url", "errorType"},
 	)
 )
 
