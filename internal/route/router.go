@@ -3,8 +3,6 @@ package route
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"io"
 	"net/http"
@@ -35,10 +33,10 @@ type SimpleRouter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
-	httpClient         client.HTTPClient
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams map[int][]string
 	upstreamConfigs     []config.UpstreamConfig
+	requestExecutor     RequestExecutor
 }
 
 func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
@@ -52,7 +50,7 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     NewPriorityRoundRobinStrategy(),
-		httpClient:          &http.Client{},
+		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 	}
 
 	return r
@@ -124,7 +122,7 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 	).Inc()
 
 	start := time.Now()
-	body, response, err := r.routeToConfig(ctx, requestBody, &configToRoute)
+	body, response, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
 	HTTPReponseCode := ""
 
 	if response != nil {
@@ -161,47 +159,6 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 	).Observe(time.Since(start).Seconds())
 
 	return body, response, err
-}
-
-func (r *SimpleRouter) routeToConfig(
-	ctx context.Context,
-	requestBody jsonrpc.RequestBody,
-	configToRoute *config.UpstreamConfig,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
-	bodyBytes, err := requestBody.EncodeRequestBody()
-	if err != nil {
-		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		zap.L().Error("Could not create new http request.", zap.Any("request", requestBody), zap.Error(err))
-		return nil, nil, err
-	}
-
-	httpReq.Header.Set("content-type", "application/json")
-
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
-	httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
-
-	resp, err := r.httpClient.Do(httpReq)
-
-	if err != nil {
-		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := jsonrpc.DecodeResponseBody(resp)
-	if err != nil {
-		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("upstreamID", configToRoute.ID), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-
-	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody), zap.String("client", util.GetClientFromContext(ctx)))
-
-	return respBody, resp, nil
 }
 
 // Health checks need to be calculated by priority due to Block Height needs to be calculated by priority.

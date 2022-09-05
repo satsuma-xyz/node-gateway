@@ -98,7 +98,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	}
 	router := NewRouter(upstreamConfigs, groupConfigs)
 	router.(*SimpleRouter).healthCheckManager = managerMock
-	router.(*SimpleRouter).httpClient = httpClientMock
+	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
 	jsonRcpResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
@@ -143,7 +143,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 
 	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0))
 	router.(*SimpleRouter).healthCheckManager = managerMock
-	router.(*SimpleRouter).httpClient = httpClientMock
+	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
 	jsonRcpResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
