@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"io"
 	"net/http"
 	"strconv"
@@ -31,6 +32,7 @@ type Router interface {
 }
 
 type SimpleRouter struct {
+	chainMetadataStore *metadata.ChainMetadataStore
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
 	httpClient         client.HTTPClient
@@ -40,9 +42,12 @@ type SimpleRouter struct {
 }
 
 func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+	blockHeightChan := make(chan uint64)
+	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightChan)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs, blockHeightChan)
 
 	r := &SimpleRouter{
+		chainMetadataStore:  chainMetadataStore,
 		healthCheckManager:  healthCheckManager,
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
@@ -75,6 +80,7 @@ func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConf
 }
 
 func (r *SimpleRouter) Start() {
+	r.chainMetadataStore.Start()
 	r.healthCheckManager.StartHealthChecks()
 }
 

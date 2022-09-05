@@ -42,8 +42,8 @@ func TestHealthCheckManager(t *testing.T) {
 		},
 	}
 
-	manager := NewHealthCheckManager(mockEthClientGetter, configs)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter) types.BlockHeightChecker {
+	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil)
+	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
 	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {

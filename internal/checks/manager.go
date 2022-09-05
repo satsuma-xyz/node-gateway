@@ -26,13 +26,14 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.BlockHeightChecker
+	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	configs             []conf.UpstreamConfig
+	blockHeightObserver chan<- uint64
 }
 
-func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig) HealthCheckManager {
+func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver chan<- uint64) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
@@ -40,6 +41,7 @@ func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
+		blockHeightObserver: blockHeightObserver,
 	}
 }
 
@@ -108,7 +110,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient)
+				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver)
 			}()
 
 			var peerCheck types.Checker
