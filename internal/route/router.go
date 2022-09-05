@@ -3,6 +3,7 @@ package route
 import (
 	"bytes"
 	"context"
+	"errors"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"io"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/satsuma-data/node-gateway/internal/checks"
-	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
@@ -39,17 +39,23 @@ type SimpleRouter struct {
 	requestExecutor     RequestExecutor
 }
 
-func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
-	blockHeightChan := make(chan uint64)
-	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightChan)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs, blockHeightChan)
+func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig, blockHeightChannel chan uint64, healthCheckManager checks.HealthCheckManager) Router {
+	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightChannel)
+
+	routingStrategy := FilteringRoutingStrategy{
+		nodeFilter: &IsHealthyAndAtMaxHeightFilter{
+			healthCheckManager: healthCheckManager,
+			chainMetadataStore: chainMetadataStore,
+		},
+		backingStrategy: NewPriorityRoundRobinStrategy(),
+	}
 
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
 		healthCheckManager:  healthCheckManager,
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
-		routingStrategy:     NewPriorityRoundRobinStrategy(),
+		routingStrategy:     &routingStrategy,
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 	}
 
@@ -83,27 +89,20 @@ func (r *SimpleRouter) Start() {
 }
 
 func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
-	healthyUpstreams := r.getHealthyUpstreamsByPriority()
+	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
+	if err != nil {
+		switch {
+		case errors.Is(err, NoHealthyUpstreams):
+			httpResp := &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Body:       io.NopCloser(bytes.NewBufferString(err.Error())),
+			}
 
-	hasHealthyUpstreams := false
-
-	for _, upstreamsAtPriority := range healthyUpstreams {
-		if len(upstreamsAtPriority) > 0 {
-			hasHealthyUpstreams = true
-			break
+			return nil, httpResp, nil
+		default:
+			return nil, nil, err
 		}
 	}
-
-	if !hasHealthyUpstreams {
-		httpResp := &http.Response{
-			StatusCode: http.StatusServiceUnavailable,
-			Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
-		}
-
-		return nil, httpResp, nil
-	}
-
-	id := r.routingStrategy.RouteNextRequest(healthyUpstreams)
 
 	var configToRoute config.UpstreamConfig
 

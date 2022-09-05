@@ -1,6 +1,7 @@
 package route
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +16,11 @@ func TestPriorityStrategy_HighPriority(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "something-else", strategy.RouteNextRequest(upstreams))
-		assert.Equal(t, "geth", strategy.RouteNextRequest(upstreams))
+		firstUpstreamID, _ := strategy.RouteNextRequest(upstreams)
+		assert.Equal(t, "something-else", firstUpstreamID)
+
+		secondUpstreamID, _ := strategy.RouteNextRequest(upstreams)
+		assert.Equal(t, "geth", secondUpstreamID)
 	}
 }
 
@@ -29,8 +33,10 @@ func TestPriorityStrategy_LowerPriority(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "fallback2", strategy.RouteNextRequest(upstreams))
-		assert.Equal(t, "fallback1", strategy.RouteNextRequest(upstreams))
+		firstUpstreamID, _ := strategy.RouteNextRequest(upstreams)
+		assert.Equal(t, "fallback2", firstUpstreamID)
+		secondUpstreamID, _ := strategy.RouteNextRequest(upstreams)
+		assert.Equal(t, "fallback1", secondUpstreamID)
 	}
 }
 
@@ -43,6 +49,8 @@ func TestPriorityStrategy_NoUpstreams(t *testing.T) {
 	strategy := NewPriorityRoundRobinStrategy()
 
 	for i := 0; i < 10; i++ {
-		assert.Equal(t, "", strategy.RouteNextRequest(upstreams))
+		upstreamID, err := strategy.RouteNextRequest(upstreams)
+		assert.Equal(t, "", upstreamID)
+		assert.True(t, errors.Is(err, NoHealthyUpstreams))
 	}
 }

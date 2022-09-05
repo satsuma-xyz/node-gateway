@@ -16,7 +16,7 @@ const (
 	periodicHealthCheckInterval = 5 * time.Second
 )
 
-//go:generate mockery --output ../mocks --name HealthCheckManager
+//go:generate mockery --output ../mocks --name HealthCheckManager --with-expecter
 type HealthCheckManager interface {
 	StartHealthChecks()
 	GetHealthyUpstreams(candidateUpstreams []string) []string

@@ -7,7 +7,7 @@ type FilteringRoutingStrategy struct {
 	backingStrategy RoutingStrategy
 }
 
-func (s *FilteringRoutingStrategy) RouteNextRequest(upstreamsByPriority map[int][]string) string {
+func (s *FilteringRoutingStrategy) RouteNextRequest(upstreamsByPriority map[int][]string) (string, error) {
 	var filteredUpstreams = s.filter(upstreamsByPriority)
 	return s.backingStrategy.RouteNextRequest(filteredUpstreams)
 }

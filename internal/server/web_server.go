@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/satsuma-data/node-gateway/internal/checks"
+	"github.com/satsuma-data/node-gateway/internal/client"
 	"net/http"
 	"time"
 
@@ -28,7 +30,7 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := route.NewRouter(config.Upstreams, config.Groups)
+	router := wireRouter(config)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -56,6 +58,12 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	return *rpcServer
+}
+
+func wireRouter(config conf.Config) route.Router {
+	blockHeightChannel := make(chan uint64)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, blockHeightChannel)
+	return route.NewRouter(config.Upstreams, config.Groups, blockHeightChannel, healthCheckManager)
 }
 
 func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {
