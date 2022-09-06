@@ -26,9 +26,9 @@ func TestPriorityStrategy_HighPriority(t *testing.T) {
 	}
 }
 
-func cfg(ID string) *config.UpstreamConfig {
+func cfg(id string) *config.UpstreamConfig {
 	return &config.UpstreamConfig{
-		ID: ID,
+		ID: id,
 	}
 }
 

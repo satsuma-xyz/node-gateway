@@ -68,8 +68,8 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) types.PriorityToUpstreamsMap {
 	priorityMap := make(types.PriorityToUpstreamsMap)
 
-	for configId := range upstreamConfigs {
-		upstreamConfig := &upstreamConfigs[configId]
+	for configIndex := range upstreamConfigs {
+		upstreamConfig := &upstreamConfigs[configIndex]
 		groupID := upstreamConfig.GroupID
 
 		groupPriority := 0
