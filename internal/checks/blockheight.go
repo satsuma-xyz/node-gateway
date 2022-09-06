@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
@@ -133,7 +133,7 @@ func (c *BlockHeightCheck) GetError() error {
 }
 
 func (c *BlockHeightCheck) subscribeNewHead() error {
-	onNewHead := func(header *types.Header) {
+	onNewHead := func(header *ethTypes.Header) {
 		c.SetBlockHeight(header.Number.Uint64())
 		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 		c.webSocketError = nil
@@ -165,12 +165,12 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 }
 
 type newHeadHandler struct {
-	onNewHead func(header *types.Header)
+	onNewHead func(header *ethTypes.Header)
 	onError   func(failure string)
 }
 
 func subscribeNewHeads(wsClient client.EthClient, handler *newHeadHandler) error {
-	ch := make(chan *types.Header)
+	ch := make(chan *ethTypes.Header)
 	subscription, err := wsClient.SubscribeNewHead(context.Background(), ch)
 
 	if err != nil {
