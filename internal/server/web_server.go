@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/satsuma-data/node-gateway/internal/checks"
-	"github.com/satsuma-data/node-gateway/internal/client"
 	"net/http"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/checks"
+	"github.com/satsuma-data/node-gateway/internal/client"
+
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/route"
 	"github.com/satsuma-data/node-gateway/internal/util"
@@ -63,6 +65,7 @@ func NewRPCServer(config conf.Config) RPCServer {
 func wireRouter(config conf.Config) route.Router {
 	blockHeightChannel := make(chan uint64)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, blockHeightChannel)
+
 	return route.NewRouter(config.Upstreams, config.Groups, blockHeightChannel, healthCheckManager)
 }
 

@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
+	"net/http"
+
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type RequestExecutor struct {

@@ -2,9 +2,10 @@ package checks
 
 import (
 	"errors"
-	"github.com/satsuma-data/node-gateway/internal/types"
 	"testing"
 	"time"
+
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"

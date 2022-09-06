@@ -19,11 +19,13 @@ func (s *FilteringRoutingStrategy) filter(upstreamsByPriority map[int][]string) 
 		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamIDs))
 
 		var filteredUpstreams = make([]string, 0)
+
 		for _, upstreamID := range upstreamIDs {
 			if s.nodeFilter.Apply(nil, upstreamID) {
 				filteredUpstreams = append(filteredUpstreams, upstreamID)
 			}
 		}
+
 		priorityToHealthyUpstreams[priority] = filteredUpstreams
 	}
 

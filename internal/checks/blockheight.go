@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"errors"
+
 	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,9 +19,9 @@ type BlockHeightCheck struct {
 	blockHeightError    error
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
+	blockHeightObserver chan<- uint64
 	blockHeight         uint64
 	useWSForBlockHeight bool
-	blockHeightObserver chan<- uint64
 }
 
 func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) internalTypes.BlockHeightChecker {

@@ -2,10 +2,12 @@ package route
 
 import (
 	"errors"
-	"github.com/satsuma-data/node-gateway/internal/checks"
-	"github.com/satsuma-data/node-gateway/internal/metadata"
+
 	"sort"
 	"sync/atomic"
+
+	"github.com/satsuma-data/node-gateway/internal/checks"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -26,7 +28,7 @@ func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
 	}
 }
 
-var NoHealthyUpstreams = errors.New("No healthy upstreams")
+var ErrNoHealthyUpstreams = errors.New("no healthy upstreams")
 
 func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[int][]string) (string, error) {
 	prioritySorted := maps.Keys(upstreamsByPriority)
@@ -44,13 +46,13 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[in
 		zap.L().Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
 	}
 
-	return "", NoHealthyUpstreams
+	return "", ErrNoHealthyUpstreams
 }
 
 type RequestMetadata struct{}
 
 type NodeFilter interface {
-	Apply(requestMetadata *RequestMetadata, upstreamId string) bool
+	Apply(requestMetadata *RequestMetadata, upstreamID string) bool
 }
 
 type IsHealthyAndAtMaxHeightFilter struct {
@@ -58,9 +60,10 @@ type IsHealthyAndAtMaxHeightFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtMaxHeightFilter) Apply(_ *RequestMetadata, upstreamId string) bool {
+func (f *IsHealthyAndAtMaxHeightFilter) Apply(_ *RequestMetadata, upstreamID string) bool {
 	var maxHeight = f.chainMetadataStore.GetMaxHeight()
-	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamId)
+
+	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamID)
 
 	return upstreamStatus.IsHealthy(maxHeight)
 }

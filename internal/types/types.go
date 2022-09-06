@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	"go.uber.org/zap"
 )
 

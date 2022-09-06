@@ -3,9 +3,10 @@ package checks
 import (
 	"errors"
 	"fmt"
-	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"math/big"
 	"testing"
+
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -35,6 +36,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	blockHeightObserver := make(chan uint64)
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 	chainMetadataStore.Start()
+
 	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, blockHeightObserver)
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
@@ -63,6 +65,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 	blockHeightObserver := make(chan uint64)
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 	chainMetadataStore.Start()
+
 	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, blockHeightObserver)
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
@@ -98,6 +101,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 		blockHeightObserver := make(chan uint64)
 		chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 		chainMetadataStore.Start()
+
 		checker := NewBlockHeightChecker(config, mockEthClientGetter, blockHeightObserver)
 
 		checker.RunCheck()

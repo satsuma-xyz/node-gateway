@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+
 	"github.com/satsuma-data/node-gateway/internal/metadata"
+
 	"io"
 	"net/http"
 	"strconv"
@@ -33,10 +35,10 @@ type SimpleRouter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
+	requestExecutor    RequestExecutor
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams map[int][]string
 	upstreamConfigs     []config.UpstreamConfig
-	requestExecutor     RequestExecutor
 }
 
 func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig, blockHeightChannel chan uint64, healthCheckManager checks.HealthCheckManager) Router {
@@ -92,7 +94,7 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
 	if err != nil {
 		switch {
-		case errors.Is(err, NoHealthyUpstreams):
+		case errors.Is(err, ErrNoHealthyUpstreams):
 			httpResp := &http.Response{
 				StatusCode: http.StatusServiceUnavailable,
 				Body:       io.NopCloser(bytes.NewBufferString(err.Error())),

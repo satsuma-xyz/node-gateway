@@ -2,11 +2,13 @@ package route
 
 import (
 	"context"
-	"github.com/satsuma-data/node-gateway/internal/types"
+
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -41,7 +43,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 
 	assert.Nil(t, jsonResp)
 	assert.Equal(t, 503, httpResp.StatusCode)
-	assert.Equal(t, "No healthy upstreams", readyBody(httpResp.Body))
+	assert.Equal(t, "no healthy upstreams", readyBody(httpResp.Body))
 	assert.Nil(t, err)
 }
 

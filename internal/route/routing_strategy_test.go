@@ -35,6 +35,7 @@ func TestPriorityStrategy_LowerPriority(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		firstUpstreamID, _ := strategy.RouteNextRequest(upstreams)
 		assert.Equal(t, "fallback2", firstUpstreamID)
+
 		secondUpstreamID, _ := strategy.RouteNextRequest(upstreams)
 		assert.Equal(t, "fallback1", secondUpstreamID)
 	}
@@ -51,6 +52,6 @@ func TestPriorityStrategy_NoUpstreams(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		upstreamID, err := strategy.RouteNextRequest(upstreams)
 		assert.Equal(t, "", upstreamID)
-		assert.True(t, errors.Is(err, NoHealthyUpstreams))
+		assert.True(t, errors.Is(err, ErrNoHealthyUpstreams))
 	}
 }

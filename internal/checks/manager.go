@@ -2,9 +2,10 @@ package checks
 
 import (
 	"fmt"
-	"github.com/satsuma-data/node-gateway/internal/types"
 	"sync"
 	"time"
+
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"go.uber.org/zap"
 
@@ -20,7 +21,7 @@ const (
 type HealthCheckManager interface {
 	StartHealthChecks()
 	GetHealthyUpstreams(candidateUpstreams []string) []string
-	GetUpstreamStatus(upstreamId string) *types.UpstreamStatus
+	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
 }
 
 type healthCheckManager struct {
@@ -29,8 +30,8 @@ type healthCheckManager struct {
 	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
-	configs             []conf.UpstreamConfig
 	blockHeightObserver chan<- uint64
+	configs             []conf.UpstreamConfig
 }
 
 func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver chan<- uint64) HealthCheckManager {
@@ -57,7 +58,7 @@ func (h *healthCheckManager) StartHealthChecks() {
 func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []string {
 	zap.L().Debug("Determining healthy upstreams from candidates.", zap.Any("candidateUpstreams", candidateUpstreams))
 
-	var maxBlockHeight uint64 = 0
+	var maxBlockHeight uint64
 
 	for _, upstreamID := range candidateUpstreams {
 		if h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetError() == nil && h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetBlockHeight() > maxBlockHeight {
@@ -78,13 +79,13 @@ func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []
 	return healthyUpstreams
 }
 
-func (h *healthCheckManager) GetUpstreamStatus(upstreamId string) *types.UpstreamStatus {
-	if status, ok := h.upstreamIDToStatus[upstreamId]; ok {
+func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.UpstreamStatus {
+	if status, ok := h.upstreamIDToStatus[upstreamID]; ok {
 		return status
-	} else {
-		// Panic because an unknown upstream ID implies a bug in the code.
-		panic(fmt.Sprintf("Upstream ID %s not found!", upstreamId))
 	}
+
+	// Panic because an unknown upstream ID implies a bug in the code.
+	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
 }
 
 func (h *healthCheckManager) initializeChecks() {
