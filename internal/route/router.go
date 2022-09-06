@@ -161,16 +161,3 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 
 	return body, response, err
 }
-
-// Health checks need to be calculated by priority due to Block Height needs to be calculated by priority.
-func (r *SimpleRouter) getHealthyUpstreamsByPriority() map[int][]string {
-	priorityToHealthyUpstreams := make(map[int][]string)
-
-	for priority, upstreamIDs := range r.priorityToUpstreams {
-		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamIDs))
-
-		priorityToHealthyUpstreams[priority] = r.healthCheckManager.GetHealthyUpstreams(upstreamIDs)
-	}
-
-	return priorityToHealthyUpstreams
-}

@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -57,19 +56,22 @@ func TestHealthCheckManager(t *testing.T) {
 	manager.StartHealthChecks()
 
 	assert.Eventually(t, func() bool {
-		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
-		return len(healthyUpstreams) == 1 && healthyUpstreams[0] == "mainnet"
+		mainnetStatus := manager.(*healthCheckManager).GetUpstreamStatus("mainnet")
+		return mainnetStatus.IsHealthy(5)
+		//healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
+		//return len(healthyUpstreams) == 1 && healthyUpstreams[0] == "mainnet"
 	}, 2*time.Second, 10*time.Millisecond, "Healthy upstreams did not include expected values.")
 
 	mockBlockHeightChecker.ExpectedCalls = nil
 	mockBlockHeightChecker.Calls = nil
-	mockBlockHeightChecker.Mock.On("GetError").Return(errors.New("some error"))
 	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(false)
 
 	// Verify that no healthy upstreams are returned after a check starts failing.
 	assert.Eventually(t, func() bool {
-		healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
-		return len(healthyUpstreams) == 0
+		mainnetStatus := manager.(*healthCheckManager).GetUpstreamStatus("mainnet")
+		return mainnetStatus.IsHealthy(5) == false
+		//healthyUpstreams := manager.(*healthCheckManager).GetHealthyUpstreams([]string{"mainnet"})
+		//return len(healthyUpstreams) == 0
 	}, 2*time.Second, 10*time.Millisecond, "Found healthy upstreams when expected none.")
 	mockBlockHeightChecker.AssertNotCalled(t, "GetBlockHeight")
 }

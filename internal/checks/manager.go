@@ -20,7 +20,6 @@ const (
 //go:generate mockery --output ../mocks --name HealthCheckManager --with-expecter
 type HealthCheckManager interface {
 	StartHealthChecks()
-	GetHealthyUpstreams(candidateUpstreams []string) []string
 	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
 }
 
@@ -53,30 +52,6 @@ func (h *healthCheckManager) StartHealthChecks() {
 		h.initializeChecks()
 		h.runPeriodicChecks()
 	}()
-}
-
-func (h *healthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []string {
-	zap.L().Debug("Determining healthy upstreams from candidates.", zap.Any("candidateUpstreams", candidateUpstreams))
-
-	var maxBlockHeight uint64
-
-	for _, upstreamID := range candidateUpstreams {
-		if h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetError() == nil && h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetBlockHeight() > maxBlockHeight {
-			maxBlockHeight = h.upstreamIDToStatus[upstreamID].BlockHeightCheck.GetBlockHeight()
-		}
-	}
-
-	healthyUpstreams := make([]string, 0)
-
-	for _, upstreamID := range candidateUpstreams {
-		if h.upstreamIDToStatus[upstreamID].IsHealthy(maxBlockHeight) {
-			healthyUpstreams = append(healthyUpstreams, upstreamID)
-		}
-	}
-
-	zap.L().Debug("Determined currently healthy upstreams.", zap.Any("healthyUpstreams", healthyUpstreams), zap.Any("candidateUpstreams", candidateUpstreams))
-
-	return healthyUpstreams
 }
 
 func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.UpstreamStatus {
