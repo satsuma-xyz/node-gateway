@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	config "github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,18 +21,18 @@ func (_m *RoutingStrategy) EXPECT() *RoutingStrategy_Expecter {
 }
 
 // RouteNextRequest provides a mock function with given fields: upstreamsByPriority
-func (_m *RoutingStrategy) RouteNextRequest(upstreamsByPriority map[int][]config.UpstreamConfig) (string, error) {
+func (_m *RoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
 	ret := _m.Called(upstreamsByPriority)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(map[int][]config.UpstreamConfig) string); ok {
+	if rf, ok := ret.Get(0).(func(types.PriorityToUpstreamsMap) string); ok {
 		r0 = rf(upstreamsByPriority)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(map[int][]config.UpstreamConfig) error); ok {
+	if rf, ok := ret.Get(1).(func(types.PriorityToUpstreamsMap) error); ok {
 		r1 = rf(upstreamsByPriority)
 	} else {
 		r1 = ret.Error(1)
@@ -47,14 +47,14 @@ type RoutingStrategy_RouteNextRequest_Call struct {
 }
 
 // RouteNextRequest is a helper method to define mock.On call
-//   - upstreamsByPriority map[int][]config.UpstreamConfig
+//   - upstreamsByPriority route.PriorityToUpstreamsMap
 func (_e *RoutingStrategy_Expecter) RouteNextRequest(upstreamsByPriority interface{}) *RoutingStrategy_RouteNextRequest_Call {
 	return &RoutingStrategy_RouteNextRequest_Call{Call: _e.mock.On("RouteNextRequest", upstreamsByPriority)}
 }
 
-func (_c *RoutingStrategy_RouteNextRequest_Call) Run(run func(upstreamsByPriority map[int][]config.UpstreamConfig)) *RoutingStrategy_RouteNextRequest_Call {
+func (_c *RoutingStrategy_RouteNextRequest_Call) Run(run func(upstreamsByPriority types.PriorityToUpstreamsMap)) *RoutingStrategy_RouteNextRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(map[int][]config.UpstreamConfig))
+		run(args[0].(types.PriorityToUpstreamsMap))
 	})
 	return _c
 }

@@ -9,7 +9,7 @@ import (
 type RequestMetadata struct{}
 
 type NodeFilter interface {
-	Apply(requestMetadata *RequestMetadata, upstreamConfig config.UpstreamConfig) bool
+	Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
 }
 
 type IsHealthyAndAtGlobalMaxHeightFilter struct {
@@ -17,7 +17,7 @@ type IsHealthyAndAtGlobalMaxHeightFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtGlobalMaxHeightFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig config.UpstreamConfig) bool {
+func (f *IsHealthyAndAtGlobalMaxHeightFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	var maxHeight = f.chainMetadataStore.GetGlobalMaxHeight()
 
 	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
@@ -30,7 +30,7 @@ type IsHealthyAndAtMaxHeightForGroupFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtMaxHeightForGroupFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig config.UpstreamConfig) bool {
+func (f *IsHealthyAndAtMaxHeightForGroupFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	var maxHeightForGroup = f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
 
 	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)

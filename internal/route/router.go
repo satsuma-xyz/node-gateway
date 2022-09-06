@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/satsuma-data/node-gateway/internal/metadata"
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"io"
 	"net/http"
@@ -37,7 +38,7 @@ type SimpleRouter struct {
 	routingStrategy    RoutingStrategy
 	requestExecutor    RequestExecutor
 	// Map from Priority => UpstreamIDs
-	priorityToUpstreams map[int][]config.UpstreamConfig
+	priorityToUpstreams types.PriorityToUpstreamsMap
 	upstreamConfigs     []config.UpstreamConfig
 }
 
@@ -64,10 +65,11 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 	return r
 }
 
-func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]config.UpstreamConfig {
-	priorityMap := make(map[int][]config.UpstreamConfig)
+func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) types.PriorityToUpstreamsMap {
+	priorityMap := make(types.PriorityToUpstreamsMap)
 
-	for _, upstreamConfig := range upstreamConfigs {
+	for configId := range upstreamConfigs {
+		upstreamConfig := &upstreamConfigs[configId]
 		groupID := upstreamConfig.GroupID
 
 		groupPriority := 0

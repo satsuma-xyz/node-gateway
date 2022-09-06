@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -40,3 +41,5 @@ type Checker interface {
 	RunCheck()
 	IsPassing() bool
 }
+
+type PriorityToUpstreamsMap map[int][]*config.UpstreamConfig

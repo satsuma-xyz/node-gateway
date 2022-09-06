@@ -1,7 +1,5 @@
 package metadata
 
-import "fmt"
-
 type BlockHeightUpdate struct {
 	GroupID     string
 	BlockHeight uint64
@@ -9,8 +7,8 @@ type BlockHeightUpdate struct {
 
 type ChainMetadataStore struct {
 	blockHeightChannel <-chan BlockHeightUpdate
-	globalMaxHeight    uint64
 	maxHeightByGroupID map[string]uint64
+	globalMaxHeight    uint64
 }
 
 func NewChainMetadataStore(blockHeightChannel <-chan BlockHeightUpdate) *ChainMetadataStore {
@@ -32,7 +30,9 @@ func (c *ChainMetadataStore) Start() {
 
 func (c *ChainMetadataStore) updateHeightForGroup(groupID string, currentBlockHeight uint64) {
 	var oldHeight = c.maxHeightByGroupID[groupID]
+
 	var newMaxHeight = max(oldHeight, currentBlockHeight)
+
 	c.maxHeightByGroupID[groupID] = newMaxHeight
 }
 
@@ -49,9 +49,5 @@ func (c *ChainMetadataStore) GetGlobalMaxHeight() uint64 {
 }
 
 func (c *ChainMetadataStore) GetMaxHeightForGroup(groupID string) uint64 {
-	if maxHeight, ok := c.maxHeightByGroupID[groupID]; ok {
-		return maxHeight
-	}
-
-	panic(fmt.Sprintf("Unknown group ID %s!", groupID))
+	return c.maxHeightByGroupID[groupID]
 }

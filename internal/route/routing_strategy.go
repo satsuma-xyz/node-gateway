@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
@@ -14,7 +14,7 @@ import (
 //go:generate mockery --output ../mocks --name RoutingStrategy --with-expecter
 type RoutingStrategy interface {
 	// Returns the next UpstreamID a request should route to.
-	RouteNextRequest(upstreamsByPriority map[int][]config.UpstreamConfig) (string, error)
+	RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error)
 }
 type PriorityRoundRobinStrategy struct {
 	counter uint64
@@ -28,7 +28,7 @@ func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
 
 var ErrNoHealthyUpstreams = errors.New("no healthy upstreams")
 
-func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[int][]config.UpstreamConfig) (string, error) {
+func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
 	prioritySorted := maps.Keys(upstreamsByPriority)
 	sort.Ints(prioritySorted)
 

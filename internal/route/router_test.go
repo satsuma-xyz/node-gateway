@@ -118,10 +118,10 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.NotNil(t, "hello", jsonRcpResp.Result)
-	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]config.UpstreamConfig{
-		0: {gethConfig},
-		1: {erigonConfig},
-		2: {openEthConfig, somethingElseConfig},
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
+		0: {&gethConfig},
+		1: {&erigonConfig},
+		2: {&openEthConfig, &somethingElseConfig},
 	})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
@@ -163,8 +163,8 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.NotNil(t, "hello", jsonRcpResp.Result)
-	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]config.UpstreamConfig{
-		0: {gethConfig, erigonConfig},
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
+		0: {&gethConfig, &erigonConfig},
 	})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
