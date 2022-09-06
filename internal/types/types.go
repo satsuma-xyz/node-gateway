@@ -11,6 +11,7 @@ type UpstreamStatus struct {
 	PeerCheck        Checker
 	SyncingCheck     Checker
 	ID               string
+	GroupID          string
 }
 
 // Provide the max block height found across node providers.

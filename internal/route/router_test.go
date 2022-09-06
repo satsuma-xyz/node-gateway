@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
@@ -35,7 +36,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 		},
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan uint64), managerMock)
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 
 	jsonResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
@@ -102,7 +103,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, make(chan uint64), managerMock)
+	router := NewRouter(upstreamConfigs, groupConfigs, make(chan metadata.BlockHeightUpdate), managerMock)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -145,7 +146,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		},
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan uint64), managerMock)
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 

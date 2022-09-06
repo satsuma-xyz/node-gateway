@@ -41,7 +41,7 @@ type SimpleRouter struct {
 	upstreamConfigs     []config.UpstreamConfig
 }
 
-func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig, blockHeightChannel chan uint64, healthCheckManager checks.HealthCheckManager) Router {
+func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig, blockHeightChannel chan metadata.BlockHeightUpdate, healthCheckManager checks.HealthCheckManager) Router {
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightChannel)
 
 	routingStrategy := FilteringRoutingStrategy{

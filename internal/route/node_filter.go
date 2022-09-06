@@ -17,7 +17,7 @@ type IsHealthyAndAtMaxHeightFilter struct {
 }
 
 func (f *IsHealthyAndAtMaxHeightFilter) Apply(_ *RequestMetadata, upstreamID string) bool {
-	var maxHeight = f.chainMetadataStore.GetMaxHeight()
+	var maxHeight = f.chainMetadataStore.GetGlobalMaxHeight()
 
 	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamID)
 

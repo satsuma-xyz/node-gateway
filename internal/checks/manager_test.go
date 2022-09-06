@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -43,7 +44,7 @@ func TestHealthCheckManager(t *testing.T) {
 	}
 
 	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) types.BlockHeightChecker {
+	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- metadata.BlockHeightUpdate) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
 	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -19,12 +20,12 @@ type BlockHeightCheck struct {
 	blockHeightError    error
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
-	blockHeightObserver chan<- uint64
+	blockHeightObserver chan<- metadata.BlockHeightUpdate
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) internalTypes.BlockHeightChecker {
+func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- metadata.BlockHeightUpdate) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig:      config,
 		clientGetter:        clientGetter,
@@ -125,7 +126,10 @@ func (c *BlockHeightCheck) GetBlockHeight() uint64 {
 
 func (c *BlockHeightCheck) SetBlockHeight(blockHeight uint64) {
 	c.blockHeight = blockHeight
-	c.blockHeightObserver <- blockHeight
+	c.blockHeightObserver <- metadata.BlockHeightUpdate{
+		GroupID:     c.upstreamConfig.GroupID,
+		BlockHeight: blockHeight,
+	}
 }
 
 func (c *BlockHeightCheck) GetError() error {

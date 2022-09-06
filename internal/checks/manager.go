@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"go.uber.org/zap"
@@ -26,14 +27,14 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- uint64) types.BlockHeightChecker
+	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- metadata.BlockHeightUpdate) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
-	blockHeightObserver chan<- uint64
+	blockHeightObserver chan<- metadata.BlockHeightUpdate
 	configs             []conf.UpstreamConfig
 }
 
-func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver chan<- uint64) HealthCheckManager {
+func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver chan<- metadata.BlockHeightUpdate) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
@@ -114,6 +115,7 @@ func (h *healthCheckManager) initializeChecks() {
 			mutex.Lock()
 			h.upstreamIDToStatus[config.ID] = &types.UpstreamStatus{
 				ID:               config.ID,
+				GroupID:          config.GroupID,
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
 				SyncingCheck:     syncingCheck,

@@ -33,7 +33,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 		return ethClient, nil
 	}
 
-	blockHeightObserver := make(chan uint64)
+	blockHeightObserver := make(chan metadata.BlockHeightUpdate)
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 	chainMetadataStore.Start()
 
@@ -62,7 +62,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 		return ethClient, nil
 	}
 
-	blockHeightObserver := make(chan uint64)
+	blockHeightObserver := make(chan metadata.BlockHeightUpdate)
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 	chainMetadataStore.Start()
 
@@ -98,7 +98,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 			return ethClient, nil
 		}
 
-		blockHeightObserver := make(chan uint64)
+		blockHeightObserver := make(chan metadata.BlockHeightUpdate)
 		chainMetadataStore := metadata.NewChainMetadataStore(blockHeightObserver)
 		chainMetadataStore.Start()
 

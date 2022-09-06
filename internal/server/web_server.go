@@ -9,6 +9,7 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -63,7 +64,7 @@ func NewRPCServer(config conf.Config) RPCServer {
 }
 
 func wireRouter(config conf.Config) route.Router {
-	blockHeightChannel := make(chan uint64)
+	blockHeightChannel := make(chan metadata.BlockHeightUpdate)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, blockHeightChannel)
 
 	return route.NewRouter(config.Upstreams, config.Groups, blockHeightChannel, healthCheckManager)
