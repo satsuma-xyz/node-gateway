@@ -131,7 +131,11 @@ func getClientID(req *http.Request) string {
 	// The reason we're using query param is because client code may be hard to modify, e.g. graph-nodes, while using
 	// query param is part of the RPC URL which is usually supplied as a config to the client.
 	// A better solution is to pass the client via an HTTP header.
-	return req.URL.Query().Get("client")
+	if clientID := req.URL.Query().Get("client"); clientID != "" {
+		return clientID
+	}
+
+	return "unknown"
 }
 
 func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, httpStatusCode int) {
