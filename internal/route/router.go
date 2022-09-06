@@ -45,7 +45,7 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 	chainMetadataStore := metadata.NewChainMetadataStore(blockHeightChannel)
 
 	routingStrategy := FilteringRoutingStrategy{
-		nodeFilter: &IsHealthyAndAtMaxHeightFilter{
+		nodeFilter: &IsHealthyAndAtMaxHeightForGroupFilter{
 			healthCheckManager: healthCheckManager,
 			chainMetadataStore: chainMetadataStore,
 		},
