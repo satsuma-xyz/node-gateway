@@ -21,8 +21,8 @@ func TestHealthCheckManager(t *testing.T) {
 	}
 
 	mockBlockHeightChecker := mocks.NewBlockHeightChecker(t)
-	mockPeerChecker := mocks.NewSimpleChecker(t)
-	mockSyncingChecker := mocks.NewSimpleChecker(t)
+	mockPeerChecker := mocks.NewChecker(t)
+	mockSyncingChecker := mocks.NewChecker(t)
 
 	mockBlockHeightChecker.Mock.On("GetError").Return(nil)
 	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(true)
