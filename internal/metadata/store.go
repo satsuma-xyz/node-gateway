@@ -14,7 +14,10 @@ type ChainMetadataStore struct {
 }
 
 func NewChainMetadataStore(blockHeightChannel <-chan BlockHeightUpdate) *ChainMetadataStore {
-	return &ChainMetadataStore{blockHeightChannel: blockHeightChannel}
+	return &ChainMetadataStore{
+		blockHeightChannel: blockHeightChannel,
+		maxHeightByGroupID: make(map[string]uint64),
+	}
 }
 
 func (c *ChainMetadataStore) Start() {

@@ -20,52 +20,13 @@ func (_m *HealthCheckManager) EXPECT() *HealthCheckManager_Expecter {
 	return &HealthCheckManager_Expecter{mock: &_m.Mock}
 }
 
-// GetHealthyUpstreams provides a mock function with given fields: candidateUpstreams
-func (_m *HealthCheckManager) GetHealthyUpstreams(candidateUpstreams []string) []string {
-	ret := _m.Called(candidateUpstreams)
-
-	var r0 []string
-	if rf, ok := ret.Get(0).(func([]string) []string); ok {
-		r0 = rf(candidateUpstreams)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	return r0
-}
-
-// HealthCheckManager_GetHealthyUpstreams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHealthyUpstreams'
-type HealthCheckManager_GetHealthyUpstreams_Call struct {
-	*mock.Call
-}
-
-// GetHealthyUpstreams is a helper method to define mock.On call
-//  - candidateUpstreams []string
-func (_e *HealthCheckManager_Expecter) GetHealthyUpstreams(candidateUpstreams interface{}) *HealthCheckManager_GetHealthyUpstreams_Call {
-	return &HealthCheckManager_GetHealthyUpstreams_Call{Call: _e.mock.On("GetHealthyUpstreams", candidateUpstreams)}
-}
-
-func (_c *HealthCheckManager_GetHealthyUpstreams_Call) Run(run func(candidateUpstreams []string)) *HealthCheckManager_GetHealthyUpstreams_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].([]string))
-	})
-	return _c
-}
-
-func (_c *HealthCheckManager_GetHealthyUpstreams_Call) Return(_a0 []string) *HealthCheckManager_GetHealthyUpstreams_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-// GetUpstreamStatus provides a mock function with given fields: upstreamId
-func (_m *HealthCheckManager) GetUpstreamStatus(upstreamId string) *types.UpstreamStatus {
-	ret := _m.Called(upstreamId)
+// GetUpstreamStatus provides a mock function with given fields: upstreamID
+func (_m *HealthCheckManager) GetUpstreamStatus(upstreamID string) *types.UpstreamStatus {
+	ret := _m.Called(upstreamID)
 
 	var r0 *types.UpstreamStatus
 	if rf, ok := ret.Get(0).(func(string) *types.UpstreamStatus); ok {
-		r0 = rf(upstreamId)
+		r0 = rf(upstreamID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.UpstreamStatus)
@@ -81,12 +42,12 @@ type HealthCheckManager_GetUpstreamStatus_Call struct {
 }
 
 // GetUpstreamStatus is a helper method to define mock.On call
-//  - upstreamId string
-func (_e *HealthCheckManager_Expecter) GetUpstreamStatus(upstreamId interface{}) *HealthCheckManager_GetUpstreamStatus_Call {
-	return &HealthCheckManager_GetUpstreamStatus_Call{Call: _e.mock.On("GetUpstreamStatus", upstreamId)}
+//   - upstreamID string
+func (_e *HealthCheckManager_Expecter) GetUpstreamStatus(upstreamID interface{}) *HealthCheckManager_GetUpstreamStatus_Call {
+	return &HealthCheckManager_GetUpstreamStatus_Call{Call: _e.mock.On("GetUpstreamStatus", upstreamID)}
 }
 
-func (_c *HealthCheckManager_GetUpstreamStatus_Call) Run(run func(upstreamId string)) *HealthCheckManager_GetUpstreamStatus_Call {
+func (_c *HealthCheckManager_GetUpstreamStatus_Call) Run(run func(upstreamID string)) *HealthCheckManager_GetUpstreamStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string))
 	})

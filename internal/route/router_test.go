@@ -66,28 +66,33 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	routingStrategyMock := mocks.NewRoutingStrategy(t)
 	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
 
-	upstreamConfigs := []config.UpstreamConfig{
-		{
-			ID:      "geth",
-			GroupID: "primary",
-			HTTPURL: "gethURL",
-		},
-		{
-			ID:      "erigon",
-			GroupID: "fallback",
-			HTTPURL: "erigonURL",
-		},
-		{
-			ID:      "openethereum",
-			GroupID: "backup",
-			HTTPURL: "openEthURL",
-		},
-		{
-			ID:      "something-else",
-			GroupID: "backup",
-			HTTPURL: "something-elseURL",
-		},
+	gethConfig := config.UpstreamConfig{
+		ID:      "geth",
+		GroupID: "primary",
+		HTTPURL: "gethURL",
 	}
+	erigonConfig := config.UpstreamConfig{
+		ID:      "erigon",
+		GroupID: "fallback",
+		HTTPURL: "erigonURL",
+	}
+	openEthConfig := config.UpstreamConfig{
+		ID:      "openethereum",
+		GroupID: "backup",
+		HTTPURL: "openEthURL",
+	}
+	somethingElseConfig := config.UpstreamConfig{
+		ID:      "something-else",
+		GroupID: "backup",
+		HTTPURL: "something-elseURL",
+	}
+	configs := []config.UpstreamConfig{
+		gethConfig,
+		erigonConfig,
+		openEthConfig,
+		somethingElseConfig,
+	}
+	upstreamConfigs := configs
 
 	groupConfigs := []config.GroupConfig{
 		{
@@ -113,10 +118,10 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.NotNil(t, "hello", jsonRcpResp.Result)
-	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]string{
-		0: {"geth"},
-		1: {"erigon"},
-		2: {"openethereum", "something-else"},
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]config.UpstreamConfig{
+		0: {gethConfig},
+		1: {erigonConfig},
+		2: {openEthConfig, somethingElseConfig},
 	})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
@@ -134,16 +139,18 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	routingStrategyMock := mocks.NewRoutingStrategy(t)
 	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
 
+	gethConfig := config.UpstreamConfig{
+		ID:      "geth",
+		HTTPURL: "gethURL",
+	}
+	erigonConfig := config.UpstreamConfig{
+		ID:      "erigon",
+		GroupID: "fallback",
+		HTTPURL: "erigonURL",
+	}
 	upstreamConfigs := []config.UpstreamConfig{
-		{
-			ID:      "geth",
-			HTTPURL: "gethURL",
-		},
-		{
-			ID:      "erigon",
-			GroupID: "fallback",
-			HTTPURL: "erigonURL",
-		},
+		gethConfig,
+		erigonConfig,
 	}
 
 	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
@@ -156,8 +163,8 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.NotNil(t, "hello", jsonRcpResp.Result)
-	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]string{
-		0: {"geth", "erigon"},
+	routingStrategyMock.AssertCalled(t, "RouteNextRequest", map[int][]config.UpstreamConfig{
+		0: {gethConfig, erigonConfig},
 	})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }

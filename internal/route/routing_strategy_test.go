@@ -4,13 +4,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPriorityStrategy_HighPriority(t *testing.T) {
-	upstreams := map[int][]string{
-		0: {"geth", "something-else"},
-		1: {"erigon"},
+	upstreams := map[int][]config.UpstreamConfig{
+		0: {cfg("geth"), cfg("something-else")},
+		1: {cfg("erigon")},
 	}
 
 	strategy := NewPriorityRoundRobinStrategy()
@@ -24,10 +25,16 @@ func TestPriorityStrategy_HighPriority(t *testing.T) {
 	}
 }
 
+func cfg(ID string) config.UpstreamConfig {
+	return config.UpstreamConfig{
+		ID: ID,
+	}
+}
+
 func TestPriorityStrategy_LowerPriority(t *testing.T) {
-	upstreams := map[int][]string{
+	upstreams := map[int][]config.UpstreamConfig{
 		0: {},
-		1: {"fallback1", "fallback2"},
+		1: {cfg("fallback1"), cfg("fallback2")},
 	}
 
 	strategy := NewPriorityRoundRobinStrategy()
@@ -42,7 +49,7 @@ func TestPriorityStrategy_LowerPriority(t *testing.T) {
 }
 
 func TestPriorityStrategy_NoUpstreams(t *testing.T) {
-	upstreams := map[int][]string{
+	upstreams := map[int][]config.UpstreamConfig{
 		0: {},
 		1: {},
 	}

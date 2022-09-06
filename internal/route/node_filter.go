@@ -2,13 +2,14 @@ package route
 
 import (
 	"github.com/satsuma-data/node-gateway/internal/checks"
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 )
 
 type RequestMetadata struct{}
 
 type NodeFilter interface {
-	Apply(requestMetadata *RequestMetadata, upstreamID string) bool
+	Apply(requestMetadata *RequestMetadata, upstreamConfig config.UpstreamConfig) bool
 }
 
 type IsHealthyAndAtMaxHeightFilter struct {
@@ -16,10 +17,10 @@ type IsHealthyAndAtMaxHeightFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtMaxHeightFilter) Apply(_ *RequestMetadata, upstreamID string) bool {
+func (f *IsHealthyAndAtMaxHeightFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig config.UpstreamConfig) bool {
 	var maxHeight = f.chainMetadataStore.GetGlobalMaxHeight()
 
-	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamID)
+	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	return upstreamStatus.IsHealthy(maxHeight)
 }

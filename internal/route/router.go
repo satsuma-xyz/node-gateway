@@ -37,7 +37,7 @@ type SimpleRouter struct {
 	routingStrategy    RoutingStrategy
 	requestExecutor    RequestExecutor
 	// Map from Priority => UpstreamIDs
-	priorityToUpstreams map[int][]string
+	priorityToUpstreams map[int][]config.UpstreamConfig
 	upstreamConfigs     []config.UpstreamConfig
 }
 
@@ -64,8 +64,8 @@ func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.Gr
 	return r
 }
 
-func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]string {
-	priorityMap := make(map[int][]string)
+func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]config.UpstreamConfig {
+	priorityMap := make(map[int][]config.UpstreamConfig)
 
 	for _, upstreamConfig := range upstreamConfigs {
 		groupID := upstreamConfig.GroupID
@@ -79,7 +79,7 @@ func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConf
 			}
 		}
 
-		priorityMap[groupPriority] = append(priorityMap[groupPriority], upstreamConfig.ID)
+		priorityMap[groupPriority] = append(priorityMap[groupPriority], upstreamConfig)
 	}
 
 	return priorityMap

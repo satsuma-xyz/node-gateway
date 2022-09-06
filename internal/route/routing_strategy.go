@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
@@ -13,7 +14,7 @@ import (
 //go:generate mockery --output ../mocks --name RoutingStrategy --with-expecter
 type RoutingStrategy interface {
 	// Returns the next UpstreamID a request should route to.
-	RouteNextRequest(upstreamsByPriority map[int][]string) (string, error)
+	RouteNextRequest(upstreamsByPriority map[int][]config.UpstreamConfig) (string, error)
 }
 type PriorityRoundRobinStrategy struct {
 	counter uint64
@@ -27,7 +28,7 @@ func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
 
 var ErrNoHealthyUpstreams = errors.New("no healthy upstreams")
 
-func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[int][]string) (string, error) {
+func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[int][]config.UpstreamConfig) (string, error) {
 	prioritySorted := maps.Keys(upstreamsByPriority)
 	sort.Ints(prioritySorted)
 
@@ -37,7 +38,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(upstreamsByPriority map[in
 		if len(upstreams) > 0 {
 			atomic.AddUint64(&s.counter, 1)
 
-			return upstreams[int(s.counter)%len(upstreams)], nil
+			return upstreams[int(s.counter)%len(upstreams)].ID, nil
 		}
 
 		zap.L().Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
