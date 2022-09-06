@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	periodicHealthCheckInterval = 1 * time.Second
+	periodicHealthCheckInterval = 5 * time.Second
 )
 
 type UpstreamStatus struct {
