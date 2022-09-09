@@ -23,16 +23,24 @@ func (b *RequestBody) EncodeRequestBody() ([]byte, error) {
 	return json.Marshal(b)
 }
 
-func DecodeRequestBody(req *http.Request) (RequestBody, error) {
+func DecodeRequestBody(req *http.Request) (*RequestBody, error) {
 	// No need to close the request body, the Server implementation will take care of it.
-	decoder := json.NewDecoder(req.Body)
+	requestRawBytes, err := io.ReadAll(req.Body)
+
+	if err != nil {
+		return nil, NewDecodeError(err, requestRawBytes)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(requestRawBytes))
 	decoder.DisallowUnknownFields()
 
 	var body RequestBody
 
-	err := decoder.Decode(&body)
+	if err = decoder.Decode(&body); err != nil {
+		err = NewDecodeError(err, requestRawBytes)
+	}
 
-	return body, err
+	return &body, err
 }
 
 // See: http://www.jsonrpc.org/specification#response_object

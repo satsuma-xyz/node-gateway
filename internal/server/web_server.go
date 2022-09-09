@@ -94,7 +94,9 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	body, err := jsonrpc.DecodeRequestBody(req)
 	if err != nil {
-		resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request body could not be parsed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
+		errMsg := fmt.Sprintf("Request body could not be parsed, err: %s", err.Error())
+		resp := jsonrpc.CreateErrorJSONRPCResponseBody(errMsg, jsonrpc.InternalServerErrorCode, int(body.ID))
+		zap.L().Error(errMsg)
 		respondJSONRPC(writer, &resp, http.StatusBadRequest)
 
 		return
@@ -102,7 +104,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
 
-	respBody, resp, err := h.router.Route(ctx, body)
+	respBody, resp, err := h.router.Route(ctx, *body)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
