@@ -109,7 +109,7 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 		}
 	}
 
-	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody))
+	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		id,
@@ -130,7 +130,7 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 		JSONRPCResponseCode := ""
 
 		if isJSONRPCError {
-			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error))
+			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error), zap.String("client", util.GetClientFromContext(ctx)))
 
 			JSONRPCResponseCode = strconv.Itoa(body.Error.Code)
 		}
@@ -164,7 +164,7 @@ func (r *SimpleRouter) routeToConfig(
 ) (*jsonrpc.ResponseBody, *http.Response, error) {
 	bodyBytes, err := requestBody.EncodeRequestBody()
 	if err != nil {
-		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
+		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
 		return nil, nil, err
 	}
 
@@ -182,18 +182,18 @@ func (r *SimpleRouter) routeToConfig(
 	resp, err := r.httpClient.Do(httpReq)
 
 	if err != nil {
-		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
-		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("upstreamID", configToRoute.ID), zap.String("client", util.GetClientFromContext(ctx)))
 		return nil, nil, err
 	}
 
-	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody))
+	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody), zap.String("client", util.GetClientFromContext(ctx)))
 
 	return respBody, resp, nil
 }

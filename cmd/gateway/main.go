@@ -12,19 +12,21 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/server"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // The 1st arg is the path to the program and the 2nd arg is the path to the
 // config file.
-const ExpectedNumArgs = 2
+const (
+	ExpectedNumArgs            = 2
+	defaultLogLevelProduction  = zapcore.InfoLevel
+	defaultLogLevelDevelopment = zapcore.DebugLevel
+)
 
 func main() {
 	env := os.Getenv("ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	logger, loggerErr := setupGlobalLogger(env)
+	logLevel := os.Getenv("LOG_LEVEL")
+	logger, loggerErr := setupGlobalLogger(env, logLevel)
 
 	if loggerErr != nil {
 		panic(loggerErr)
@@ -92,11 +94,36 @@ func main() {
 	}
 }
 
-func setupGlobalLogger(env string) (logger *zap.Logger, err error) {
-	if env == "production" {
-		logger, err = zap.NewProduction()
+func setupGlobalLogger(env, logLevel string) (logger *zap.Logger, err error) {
+	if env == "" || env == "production" {
+		var parsedLogLevel zapcore.Level
+
+		if logLevel != "" {
+			if parsedLogLevel, err = zapcore.ParseLevel(logLevel); err != nil {
+				parsedLogLevel = defaultLogLevelProduction
+			}
+		} else {
+			parsedLogLevel = defaultLogLevelProduction
+		}
+
+		zapConfig := zap.NewProductionConfig()
+		zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		zapConfig.Level = zap.NewAtomicLevelAt(parsedLogLevel)
+		logger, err = zapConfig.Build()
 	} else {
-		logger, err = zap.NewDevelopment()
+		var parsedLogLevel zapcore.Level
+
+		if logLevel != "" {
+			if parsedLogLevel, err = zapcore.ParseLevel(logLevel); err != nil {
+				parsedLogLevel = defaultLogLevelDevelopment
+			}
+		} else {
+			parsedLogLevel = defaultLogLevelDevelopment
+		}
+
+		zapConfig := zap.NewDevelopmentConfig()
+		zapConfig.Level = zap.NewAtomicLevelAt(parsedLogLevel)
+		logger, err = zapConfig.Build()
 	}
 
 	if err == nil {
