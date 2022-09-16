@@ -20,6 +20,7 @@ import (
 
 func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
+	managerMock.EXPECT().StartHealthChecks()
 
 	checkerMock := mocks.NewChecker(t)
 	checkerMock.EXPECT().IsPassing().Return(false)
@@ -38,6 +39,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 
 	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
 	router.(*SimpleRouter).healthCheckManager = managerMock
+	router.Start()
 
 	jsonResp, httpResp, err := router.Route(context.Background(), jsonrpc.RequestBody{})
 	defer httpResp.Body.Close()
