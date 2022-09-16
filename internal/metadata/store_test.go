@@ -7,8 +7,7 @@ import (
 )
 
 func TestChainMetadataStore_GetGlobalMaxHeight(t *testing.T) {
-	var blockHeightChannel = make(chan BlockHeightUpdate)
-	var store = NewChainMetadataStore(blockHeightChannel)
+	var store = NewChainMetadataStore()
 
 	store.Start()
 
@@ -26,8 +25,7 @@ func TestChainMetadataStore_GetGlobalMaxHeight(t *testing.T) {
 }
 
 func TestChainMetadataStore_GetMaxHeightForGroup(t *testing.T) {
-	var blockHeightChannel = make(chan BlockHeightUpdate)
-	var store = NewChainMetadataStore(blockHeightChannel)
+	var store = NewChainMetadataStore()
 
 	store.Start()
 

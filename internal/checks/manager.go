@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"go.uber.org/zap"
@@ -27,14 +26,14 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- metadata.BlockHeightUpdate) types.BlockHeightChecker
+	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
-	blockHeightObserver chan<- metadata.BlockHeightUpdate
+	blockHeightObserver BlockHeightObserver
 	configs             []conf.UpstreamConfig
 }
 
-func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver chan<- metadata.BlockHeightUpdate) HealthCheckManager {
+func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver BlockHeightObserver) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,

@@ -20,12 +20,16 @@ type BlockHeightCheck struct {
 	blockHeightError    error
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
-	blockHeightObserver chan<- metadata.BlockHeightUpdate
+	blockHeightObserver BlockHeightObserver
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver chan<- metadata.BlockHeightUpdate) internalTypes.BlockHeightChecker {
+type BlockHeightObserver interface {
+	ProcessUpdate(update metadata.BlockHeightUpdate)
+}
+
+func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig:      config,
 		clientGetter:        clientGetter,
@@ -126,10 +130,10 @@ func (c *BlockHeightCheck) GetBlockHeight() uint64 {
 
 func (c *BlockHeightCheck) SetBlockHeight(blockHeight uint64) {
 	c.blockHeight = blockHeight
-	c.blockHeightObserver <- metadata.BlockHeightUpdate{
+	c.blockHeightObserver.ProcessUpdate(metadata.BlockHeightUpdate{
 		GroupID:     c.upstreamConfig.GroupID,
 		BlockHeight: blockHeight,
-	}
+	})
 }
 
 func (c *BlockHeightCheck) GetError() error {

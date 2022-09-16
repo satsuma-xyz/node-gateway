@@ -64,10 +64,10 @@ func NewRPCServer(config conf.Config) RPCServer {
 }
 
 func wireRouter(config conf.Config) route.Router {
-	blockHeightChannel := make(chan metadata.BlockHeightUpdate)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, blockHeightChannel)
+	chainMetadataStore := metadata.NewChainMetadataStore()
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore)
 
-	return route.NewRouter(config.Upstreams, config.Groups, blockHeightChannel, healthCheckManager)
+	return route.NewRouter(config.Upstreams, config.Groups, *chainMetadataStore, healthCheckManager)
 }
 
 func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {

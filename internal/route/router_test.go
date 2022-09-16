@@ -37,7 +37,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 		},
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), *metadata.NewChainMetadataStore(), managerMock)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
@@ -110,7 +110,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, make(chan metadata.BlockHeightUpdate), managerMock)
+	router := NewRouter(upstreamConfigs, groupConfigs, *metadata.NewChainMetadataStore(), managerMock)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -155,7 +155,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		erigonConfig,
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), make(chan metadata.BlockHeightUpdate), managerMock)
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), *metadata.NewChainMetadataStore(), managerMock)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
