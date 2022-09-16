@@ -45,19 +45,19 @@ type SimpleRouter struct {
 func NewRouter(
 	upstreamConfigs []config.UpstreamConfig,
 	groupConfigs []config.GroupConfig,
-	chainMetadataStore metadata.ChainMetadataStore,
+	chainMetadataStore *metadata.ChainMetadataStore,
 	healthCheckManager checks.HealthCheckManager,
 ) Router {
 	routingStrategy := FilteringRoutingStrategy{
 		nodeFilter: &IsHealthyAndAtMaxHeightForGroupFilter{
 			healthCheckManager: healthCheckManager,
-			chainMetadataStore: &chainMetadataStore,
+			chainMetadataStore: chainMetadataStore,
 		},
 		backingStrategy: NewPriorityRoundRobinStrategy(),
 	}
 
 	r := &SimpleRouter{
-		chainMetadataStore:  &chainMetadataStore,
+		chainMetadataStore:  chainMetadataStore,
 		healthCheckManager:  healthCheckManager,
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
