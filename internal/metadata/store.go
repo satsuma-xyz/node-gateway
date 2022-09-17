@@ -27,11 +27,7 @@ func (c *ChainMetadataStore) Start() {
 }
 
 func (c *ChainMetadataStore) updateHeightForGroup(groupID string, currentBlockHeight uint64) {
-	var oldHeight = c.maxHeightByGroupID[groupID]
-
-	var newMaxHeight = max(oldHeight, currentBlockHeight)
-
-	c.maxHeightByGroupID[groupID] = newMaxHeight
+	c.maxHeightByGroupID[groupID] = max(c.maxHeightByGroupID[groupID], currentBlockHeight)
 }
 
 func max(a, b uint64) uint64 {
@@ -49,15 +45,14 @@ func (c *ChainMetadataStore) GetGlobalMaxHeight() uint64 {
 		close(returnChannel)
 	}
 
-	var result = <-returnChannel
-
-	return result
+	return <-returnChannel
 }
 
 func (c *ChainMetadataStore) GetMaxHeightForGroup(groupID string) uint64 {
 	var returnChannel = make(chan uint64)
 	c.opChannel <- func() {
 		returnChannel <- c.maxHeightByGroupID[groupID]
+		close(returnChannel)
 	}
 
 	return <-returnChannel
