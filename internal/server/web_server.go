@@ -67,7 +67,13 @@ func wireRouter(config conf.Config) route.Router {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore)
 
-	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager)
+	nodeFilter := route.CreateNodeFilter([]string{"healthy", "maxHeightForGroup"}, healthCheckManager, chainMetadataStore)
+	routingStrategy := route.FilteringRoutingStrategy{
+		NodeFilter:      nodeFilter,
+		BackingStrategy: route.NewPriorityRoundRobinStrategy(),
+	}
+
+	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy)
 }
 
 func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {

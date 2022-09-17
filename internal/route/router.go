@@ -47,28 +47,24 @@ func NewRouter(
 	groupConfigs []config.GroupConfig,
 	chainMetadataStore *metadata.ChainMetadataStore,
 	healthCheckManager checks.HealthCheckManager,
+	routingStrategy RoutingStrategy,
 ) Router {
-	routingStrategy := FilteringRoutingStrategy{
-		nodeFilter: &IsHealthyAndAtMaxHeightForGroupFilter{
-			healthCheckManager: healthCheckManager,
-			chainMetadataStore: chainMetadataStore,
-		},
-		backingStrategy: NewPriorityRoundRobinStrategy(),
-	}
-
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
 		healthCheckManager:  healthCheckManager,
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
-		routingStrategy:     &routingStrategy,
+		routingStrategy:     routingStrategy,
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 	}
 
 	return r
 }
 
-func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) types.PriorityToUpstreamsMap {
+func groupUpstreamsByPriority(
+	upstreamConfigs []config.UpstreamConfig,
+	groupConfigs []config.GroupConfig,
+) types.PriorityToUpstreamsMap {
 	priorityMap := make(types.PriorityToUpstreamsMap)
 
 	for configIndex := range upstreamConfigs {
@@ -95,7 +91,10 @@ func (r *SimpleRouter) Start() {
 	r.healthCheckManager.StartHealthChecks()
 }
 
-func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
+func (r *SimpleRouter) Route(
+	ctx context.Context,
+	requestBody jsonrpc.RequestBody,
+) (*jsonrpc.ResponseBody, *http.Response, error) {
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
 	if err != nil {
 		switch {

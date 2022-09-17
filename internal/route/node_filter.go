@@ -12,28 +12,91 @@ type NodeFilter interface {
 	Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
 }
 
-type IsHealthyAndAtGlobalMaxHeightFilter struct {
+type AndFilter struct {
+	filters []NodeFilter
+}
+
+func (a *AndFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+	var result = true
+
+	for filterIndex := range a.filters {
+		var filter = a.filters[filterIndex]
+		if !filter.Apply(requestMetadata, upstreamConfig) {
+			result = false
+			break
+		}
+	}
+
+	return result
+}
+
+type IsHealthyFilter struct {
+	healthCheckManager checks.HealthCheckManager
+}
+
+func (f *IsHealthyFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	return upstreamStatus.PeerCheck.IsPassing() && upstreamStatus.SyncingCheck.IsPassing()
+}
+
+type IsAtGlobalMaxHeight struct {
 	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtGlobalMaxHeightFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsAtGlobalMaxHeight) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	maxHeight := f.chainMetadataStore.GetGlobalMaxHeight()
 
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
-	return upstreamStatus.IsHealthy(maxHeight)
+	return upstreamStatus.BlockHeightCheck.IsPassing(maxHeight)
 }
 
-type IsHealthyAndAtMaxHeightForGroupFilter struct {
+type IsAtMaxHeightForGroup struct {
 	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtMaxHeightForGroupFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsAtMaxHeightForGroup) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	maxHeightForGroup := f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
 
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
-	return upstreamStatus.IsHealthy(maxHeightForGroup)
+	return upstreamStatus.BlockHeightCheck.IsPassing(maxHeightForGroup)
+}
+
+func CreateNodeFilter(
+	filterNames []string,
+	manager checks.HealthCheckManager,
+	store *metadata.ChainMetadataStore,
+) NodeFilter {
+	var filters = make([]NodeFilter, len(filterNames))
+	for i := range filterNames {
+		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store)
+	}
+
+	return &AndFilter{filters}
+}
+
+func CreateSingleNodeFilter(
+	filterName string,
+	manager checks.HealthCheckManager,
+	store *metadata.ChainMetadataStore,
+) NodeFilter {
+	switch filterName {
+	case "healthy":
+		return &IsHealthyFilter{manager}
+	case "globalMaxHeight":
+		return &IsAtGlobalMaxHeight{
+			healthCheckManager: manager,
+			chainMetadataStore: store,
+		}
+	case "maxHeightForGroup":
+		return &IsAtMaxHeightForGroup{
+			healthCheckManager: manager,
+			chainMetadataStore: store,
+		}
+	default:
+		panic("Unknown filter type " + filterName + "!")
+	}
 }

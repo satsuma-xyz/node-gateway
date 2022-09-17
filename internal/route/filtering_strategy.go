@@ -7,13 +7,13 @@ import (
 )
 
 type FilteringRoutingStrategy struct {
-	nodeFilter      NodeFilter
-	backingStrategy RoutingStrategy
+	NodeFilter      NodeFilter
+	BackingStrategy RoutingStrategy
 }
 
 func (s *FilteringRoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
 	filteredUpstreams := s.filter(upstreamsByPriority)
-	return s.backingStrategy.RouteNextRequest(filteredUpstreams)
+	return s.BackingStrategy.RouteNextRequest(filteredUpstreams)
 }
 
 func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUpstreamsMap) types.PriorityToUpstreamsMap {
@@ -25,7 +25,7 @@ func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUp
 		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 
 		for _, upstreamConfig := range upstreamConfigs {
-			if s.nodeFilter.Apply(nil, upstreamConfig) {
+			if s.NodeFilter.Apply(nil, upstreamConfig) {
 				filteredUpstreams = append(filteredUpstreams, upstreamConfig)
 			}
 		}

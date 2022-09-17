@@ -22,13 +22,6 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
 	managerMock.EXPECT().StartHealthChecks()
 
-	checkerMock := mocks.NewChecker(t)
-	checkerMock.EXPECT().IsPassing().Return(false)
-	managerMock.EXPECT().GetUpstreamStatus(mock.Anything).Return(&types.UpstreamStatus{
-		PeerCheck:    checkerMock,
-		SyncingCheck: checkerMock,
-	})
-
 	upstreamConfigs := []config.UpstreamConfig{
 		{
 			ID:      "geth",
@@ -37,7 +30,10 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 		},
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock)
+	routingStrategy := mocks.NewMockRoutingStrategy(t)
+	routingStrategy.EXPECT().RouteNextRequest(mock.Anything).Return("", ErrNoHealthyUpstreams)
+
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
@@ -65,7 +61,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	}
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
 
-	routingStrategyMock := mocks.NewRoutingStrategy(t)
+	routingStrategyMock := mocks.NewMockRoutingStrategy(t)
 	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
 
 	gethConfig := config.UpstreamConfig{
@@ -110,7 +106,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock)
+	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -138,7 +134,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	}
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
 
-	routingStrategyMock := mocks.NewRoutingStrategy(t)
+	routingStrategyMock := mocks.NewMockRoutingStrategy(t)
 	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
 
 	gethConfig := config.UpstreamConfig{
@@ -155,7 +151,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		erigonConfig,
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock)
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
