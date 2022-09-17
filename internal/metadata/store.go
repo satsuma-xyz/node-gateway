@@ -19,11 +19,11 @@ func NewChainMetadataStore() *ChainMetadataStore {
 }
 
 func (c *ChainMetadataStore) Start() {
-	go func(c *ChainMetadataStore) {
+	go func() {
 		for op := range c.opChannel {
 			op()
 		}
-	}(c)
+	}()
 }
 
 func (c *ChainMetadataStore) updateHeightForGroup(groupID string, currentBlockHeight uint64) {
