@@ -6,9 +6,9 @@ type BlockHeightUpdate struct {
 }
 
 type ChainMetadataStore struct {
+	opChannel          chan func()
 	maxHeightByGroupID map[string]uint64
 	globalMaxHeight    uint64
-	opChannel          chan func()
 }
 
 func NewChainMetadataStore() *ChainMetadataStore {
@@ -48,7 +48,9 @@ func (c *ChainMetadataStore) GetGlobalMaxHeight() uint64 {
 		returnChannel <- c.globalMaxHeight
 		close(returnChannel)
 	}
+
 	var result = <-returnChannel
+
 	return result
 }
 
@@ -57,6 +59,7 @@ func (c *ChainMetadataStore) GetMaxHeightForGroup(groupID string) uint64 {
 	c.opChannel <- func() {
 		returnChannel <- c.maxHeightByGroupID[groupID]
 	}
+
 	return <-returnChannel
 }
 
