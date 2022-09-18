@@ -65,7 +65,8 @@ func NewRPCServer(config conf.Config) RPCServer {
 
 func wireRouter(config conf.Config) route.Router {
 	chainMetadataStore := metadata.NewChainMetadataStore()
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore)
+	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker)
 
 	nodeFilter := route.CreateNodeFilter([]string{"healthy", "maxHeightForGroup"}, healthCheckManager, chainMetadataStore)
 	routingStrategy := route.FilteringRoutingStrategy{
