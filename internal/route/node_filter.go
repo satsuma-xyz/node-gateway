@@ -6,7 +6,9 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 )
 
-type RequestMetadata struct{}
+type RequestMetadata struct {
+	IsStateRequired bool
+}
 
 type NodeFilter interface {
 	Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
@@ -63,6 +65,19 @@ func (f *IsAtMaxHeightForGroup) Apply(_ *RequestMetadata, upstreamConfig *config
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	return upstreamStatus.BlockHeightCheck.IsPassing(maxHeightForGroup)
+}
+
+type SimpleIsStatePresentFilter struct{}
+
+func (f *SimpleIsStatePresentFilter) Apply(
+	requestMetadata *RequestMetadata,
+	upstreamConfig *config.UpstreamConfig,
+) bool {
+	if requestMetadata.IsStateRequired {
+		return upstreamConfig.NodeType == config.Archive
+	}
+
+	return true
 }
 
 func CreateNodeFilter(
