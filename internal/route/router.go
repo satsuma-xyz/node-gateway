@@ -97,8 +97,8 @@ func (r *SimpleRouter) Route(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
 ) (*jsonrpc.ResponseBody, *http.Response, error) {
-	_ = r.metadataParser.Parse(requestBody)
-	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
+	requestMetadata := r.metadataParser.Parse(requestBody)
+	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoHealthyUpstreams):

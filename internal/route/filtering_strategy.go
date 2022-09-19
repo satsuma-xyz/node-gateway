@@ -2,6 +2,7 @@ package route
 
 import (
 	"github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 	"go.uber.org/zap"
 )
@@ -11,9 +12,12 @@ type FilteringRoutingStrategy struct {
 	BackingStrategy RoutingStrategy
 }
 
-func (s *FilteringRoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
+func (s *FilteringRoutingStrategy) RouteNextRequest(
+	upstreamsByPriority types.PriorityToUpstreamsMap,
+	requestMetadata metadata.RequestMetadata,
+) (string, error) {
 	filteredUpstreams := s.filter(upstreamsByPriority)
-	return s.BackingStrategy.RouteNextRequest(filteredUpstreams)
+	return s.BackingStrategy.RouteNextRequest(filteredUpstreams, requestMetadata)
 }
 
 func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUpstreamsMap) types.PriorityToUpstreamsMap {
