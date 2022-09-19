@@ -33,6 +33,12 @@ func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 		zap.L().Error("httpUrl cannot be empty", zap.Any("config", c), zap.String("upstreamId", c.ID))
 	}
 
+	if c.NodeType == "" {
+		isValid = false
+
+		zap.L().Error("nodeType cannot be empty", zap.Any("config", c), zap.String("upstreamId", c.ID))
+	}
+
 	if c.HealthCheckConfig.UseWSForBlockHeight != nil && *c.HealthCheckConfig.UseWSForBlockHeight && c.WSURL == "" {
 		isValid = false
 

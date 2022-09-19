@@ -120,10 +120,12 @@ func TestParseConfig_ValidConfig(t *testing.T) {
         healthCheck:
           useWsForBlockHeight: true
         group: primary
+        nodeType: full
       - id: ankr-polygon
         httpURL: "https://rpc.ankr.com/polygon"
         wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
         group: fallback
+        nodeType: archive
   `
 	configBytes := []byte(config)
 
@@ -142,7 +144,8 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 				HealthCheckConfig: HealthCheckConfig{
 					UseWSForBlockHeight: newBool(true),
 				},
-				GroupID: "primary",
+				GroupID:  "primary",
+				NodeType: Full,
 			},
 			{
 				ID:      "ankr-polygon",
@@ -151,7 +154,8 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 				HealthCheckConfig: HealthCheckConfig{
 					UseWSForBlockHeight: nil,
 				},
-				GroupID: "fallback",
+				GroupID:  "fallback",
+				NodeType: Archive,
 			},
 		},
 		Global: GlobalConfig{
