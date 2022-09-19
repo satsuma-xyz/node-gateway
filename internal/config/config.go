@@ -8,6 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type NodeType string
+
+const (
+	Archive NodeType = "archive"
+	Full    NodeType = "full"
+)
+
 type UpstreamConfig struct {
 	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
 	HealthCheckConfig HealthCheckConfig `yaml:"healthCheck"`
@@ -15,6 +22,7 @@ type UpstreamConfig struct {
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
 	GroupID           string            `yaml:"group"`
+	NodeType          NodeType          `yaml:"nodeType"`
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
