@@ -51,3 +51,32 @@ func TestAndFilter_Apply(t *testing.T) {
 		})
 	}
 }
+
+func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
+	fullNodeConfig := config.UpstreamConfig{NodeType: config.Full}
+	archiveNodeConfig := config.UpstreamConfig{NodeType: config.Archive}
+
+	stateMethodMetadata := metadata.RequestMetadata{IsStateRequired: true}
+	nonStateMethodMetadata := metadata.RequestMetadata{IsStateRequired: false}
+
+	type args struct {
+		requestMetadata metadata.RequestMetadata
+		upstreamConfig  *config.UpstreamConfig
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{"stateMethodFullNode", args{stateMethodMetadata, &fullNodeConfig}, false},
+		{"stateMethodArchiveNode", args{stateMethodMetadata, &archiveNodeConfig}, true},
+		{"nonStateMethodFullNode", args{nonStateMethodMetadata, &fullNodeConfig}, true},
+		{"nonStateMethodArchiveNode", args{nonStateMethodMetadata, &archiveNodeConfig}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &SimpleIsStatePresentFilter{}
+			assert.Equalf(t, tt.want, f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig), "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
+		})
+	}
+}
