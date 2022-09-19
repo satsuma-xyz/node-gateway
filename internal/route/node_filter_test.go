@@ -25,7 +25,7 @@ func TestAndFilter_Apply(t *testing.T) {
 		filters []NodeFilter
 	}
 
-	type args struct {
+	type args struct { //nolint:govet // field alignment doesn't matter in tests
 		requestMetadata metadata.RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
@@ -59,11 +59,12 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 	stateMethodMetadata := metadata.RequestMetadata{IsStateRequired: true}
 	nonStateMethodMetadata := metadata.RequestMetadata{IsStateRequired: false}
 
-	type args struct {
+	type args struct { //nolint:govet // field alignment doesn't matter in tests
 		requestMetadata metadata.RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
-	tests := []struct {
+
+	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
 		name string
 		args args
 		want bool
@@ -73,6 +74,7 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 		{"nonStateMethodFullNode", args{nonStateMethodMetadata, &fullNodeConfig}, true},
 		{"nonStateMethodArchiveNode", args{nonStateMethodMetadata, &archiveNodeConfig}, true},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &SimpleIsStatePresentFilter{}
