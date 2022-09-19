@@ -37,7 +37,6 @@ func TestHealthCheckManager(t *testing.T) {
 
 	tickerChan := make(chan time.Time)
 	ticker := &time.Ticker{C: tickerChan}
-	//ticker := time.NewTicker(5 * time.Second)
 
 	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker)
 	manager.(*healthCheckManager).newBlockHeightCheck = func(

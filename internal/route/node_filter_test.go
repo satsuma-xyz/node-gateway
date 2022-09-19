@@ -23,11 +23,13 @@ func TestAndFilter_Apply(t *testing.T) {
 	type fields struct {
 		filters []NodeFilter
 	}
+
 	type args struct {
 		requestMetadata *RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
-	tests := []struct {
+
+	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
 		name   string
 		fields fields
 		args   args

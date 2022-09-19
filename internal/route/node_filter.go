@@ -105,6 +105,6 @@ type NodeFilterType string
 
 const (
 	IsHealthy         NodeFilterType = "healthy"
-	GlobalMaxHeight                  = "globalMaxHeight"
-	MaxHeightForGroup                = "maxHeightForGroup"
+	GlobalMaxHeight   NodeFilterType = "globalMaxHeight"
+	MaxHeightForGroup NodeFilterType = "maxHeightForGroup"
 )

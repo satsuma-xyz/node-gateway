@@ -34,8 +34,8 @@ type healthCheckManager struct {
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	blockHeightObserver BlockHeightObserver
-	configs             []conf.UpstreamConfig
 	healthCheckTicker   *time.Ticker
+	configs             []conf.UpstreamConfig
 }
 
 func NewHealthCheckManager(
@@ -139,6 +139,7 @@ func (h *healthCheckManager) initializeChecks() {
 
 func (h *healthCheckManager) runPeriodicChecks() {
 	h.runChecksOnce()
+
 	for range h.healthCheckTicker.C {
 		h.runChecksOnce()
 	}
@@ -174,6 +175,4 @@ func (h *healthCheckManager) runChecksOnce() {
 	}
 
 	wg.Wait()
-	//
-	//time.Sleep(periodicHealthCheckInterval)
 }
