@@ -32,7 +32,7 @@ type IsHealthy struct {
 	healthCheckManager checks.HealthCheckManager
 }
 
-func (f *IsHealthy) Apply(_ *metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsHealthy) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	return upstreamStatus.PeerCheck.IsPassing() && upstreamStatus.SyncingCheck.IsPassing()
 }
@@ -107,6 +107,8 @@ func CreateSingleNodeFilter(
 			healthCheckManager: manager,
 			chainMetadataStore: store,
 		}
+	case SimpleIsStatePresent:
+		return &SimpleIsStatePresentFilter{}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -115,7 +117,8 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	Healthy           NodeFilterType = "healthy"
-	GlobalMaxHeight   NodeFilterType = "globalMaxHeight"
-	MaxHeightForGroup NodeFilterType = "maxHeightForGroup"
+	Healthy              NodeFilterType = "healthy"
+	GlobalMaxHeight      NodeFilterType = "globalMaxHeight"
+	MaxHeightForGroup    NodeFilterType = "maxHeightForGroup"
+	SimpleIsStatePresent NodeFilterType = "simpleIsStatePresent"
 )
