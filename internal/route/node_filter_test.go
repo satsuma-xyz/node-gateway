@@ -10,13 +10,13 @@ import (
 
 type AlwaysPass struct{}
 
-func (AlwaysPass) Apply(_ *metadata.RequestMetadata, _ *config.UpstreamConfig) bool {
+func (AlwaysPass) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
 	return true
 }
 
 type AlwaysFail struct{}
 
-func (AlwaysFail) Apply(_ *metadata.RequestMetadata, _ *config.UpstreamConfig) bool {
+func (AlwaysFail) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
 	return false
 }
 
@@ -26,7 +26,7 @@ func TestAndFilter_Apply(t *testing.T) {
 	}
 
 	type args struct {
-		requestMetadata *metadata.RequestMetadata
+		requestMetadata metadata.RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
 

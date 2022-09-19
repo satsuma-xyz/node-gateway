@@ -16,11 +16,14 @@ func (s *FilteringRoutingStrategy) RouteNextRequest(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
 	requestMetadata metadata.RequestMetadata,
 ) (string, error) {
-	filteredUpstreams := s.filter(upstreamsByPriority)
+	filteredUpstreams := s.filter(upstreamsByPriority, requestMetadata)
 	return s.BackingStrategy.RouteNextRequest(filteredUpstreams, requestMetadata)
 }
 
-func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUpstreamsMap) types.PriorityToUpstreamsMap {
+func (s *FilteringRoutingStrategy) filter(
+	upstreamsByPriority types.PriorityToUpstreamsMap,
+	requestMetadata metadata.RequestMetadata,
+) types.PriorityToUpstreamsMap {
 	priorityToHealthyUpstreams := make(types.PriorityToUpstreamsMap)
 
 	for priority, upstreamConfigs := range upstreamsByPriority {
@@ -29,7 +32,7 @@ func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUp
 		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 
 		for _, upstreamConfig := range upstreamConfigs {
-			if s.NodeFilter.Apply(nil, upstreamConfig) {
+			if s.NodeFilter.Apply(requestMetadata, upstreamConfig) {
 				filteredUpstreams = append(filteredUpstreams, upstreamConfig)
 			}
 		}

@@ -7,14 +7,14 @@ import (
 )
 
 type NodeFilter interface {
-	Apply(requestMetadata *metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
+	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
 }
 
 type AndFilter struct {
 	filters []NodeFilter
 }
 
-func (a *AndFilter) Apply(requestMetadata *metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	var result = true
 
 	for filterIndex := range a.filters {
@@ -42,7 +42,7 @@ type IsAtGlobalMaxHeight struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsAtGlobalMaxHeight) Apply(_ *metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsAtGlobalMaxHeight) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	maxHeight := f.chainMetadataStore.GetGlobalMaxHeight()
 
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
@@ -55,7 +55,7 @@ type IsAtMaxHeightForGroup struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsAtMaxHeightForGroup) Apply(_ *metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	maxHeightForGroup := f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
 
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
@@ -66,7 +66,7 @@ func (f *IsAtMaxHeightForGroup) Apply(_ *metadata.RequestMetadata, upstreamConfi
 type SimpleIsStatePresentFilter struct{}
 
 func (f *SimpleIsStatePresentFilter) Apply(
-	requestMetadata *metadata.RequestMetadata,
+	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
 	if requestMetadata.IsStateRequired {
