@@ -66,7 +66,7 @@ func (f *IsAtMaxHeightForGroup) Apply(_ *RequestMetadata, upstreamConfig *config
 }
 
 func CreateNodeFilter(
-	filterNames []string,
+	filterNames []NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
 ) NodeFilter {
@@ -79,19 +79,19 @@ func CreateNodeFilter(
 }
 
 func CreateSingleNodeFilter(
-	filterName string,
+	filterName NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
 ) NodeFilter {
 	switch filterName {
-	case "healthy":
+	case IsHealthy:
 		return &IsHealthyFilter{manager}
-	case "globalMaxHeight":
+	case GlobalMaxHeight:
 		return &IsAtGlobalMaxHeight{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
 		}
-	case "maxHeightForGroup":
+	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
@@ -100,3 +100,11 @@ func CreateSingleNodeFilter(
 		panic("Unknown filter type " + filterName + "!")
 	}
 }
+
+type NodeFilterType string
+
+const (
+	IsHealthy         NodeFilterType = "healthy"
+	GlobalMaxHeight                  = "globalMaxHeight"
+	MaxHeightForGroup                = "maxHeightForGroup"
+)
