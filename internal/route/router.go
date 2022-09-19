@@ -39,6 +39,7 @@ type SimpleRouter struct {
 	requestExecutor    RequestExecutor
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams types.PriorityToUpstreamsMap
+	metadataParser      metadata.RequestMetadataParser
 	upstreamConfigs     []config.UpstreamConfig
 }
 
@@ -56,6 +57,7 @@ func NewRouter(
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
+		metadataParser:      metadata.RequestMetadataParser{},
 	}
 
 	return r
@@ -95,6 +97,7 @@ func (r *SimpleRouter) Route(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
 ) (*jsonrpc.ResponseBody, *http.Response, error) {
+	_ = r.metadataParser.Parse(requestBody)
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
 	if err != nil {
 		switch {
