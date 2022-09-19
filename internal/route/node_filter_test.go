@@ -4,18 +4,19 @@ import (
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
 type AlwaysPass struct{}
 
-func (AlwaysPass) Apply(_ *RequestMetadata, _ *config.UpstreamConfig) bool {
+func (AlwaysPass) Apply(_ *metadata.RequestMetadata, _ *config.UpstreamConfig) bool {
 	return true
 }
 
 type AlwaysFail struct{}
 
-func (AlwaysFail) Apply(_ *RequestMetadata, _ *config.UpstreamConfig) bool {
+func (AlwaysFail) Apply(_ *metadata.RequestMetadata, _ *config.UpstreamConfig) bool {
 	return false
 }
 
@@ -25,7 +26,7 @@ func TestAndFilter_Apply(t *testing.T) {
 	}
 
 	type args struct {
-		requestMetadata *RequestMetadata
+		requestMetadata *metadata.RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
 
