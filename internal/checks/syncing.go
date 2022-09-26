@@ -6,6 +6,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +19,7 @@ type SyncingCheck struct {
 	shouldRun      bool
 }
 
-func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) Checker {
+func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
 	c := &SyncingCheck{
 		upstreamConfig: upstreamConfig,
 		clientGetter:   clientGetter,

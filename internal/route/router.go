@@ -3,8 +3,11 @@ package route
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
+	"errors"
+
+	"github.com/satsuma-data/node-gateway/internal/metadata"
+	"github.com/satsuma-data/node-gateway/internal/types"
+
 	"io"
 	"net/http"
 	"strconv"
@@ -13,7 +16,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/satsuma-data/node-gateway/internal/checks"
-	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
@@ -31,32 +33,46 @@ type Router interface {
 }
 
 type SimpleRouter struct {
+	chainMetadataStore *metadata.ChainMetadataStore
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
-	httpClient         client.HTTPClient
+	requestExecutor    RequestExecutor
 	// Map from Priority => UpstreamIDs
-	priorityToUpstreams map[int][]string
+	priorityToUpstreams types.PriorityToUpstreamsMap
 	upstreamConfigs     []config.UpstreamConfig
 }
 
-func NewRouter(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) Router {
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, upstreamConfigs)
+func NewRouter(
+	upstreamConfigs []config.UpstreamConfig,
+	groupConfigs []config.GroupConfig,
+	chainMetadataStore *metadata.ChainMetadataStore,
+	healthCheckManager checks.HealthCheckManager,
+) Router {
+	routingStrategy := FilteringRoutingStrategy{
+		nodeFilter: &IsHealthyAndAtMaxHeightForGroupFilter{
+			healthCheckManager: healthCheckManager,
+			chainMetadataStore: chainMetadataStore,
+		},
+		backingStrategy: NewPriorityRoundRobinStrategy(),
+	}
 
 	r := &SimpleRouter{
+		chainMetadataStore:  chainMetadataStore,
 		healthCheckManager:  healthCheckManager,
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
-		routingStrategy:     NewPriorityRoundRobinStrategy(),
-		httpClient:          &http.Client{},
+		routingStrategy:     &routingStrategy,
+		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 	}
 
 	return r
 }
 
-func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) map[int][]string {
-	priorityMap := make(map[int][]string)
+func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConfigs []config.GroupConfig) types.PriorityToUpstreamsMap {
+	priorityMap := make(types.PriorityToUpstreamsMap)
 
-	for _, upstreamConfig := range upstreamConfigs {
+	for configIndex := range upstreamConfigs {
+		upstreamConfig := &upstreamConfigs[configIndex]
 		groupID := upstreamConfig.GroupID
 
 		groupPriority := 0
@@ -68,38 +84,32 @@ func groupUpstreamsByPriority(upstreamConfigs []config.UpstreamConfig, groupConf
 			}
 		}
 
-		priorityMap[groupPriority] = append(priorityMap[groupPriority], upstreamConfig.ID)
+		priorityMap[groupPriority] = append(priorityMap[groupPriority], upstreamConfig)
 	}
 
 	return priorityMap
 }
 
 func (r *SimpleRouter) Start() {
+	r.chainMetadataStore.Start()
 	r.healthCheckManager.StartHealthChecks()
 }
 
 func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
-	healthyUpstreams := r.getHealthyUpstreamsByPriority()
+	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNoHealthyUpstreams):
+			httpResp := &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Body:       io.NopCloser(bytes.NewBufferString(err.Error())),
+			}
 
-	hasHealthyUpstreams := false
-
-	for _, upstreamsAtPriority := range healthyUpstreams {
-		if len(upstreamsAtPriority) > 0 {
-			hasHealthyUpstreams = true
-			break
+			return nil, httpResp, nil
+		default:
+			return nil, nil, err
 		}
 	}
-
-	if !hasHealthyUpstreams {
-		httpResp := &http.Response{
-			StatusCode: http.StatusServiceUnavailable,
-			Body:       io.NopCloser(bytes.NewBufferString("No healthy upstream")),
-		}
-
-		return nil, httpResp, nil
-	}
-
-	id := r.routingStrategy.RouteNextRequest(healthyUpstreams)
 
 	var configToRoute config.UpstreamConfig
 
@@ -118,7 +128,7 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 	).Inc()
 
 	start := time.Now()
-	body, response, err := r.routeToConfig(ctx, requestBody, &configToRoute)
+	body, response, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
 	HTTPReponseCode := ""
 
 	if response != nil {
@@ -155,58 +165,4 @@ func (r *SimpleRouter) Route(ctx context.Context, requestBody jsonrpc.RequestBod
 	).Observe(time.Since(start).Seconds())
 
 	return body, response, err
-}
-
-func (r *SimpleRouter) routeToConfig(
-	ctx context.Context,
-	requestBody jsonrpc.RequestBody,
-	configToRoute *config.UpstreamConfig,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
-	bodyBytes, err := requestBody.EncodeRequestBody()
-	if err != nil {
-		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	if err != nil {
-		zap.L().Error("Could not create new http request.", zap.Any("request", requestBody), zap.Error(err))
-		return nil, nil, err
-	}
-
-	httpReq.Header.Set("content-type", "application/json")
-
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
-	httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
-
-	resp, err := r.httpClient.Do(httpReq)
-
-	if err != nil {
-		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := jsonrpc.DecodeResponseBody(resp)
-	if err != nil {
-		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err), zap.String("upstreamID", configToRoute.ID), zap.String("client", util.GetClientFromContext(ctx)))
-		return nil, nil, err
-	}
-
-	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody), zap.String("client", util.GetClientFromContext(ctx)))
-
-	return respBody, resp, nil
-}
-
-// Health checks need to be calculated by priority due to Block Height needs to be calculated by priority.
-func (r *SimpleRouter) getHealthyUpstreamsByPriority() map[int][]string {
-	priorityToHealthyUpstreams := make(map[int][]string)
-
-	for priority, upstreamIDs := range r.priorityToUpstreams {
-		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamIDs))
-
-		priorityToHealthyUpstreams[priority] = r.healthCheckManager.GetHealthyUpstreams(upstreamIDs)
-	}
-
-	return priorityToHealthyUpstreams
 }

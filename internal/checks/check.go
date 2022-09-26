@@ -36,9 +36,3 @@ func runCheckWithMetrics(runCheck func(), counterMetrics prometheus.Counter, dur
 	runCheck()
 	durationMetrics.Observe(time.Since(start).Seconds())
 }
-
-//go:generate mockery --output ../mocks --name Checker
-type Checker interface {
-	RunCheck()
-	IsPassing() bool
-}

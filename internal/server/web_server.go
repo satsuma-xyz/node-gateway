@@ -7,8 +7,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/checks"
+	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
+
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/route"
 	"github.com/satsuma-data/node-gateway/internal/util"
@@ -28,7 +33,7 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := route.NewRouter(config.Upstreams, config.Groups)
+	router := wireRouter(config)
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -56,6 +61,13 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	return *rpcServer
+}
+
+func wireRouter(config conf.Config) route.Router {
+	chainMetadataStore := metadata.NewChainMetadataStore()
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore)
+
+	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager)
 }
 
 func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {

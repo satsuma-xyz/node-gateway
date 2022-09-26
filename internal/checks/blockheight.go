@@ -4,20 +4,15 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
+	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
+
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
-
-//go:generate mockery --output ../mocks --name BlockHeightChecker
-type BlockHeightChecker interface {
-	RunCheck()
-	GetError() error
-	GetBlockHeight() uint64
-	IsPassing(maxBlockHeight uint64) bool
-}
 
 type BlockHeightCheck struct {
 	httpClient          client.EthClient
@@ -25,14 +20,20 @@ type BlockHeightCheck struct {
 	blockHeightError    error
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
+	blockHeightObserver BlockHeightObserver
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter) BlockHeightChecker {
+type BlockHeightObserver interface {
+	ProcessUpdate(update metadata.BlockHeightUpdate)
+}
+
+func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
-		upstreamConfig: config,
-		clientGetter:   clientGetter,
+		upstreamConfig:      config,
+		clientGetter:        clientGetter,
+		blockHeightObserver: blockHeightObserver,
 	}
 
 	c.Initialize()
@@ -101,7 +102,8 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 			return
 		}
 
-		c.blockHeight = header.Number.Uint64()
+		c.SetBlockHeight(header.Number.Uint64())
+
 		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
@@ -126,13 +128,21 @@ func (c *BlockHeightCheck) GetBlockHeight() uint64 {
 	return c.blockHeight
 }
 
+func (c *BlockHeightCheck) SetBlockHeight(blockHeight uint64) {
+	c.blockHeight = blockHeight
+	c.blockHeightObserver.ProcessUpdate(metadata.BlockHeightUpdate{
+		GroupID:     c.upstreamConfig.GroupID,
+		BlockHeight: blockHeight,
+	})
+}
+
 func (c *BlockHeightCheck) GetError() error {
 	return c.blockHeightError
 }
 
 func (c *BlockHeightCheck) subscribeNewHead() error {
-	onNewHead := func(header *types.Header) {
-		c.blockHeight = header.Number.Uint64()
+	onNewHead := func(header *ethTypes.Header) {
+		c.SetBlockHeight(header.Number.Uint64())
 		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 		c.webSocketError = nil
 		c.blockHeightError = nil
@@ -163,12 +173,12 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 }
 
 type newHeadHandler struct {
-	onNewHead func(header *types.Header)
+	onNewHead func(header *ethTypes.Header)
 	onError   func(failure string)
 }
 
 func subscribeNewHeads(wsClient client.EthClient, handler *newHeadHandler) error {
-	ch := make(chan *types.Header)
+	ch := make(chan *ethTypes.Header)
 	subscription, err := wsClient.SubscribeNewHead(context.Background(), ch)
 
 	if err != nil {
