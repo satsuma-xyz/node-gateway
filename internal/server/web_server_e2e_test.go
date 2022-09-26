@@ -3,38 +3,52 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSyncingThenNotSyncing(t *testing.T) {
+func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		assert.NoError(t, err)
+
+		switch requestBody.Method {
+		case "eth_syncing":
+			body := jsonrpc.ResponseBody{Result: false}
+			writeResponseBody(t, writer, body)
+
+		case "net_peerCount":
+			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(10)}
+			writeResponseBody(t, writer, body)
+
+		case "eth_getBlockByNumber":
+			body := jsonrpc.ResponseBody{
+				Result: types.Header{Number: big.NewInt(1000)},
+			}
+			writeResponseBody(t, writer, body)
+
+		case "eth_blockNumber":
+			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(1000)}
+			writeResponseBody(t, writer, body)
+
+		default:
+			panic("Unknown method " + requestBody.Method)
+		}
+	}))
+	defer upstream.Close()
+
 	upstreamConfigs := []config.UpstreamConfig{
-		{ID: "testNode"},
+		{ID: "testNode", HTTPURL: upstream.URL},
 	}
-	//chainMetadataStore := metadata.NewChainMetadataStore()
-	//ethClientGetter := client.NewEthClient
-	//healthCheckManager := checks.NewHealthCheckManager(ethClientGetter, upstreamConfigs, chainMetadataStore, time.NewTicker(checks.PeriodicHealthCheckInterval))
-	//enabledNodeFilters := []route.NodeFilterType{route.IsHealthy, route.MaxHeightForGroup, route.SimpleIsStatePresent}
-	//nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore)
-	//routingStrategy := route.FilteringRoutingStrategy{
-	//	NodeFilter:      nodeFilter,
-	//	BackingStrategy: route.NewPriorityRoundRobinStrategy(),
-	//}
-	//router := route.NewRouter(upstreamConfigs, nil, chainMetadataStore, healthCheckManager, &routingStrategy)
-
-	//router := mocks.NewRouter(t)
-	undecodableContent := []byte("content")
-
-	//router.On("Route", mock.Anything, mock.Anything).
-	//	Return(nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
-
-	//handler := &RPCHandler{router: router}
 
 	conf := config.Config{
 		Upstreams: upstreamConfigs,
@@ -44,14 +58,13 @@ func TestSyncingThenNotSyncing(t *testing.T) {
 
 	router := wireRouter(conf)
 	router.Start()
+
+	for router.IsInitialized() == false {
+		time.Sleep(10 * time.Millisecond)
+	}
 	handler := &RPCHandler{
 		router: router,
 	}
-	//server := NewRPCServer(conf)
-	//go func() {
-	//	server.Start()
-	//}()
-	//handler := server.httpServer
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
@@ -69,9 +82,15 @@ func TestSyncingThenNotSyncing(t *testing.T) {
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	_, _ = jsonrpc.DecodeResponseBody(result)
+	responseBody, _ := jsonrpc.DecodeResponseBody(result)
 
 	assert.Equal(t, http.StatusOK, result.StatusCode)
-	body, _ := io.ReadAll(result.Body)
-	assert.Equal(t, undecodableContent, body)
+	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
+}
+
+func writeResponseBody(t *testing.T, writer http.ResponseWriter, body jsonrpc.ResponseBody) {
+	encodedBody, err := json.Marshal(body)
+	assert.NoError(t, err)
+	_, err = writer.Write(encodedBody)
+	assert.NoError(t, err)
 }
