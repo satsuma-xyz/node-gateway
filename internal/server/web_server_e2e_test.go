@@ -17,7 +17,7 @@ import (
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
-	upstream := setUpHealthyUpstream(t)
+	upstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){})
 	defer upstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
@@ -30,15 +30,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 		Global:    config.GlobalConfig{},
 	}
 
-	router := wireRouter(conf)
-	router.Start()
-
-	for router.IsInitialized() == false {
-		time.Sleep(10 * time.Millisecond)
-	}
-	handler := &RPCHandler{
-		router: router,
-	}
+	handler := startRouterAndHandler(conf)
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
@@ -62,7 +54,89 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
 }
 
-func setUpHealthyUpstream(t *testing.T) *httptest.Server {
+func TestServeHTTP_ForwardsToArchiveNodeForStateRequest(t *testing.T) {
+	getTransactionCount := "eth_getTransactionCount"
+	expectedTransactionCount := 17
+
+	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
+		getTransactionCount: func(t *testing.T, writer http.ResponseWriter) {
+			t.Error("Unexpected call to stateful method on a full node!")
+		},
+	})
+	defer fullNodeUpstream.Close()
+
+	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
+		getTransactionCount: func(t *testing.T, writer http.ResponseWriter) {
+			t.Logf("Serving method %s from archive node as expected.", getTransactionCount)
+
+			responseBody := jsonrpc.ResponseBody{Result: hexutil.Uint64(expectedTransactionCount)}
+			writeResponseBody(t, writer, responseBody)
+		},
+	})
+	defer archiveNodeUpstream.Close()
+
+	fullNodeGroupID := "FullNodeGroup"
+	archiveNodeGroupID := "ArchiveNodeGroup"
+
+	upstreamConfigs := []config.UpstreamConfig{
+		{ID: "testNodeFull", HTTPURL: fullNodeUpstream.URL, NodeType: config.Full, GroupID: fullNodeGroupID},
+		{ID: "testNodeArchive", HTTPURL: archiveNodeUpstream.URL, NodeType: config.Archive, GroupID: archiveNodeGroupID},
+	}
+
+	// Force router to try full node with a higher priority to ensure filtering works.
+	groupConfigs := []config.GroupConfig{
+		{ID: fullNodeGroupID, Priority: 0},
+		{ID: archiveNodeGroupID, Priority: 1},
+	}
+	conf := config.Config{
+		Upstreams: upstreamConfigs,
+		Groups:    groupConfigs,
+		Global:    config.GlobalConfig{},
+	}
+
+	handler := startRouterAndHandler(conf)
+
+	emptyJSONBody, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"method":  getTransactionCount,
+		"params":  nil,
+		"id":      1,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req.Header.Add("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	result := recorder.Result()
+	defer result.Body.Close()
+
+	responseBody, err := jsonrpc.DecodeResponseBody(result)
+	assert.NoError(t, err)
+	assert.NotNil(t, responseBody)
+
+	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.Result)
+}
+
+func startRouterAndHandler(conf config.Config) *RPCHandler {
+	router := wireRouter(conf)
+	router.Start()
+
+	for router.IsInitialized() == false {
+		time.Sleep(10 * time.Millisecond)
+	}
+	handler := &RPCHandler{
+		router: router,
+	}
+	return handler
+}
+
+func setUpHealthyUpstream(
+	t *testing.T,
+	additionalHandlers map[string]func(t *testing.T, w http.ResponseWriter),
+) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requestBody, err := jsonrpc.DecodeRequestBody(request)
 		assert.NoError(t, err)
@@ -90,7 +164,11 @@ func setUpHealthyUpstream(t *testing.T) *httptest.Server {
 			writeResponseBody(t, writer, body)
 
 		default:
-			panic("Unknown method " + requestBody.Method)
+			if customHandler, found := additionalHandlers[requestBody.Method]; found {
+				customHandler(t, writer)
+			} else {
+				panic("Unknown method " + requestBody.Method)
+			}
 		}
 	}))
 }
