@@ -12,7 +12,7 @@ type FilteringRoutingStrategy struct {
 }
 
 func (s *FilteringRoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
-	var filteredUpstreams = s.filter(upstreamsByPriority)
+	filteredUpstreams := s.filter(upstreamsByPriority)
 	return s.backingStrategy.RouteNextRequest(filteredUpstreams)
 }
 
@@ -22,7 +22,7 @@ func (s *FilteringRoutingStrategy) filter(upstreamsByPriority types.PriorityToUp
 	for priority, upstreamConfigs := range upstreamsByPriority {
 		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamConfigs))
 
-		var filteredUpstreams = make([]*config.UpstreamConfig, 0)
+		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 
 		for _, upstreamConfig := range upstreamConfigs {
 			if s.nodeFilter.Apply(nil, upstreamConfig) {

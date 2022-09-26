@@ -7,7 +7,7 @@ import (
 )
 
 func TestChainMetadataStore_GetGlobalMaxHeight(t *testing.T) {
-	var store = NewChainMetadataStore()
+	store := NewChainMetadataStore()
 
 	store.Start()
 
@@ -25,7 +25,7 @@ func TestChainMetadataStore_GetGlobalMaxHeight(t *testing.T) {
 }
 
 func TestChainMetadataStore_GetMaxHeightForGroup(t *testing.T) {
-	var store = NewChainMetadataStore()
+	store := NewChainMetadataStore()
 
 	store.Start()
 

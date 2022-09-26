@@ -39,7 +39,7 @@ func max(a, b uint64) uint64 {
 }
 
 func (c *ChainMetadataStore) GetGlobalMaxHeight() uint64 {
-	var returnChannel = make(chan uint64)
+	returnChannel := make(chan uint64)
 	c.opChannel <- func() {
 		returnChannel <- c.globalMaxHeight
 		close(returnChannel)
@@ -49,7 +49,7 @@ func (c *ChainMetadataStore) GetGlobalMaxHeight() uint64 {
 }
 
 func (c *ChainMetadataStore) GetMaxHeightForGroup(groupID string) uint64 {
-	var returnChannel = make(chan uint64)
+	returnChannel := make(chan uint64)
 	c.opChannel <- func() {
 		returnChannel <- c.maxHeightByGroupID[groupID]
 		close(returnChannel)

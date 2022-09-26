@@ -17,10 +17,10 @@ type IsHealthyAndAtGlobalMaxHeightFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtGlobalMaxHeightFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	var maxHeight = f.chainMetadataStore.GetGlobalMaxHeight()
+func (f *IsHealthyAndAtGlobalMaxHeightFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+	maxHeight := f.chainMetadataStore.GetGlobalMaxHeight()
 
-	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	return upstreamStatus.IsHealthy(maxHeight)
 }
@@ -30,10 +30,10 @@ type IsHealthyAndAtMaxHeightForGroupFilter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 }
 
-func (f *IsHealthyAndAtMaxHeightForGroupFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	var maxHeightForGroup = f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
+func (f *IsHealthyAndAtMaxHeightForGroupFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+	maxHeightForGroup := f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
 
-	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	return upstreamStatus.IsHealthy(maxHeightForGroup)
 }
