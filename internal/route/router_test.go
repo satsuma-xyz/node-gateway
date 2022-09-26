@@ -31,7 +31,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	}
 
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
-	routingStrategy.EXPECT().RouteNextRequest(mock.Anything).Return("", ErrNoHealthyUpstreams)
+	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
 
 	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy)
 	router.(*SimpleRouter).healthCheckManager = managerMock
@@ -62,7 +62,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
 
 	routingStrategyMock := mocks.NewMockRoutingStrategy(t)
-	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
+	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("erigon", nil)
 
 	gethConfig := config.UpstreamConfig{
 		ID:      "geth",
@@ -120,7 +120,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 		0: {&gethConfig},
 		1: {&erigonConfig},
 		2: {&openEthConfig, &somethingElseConfig},
-	})
+	}, metadata.RequestMetadata{})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
 
@@ -135,7 +135,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil)
 
 	routingStrategyMock := mocks.NewMockRoutingStrategy(t)
-	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything).Return("erigon", nil)
+	routingStrategyMock.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("erigon", nil)
 
 	gethConfig := config.UpstreamConfig{
 		ID:      "geth",
@@ -163,6 +163,6 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	assert.NotNil(t, "hello", jsonRcpResp.Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig, &erigonConfig},
-	})
+	}, metadata.RequestMetadata{IsStateRequired: false})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }

@@ -33,9 +33,9 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	handler := startRouterAndHandler(conf)
 
-	result, responseBody := executeRequest(t, "eth_blockNumber", handler)
+	statusCode, responseBody := executeRequest(t, "eth_blockNumber", handler)
 
-	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
 }
 
@@ -47,10 +47,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	expectedBlockTxCount := 29
 
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
-		statefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+		statefulMethod: func(t *testing.T, _ http.ResponseWriter) {
+			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 		},
 		nonStatefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Helper()
 			t.Logf("Serving method %s from full node as expected", nonStatefulMethod)
 
 			responseBody := jsonrpc.ResponseBody{Result: hexutil.Uint64(expectedBlockTxCount)}
@@ -61,12 +63,14 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
 		statefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Helper()
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			responseBody := jsonrpc.ResponseBody{Result: hexutil.Uint64(expectedTransactionCount)}
 			writeResponseBody(t, writer, responseBody)
 		},
-		nonStatefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+		nonStatefulMethod: func(t *testing.T, _ http.ResponseWriter) {
+			t.Helper()
 			t.Errorf("Unexpected call to method %s: archive node is at lower priority!", nonStatefulMethod)
 		},
 	})
@@ -93,22 +97,20 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 	handler := startRouterAndHandler(conf)
 
-	result, responseBody := executeRequest(t, statefulMethod, handler)
+	statusCode, responseBody := executeRequest(t, statefulMethod, handler)
 
-	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.Result)
 
-	result, responseBody = executeRequest(t, nonStatefulMethod, handler)
+	statusCode, responseBody = executeRequest(t, nonStatefulMethod, handler)
 
-	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), responseBody.Result)
 }
 
-func executeRequest(
-	t *testing.T,
-	methodName string,
-	handler *RPCHandler,
-) (*http.Response, *jsonrpc.ResponseBody) {
+func executeRequest(t *testing.T, methodName string, handler *RPCHandler) (int, *jsonrpc.ResponseBody) {
+	t.Helper()
+
 	emptyJSONBody, _ := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
 		"method":  methodName,
@@ -128,7 +130,8 @@ func executeRequest(
 	responseBody, err := jsonrpc.DecodeResponseBody(result)
 	assert.NoError(t, err)
 	require.NotNil(t, responseBody)
-	return result, responseBody
+
+	return result.StatusCode, responseBody
 }
 
 func startRouterAndHandler(conf config.Config) *RPCHandler {
@@ -138,9 +141,11 @@ func startRouterAndHandler(conf config.Config) *RPCHandler {
 	for router.IsInitialized() == false {
 		time.Sleep(10 * time.Millisecond)
 	}
+
 	handler := &RPCHandler{
 		router: router,
 	}
+
 	return handler
 }
 
@@ -148,6 +153,8 @@ func setUpHealthyUpstream(
 	t *testing.T,
 	additionalHandlers map[string]func(t *testing.T, w http.ResponseWriter),
 ) *httptest.Server {
+	t.Helper()
+
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requestBody, err := jsonrpc.DecodeRequestBody(request)
 		assert.NoError(t, err)
@@ -187,6 +194,8 @@ func setUpHealthyUpstream(
 }
 
 func writeResponseBody(t *testing.T, writer http.ResponseWriter, body jsonrpc.ResponseBody) {
+	t.Helper()
+
 	encodedBody, err := json.Marshal(body)
 	assert.NoError(t, err)
 	_, err = writer.Write(encodedBody)
