@@ -68,7 +68,7 @@ func wireRouter(config conf.Config) route.Router {
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker)
 
-	nodeFilter := route.CreateNodeFilter([]route.NodeFilterType{route.IsHealthy, route.MaxHeightForGroup}, healthCheckManager, chainMetadataStore)
+	nodeFilter := route.CreateNodeFilter([]route.NodeFilterType{route.Healthy, route.MaxHeightForGroup}, healthCheckManager, chainMetadataStore)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,
 		BackingStrategy: route.NewPriorityRoundRobinStrategy(),

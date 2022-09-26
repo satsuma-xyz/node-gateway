@@ -30,11 +30,11 @@ func (a *AndFilter) Apply(requestMetadata *RequestMetadata, upstreamConfig *conf
 	return result
 }
 
-type IsHealthyFilter struct {
+type IsHealthy struct {
 	healthCheckManager checks.HealthCheckManager
 }
 
-func (f *IsHealthyFilter) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsHealthy) Apply(_ *RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	var upstreamStatus = f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	return upstreamStatus.PeerCheck.IsPassing() && upstreamStatus.SyncingCheck.IsPassing()
 }
@@ -84,8 +84,8 @@ func CreateSingleNodeFilter(
 	store *metadata.ChainMetadataStore,
 ) NodeFilter {
 	switch filterName {
-	case IsHealthy:
-		return &IsHealthyFilter{manager}
+	case Healthy:
+		return &IsHealthy{manager}
 	case GlobalMaxHeight:
 		return &IsAtGlobalMaxHeight{
 			healthCheckManager: manager,
@@ -104,7 +104,7 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	IsHealthy         NodeFilterType = "healthy"
+	Healthy           NodeFilterType = "healthy"
 	GlobalMaxHeight   NodeFilterType = "globalMaxHeight"
 	MaxHeightForGroup NodeFilterType = "maxHeightForGroup"
 )
