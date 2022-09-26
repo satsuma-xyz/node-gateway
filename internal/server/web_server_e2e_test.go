@@ -14,6 +14,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
@@ -38,23 +39,35 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
 }
 
-func TestServeHTTP_ForwardsToArchiveNodeForStateRequest(t *testing.T) {
-	getTransactionCount := "eth_getTransactionCount"
+func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
+	statefulMethod := "eth_getTransactionCount"
 	expectedTransactionCount := 17
 
+	nonStatefulMethod := "eth_getBlockTransactionCountByNumber"
+	expectedBlockTxCount := 29
+
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
-		getTransactionCount: func(t *testing.T, writer http.ResponseWriter) {
-			t.Error("Unexpected call to stateful method on a full node!")
+		statefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
+		},
+		nonStatefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Logf("Serving method %s from full node as expected", nonStatefulMethod)
+
+			responseBody := jsonrpc.ResponseBody{Result: hexutil.Uint64(expectedBlockTxCount)}
+			writeResponseBody(t, writer, responseBody)
 		},
 	})
 	defer fullNodeUpstream.Close()
 
 	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){
-		getTransactionCount: func(t *testing.T, writer http.ResponseWriter) {
-			t.Logf("Serving method %s from archive node as expected.", getTransactionCount)
+		statefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			responseBody := jsonrpc.ResponseBody{Result: hexutil.Uint64(expectedTransactionCount)}
 			writeResponseBody(t, writer, responseBody)
+		},
+		nonStatefulMethod: func(t *testing.T, writer http.ResponseWriter) {
+			t.Errorf("Unexpected call to method %s: archive node is at lower priority!", nonStatefulMethod)
 		},
 	})
 	defer archiveNodeUpstream.Close()
@@ -80,10 +93,15 @@ func TestServeHTTP_ForwardsToArchiveNodeForStateRequest(t *testing.T) {
 
 	handler := startRouterAndHandler(conf)
 
-	result, responseBody := executeRequest(t, getTransactionCount, handler)
+	result, responseBody := executeRequest(t, statefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, result.StatusCode)
 	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.Result)
+
+	result, responseBody = executeRequest(t, nonStatefulMethod, handler)
+
+	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), responseBody.Result)
 }
 
 func executeRequest(
@@ -109,7 +127,7 @@ func executeRequest(
 
 	responseBody, err := jsonrpc.DecodeResponseBody(result)
 	assert.NoError(t, err)
-	assert.NotNil(t, responseBody)
+	require.NotNil(t, responseBody)
 	return result, responseBody
 }
 
