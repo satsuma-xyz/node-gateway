@@ -15,6 +15,20 @@ type Router struct {
 	mock.Mock
 }
 
+// IsInitialized provides a mock function with given fields:
+func (_m *Router) IsInitialized() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // Route provides a mock function with given fields: ctx, requestBody
 func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
 	ret := _m.Called(ctx, requestBody)

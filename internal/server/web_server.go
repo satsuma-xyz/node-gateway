@@ -37,6 +37,9 @@ func NewRPCServer(config conf.Config) RPCServer {
 	handler := &RPCHandler{
 		router: router,
 	}
+	healthCheckHandler := &HealthCheckHandler{
+		router: router,
+	}
 
 	port := defaultServerPort
 	if config.Global.Port > 0 {
@@ -44,7 +47,7 @@ func NewRPCServer(config conf.Config) RPCServer {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", handleHealthCheck)
+	mux.Handle("/health", healthCheckHandler)
 
 	mux.Handle("/", metrics.InstrumentHandler(handler))
 
@@ -78,10 +81,6 @@ func wireRouter(config conf.Config) route.Router {
 	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy)
 }
 
-func handleHealthCheck(writer http.ResponseWriter, req *http.Request) {
-	respondRaw(writer, []byte("OK"), http.StatusOK)
-}
-
 func (s *RPCServer) Start() error {
 	s.router.Start()
 	return s.httpServer.ListenAndServe()
@@ -89,6 +88,18 @@ func (s *RPCServer) Start() error {
 
 func (s *RPCServer) Shutdown() error {
 	return s.httpServer.Shutdown(context.Background())
+}
+
+type HealthCheckHandler struct {
+	router route.Router
+}
+
+func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Request) {
+	if h.router.IsInitialized() {
+		respondRaw(writer, []byte("OK"), http.StatusOK)
+	} else {
+		respondRaw(writer, []byte("Starting"), http.StatusOK)
+	}
 }
 
 type RPCHandler struct {

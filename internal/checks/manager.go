@@ -3,6 +3,7 @@ package checks
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/satsuma-data/node-gateway/internal/types"
@@ -20,6 +21,7 @@ const (
 //go:generate mockery --output ../mocks --name HealthCheckManager --with-expecter
 type HealthCheckManager interface {
 	StartHealthChecks()
+	IsInitialized() bool
 	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
 }
 
@@ -36,6 +38,7 @@ type healthCheckManager struct {
 	blockHeightObserver BlockHeightObserver
 	healthCheckTicker   *time.Ticker
 	configs             []conf.UpstreamConfig
+	isInitialized       atomic.Bool
 }
 
 func NewHealthCheckManager(
@@ -175,4 +178,10 @@ func (h *healthCheckManager) runChecksOnce() {
 	}
 
 	wg.Wait()
+
+	h.isInitialized.Store(true)
+}
+
+func (h *healthCheckManager) IsInitialized() bool {
+	return h.isInitialized.Load()
 }
