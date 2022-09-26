@@ -32,23 +32,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	handler := startRouterAndHandler(conf)
 
-	emptyJSONBody, _ := json.Marshal(map[string]any{
-		"jsonrpc": "2.0",
-		"method":  "eth_blockNumber",
-		"params":  nil,
-		"id":      1,
-	})
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
-	req.Header.Add("Content-Type", "application/json")
-
-	recorder := httptest.NewRecorder()
-
-	handler.ServeHTTP(recorder, req)
-
-	result := recorder.Result()
-	defer result.Body.Close()
-
-	responseBody, _ := jsonrpc.DecodeResponseBody(result)
+	result, responseBody := executeRequest(t, "eth_blockNumber", handler)
 
 	assert.Equal(t, http.StatusOK, result.StatusCode)
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
@@ -96,9 +80,20 @@ func TestServeHTTP_ForwardsToArchiveNodeForStateRequest(t *testing.T) {
 
 	handler := startRouterAndHandler(conf)
 
+	result, responseBody := executeRequest(t, getTransactionCount, handler)
+
+	assert.Equal(t, http.StatusOK, result.StatusCode)
+	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.Result)
+}
+
+func executeRequest(
+	t *testing.T,
+	methodName string,
+	handler *RPCHandler,
+) (*http.Response, *jsonrpc.ResponseBody) {
 	emptyJSONBody, _ := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
-		"method":  getTransactionCount,
+		"method":  methodName,
 		"params":  nil,
 		"id":      1,
 	})
@@ -115,9 +110,7 @@ func TestServeHTTP_ForwardsToArchiveNodeForStateRequest(t *testing.T) {
 	responseBody, err := jsonrpc.DecodeResponseBody(result)
 	assert.NoError(t, err)
 	assert.NotNil(t, responseBody)
-
-	assert.Equal(t, http.StatusOK, result.StatusCode)
-	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.Result)
+	return result, responseBody
 }
 
 func startRouterAndHandler(conf config.Config) *RPCHandler {
