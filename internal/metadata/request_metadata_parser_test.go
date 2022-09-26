@@ -12,15 +12,25 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 		requestBody jsonrpc.RequestBody
 	}
 
-	tests := []struct {
+	type testArgs struct {
 		name string
 		args args
 		want RequestMetadata
-	}{
-		{"eth_call", args{jsonrpc.RequestBody{Method: "eth_call"}}, RequestMetadata{IsStateRequired: true}},
-		{"eth_getBalance", args{jsonrpc.RequestBody{Method: "eth_getBalance"}}, RequestMetadata{IsStateRequired: true}},
-		{"eth_getBlockByNumber", args{jsonrpc.RequestBody{Method: "eth_getBlockByNumber"}}, RequestMetadata{IsStateRequired: false}},
-		{"eth_getTransactionReceipt", args{jsonrpc.RequestBody{Method: "eth_getTransactionReceipt"}}, RequestMetadata{IsStateRequired: false}},
+	}
+
+	testForMethod := func(methodName string, isStateRequired bool) testArgs {
+		return testArgs{
+			methodName,
+			args{jsonrpc.RequestBody{Method: methodName}},
+			RequestMetadata{IsStateRequired: isStateRequired},
+		}
+	}
+
+	tests := []testArgs{
+		testForMethod("eth_call", true),
+		testForMethod("eth_getBalance", true),
+		testForMethod("eth_getBlockByNumber", false),
+		testForMethod("eth_getTransactionReceipt", false),
 	}
 
 	for _, tt := range tests {
