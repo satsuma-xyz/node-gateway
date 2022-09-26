@@ -78,7 +78,10 @@ func setUpHealthyUpstream(t *testing.T) *httptest.Server {
 
 		case "eth_getBlockByNumber":
 			body := jsonrpc.ResponseBody{
-				Result: types.Header{Number: big.NewInt(1000)},
+				Result: types.Header{
+					Number:     big.NewInt(1000),
+					Difficulty: big.NewInt(0),
+				},
 			}
 			writeResponseBody(t, writer, body)
 
