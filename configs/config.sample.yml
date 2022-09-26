@@ -33,10 +33,12 @@ upstreams:
   #     it quickly updates the gateway with the latest block height. If this
   #     setting is undefined, the gateway will attempt to subscribe to new
   #     heads if the upstream supports it.
+  # nodeType - full or archive
   - id: my-node
     httpURL: "http://12.57.207.168:8545"
     wsURL: "wss://12.57.207.168:8546"
     group: primary
+    nodeType: full
   - id: infura-eth
     httpURL: "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
     wsURL: "wss://mainnet.infura.io/ws/v3/${INFURA_API_KEY}"
@@ -44,9 +46,11 @@ upstreams:
       username: ~
       password: ${INFURA_API_KEY_SECRET}
     group: fallback
+    nodeType: archive
   - id: alchemy-eth
     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
     wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
     healthCheck:
       useWsForBlockHeight: false
     group: fallback
+    nodeType: full

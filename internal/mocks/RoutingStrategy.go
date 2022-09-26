@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/satsuma-data/node-gateway/internal/types"
@@ -22,7 +23,10 @@ func (_m *MockRoutingStrategy) EXPECT() *MockRoutingStrategy_Expecter {
 }
 
 // RouteNextRequest provides a mock function with given fields: upstreamsByPriority
-func (_m *MockRoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap) (string, error) {
+func (_m *MockRoutingStrategy) RouteNextRequest(
+	upstreamsByPriority types.PriorityToUpstreamsMap,
+	requestMetadata metadata.RequestMetadata,
+) (string, error) {
 	ret := _m.Called(upstreamsByPriority)
 
 	var r0 string
