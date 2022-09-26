@@ -152,6 +152,8 @@ func setUpHealthyUpstream(
 		requestBody, err := jsonrpc.DecodeRequestBody(request)
 		assert.NoError(t, err)
 
+		latestBlockNumber := int64(1000)
+
 		switch requestBody.Method {
 		case "eth_syncing":
 			body := jsonrpc.ResponseBody{Result: false}
@@ -164,14 +166,14 @@ func setUpHealthyUpstream(
 		case "eth_getBlockByNumber":
 			body := jsonrpc.ResponseBody{
 				Result: types.Header{
-					Number:     big.NewInt(1000),
+					Number:     big.NewInt(latestBlockNumber),
 					Difficulty: big.NewInt(0),
 				},
 			}
 			writeResponseBody(t, writer, body)
 
 		case "eth_blockNumber":
-			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(1000)}
+			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(latestBlockNumber)}
 			writeResponseBody(t, writer, body)
 
 		default:
