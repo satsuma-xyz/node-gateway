@@ -4,14 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/satsuma-data/node-gateway/internal/types"
-
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
+	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestHealthCheckManager(t *testing.T) {
@@ -24,13 +22,8 @@ func TestHealthCheckManager(t *testing.T) {
 	mockPeerChecker := mocks.NewChecker(t)
 	mockSyncingChecker := mocks.NewChecker(t)
 
-	mockBlockHeightChecker.Mock.On("GetError").Return(nil)
-	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(true)
 	mockBlockHeightChecker.Mock.On("RunCheck").Return(nil)
-	mockBlockHeightChecker.Mock.On("GetBlockHeight").Return(uint64(5))
-	mockPeerChecker.Mock.On("IsPassing").Return(true)
 	mockPeerChecker.Mock.On("RunCheck").Return(nil)
-	mockSyncingChecker.Mock.On("IsPassing").Return(true)
 	mockSyncingChecker.Mock.On("RunCheck").Return(nil)
 
 	configs := []config.UpstreamConfig{
@@ -42,32 +35,47 @@ func TestHealthCheckManager(t *testing.T) {
 		},
 	}
 
-	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(config *config.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) types.BlockHeightChecker {
+	tickerChan := make(chan time.Time)
+	ticker := &time.Ticker{C: tickerChan}
+
+	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker)
+	manager.(*healthCheckManager).newBlockHeightCheck = func(
+		*config.UpstreamConfig,
+		client.EthClientGetter,
+		BlockHeightObserver,
+	) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
-	manager.(*healthCheckManager).newPeerCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
+	manager.(*healthCheckManager).newPeerCheck = func(
+		upstreamConfig *config.UpstreamConfig,
+		clientGetter client.EthClientGetter,
+	) types.Checker {
 		return mockPeerChecker
 	}
-	manager.(*healthCheckManager).newSyncingCheck = func(upstreamConfig *config.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
+	manager.(*healthCheckManager).newSyncingCheck = func(
+		upstreamConfig *config.UpstreamConfig,
+		clientGetter client.EthClientGetter,
+	) types.Checker {
 		return mockSyncingChecker
 	}
 
 	manager.StartHealthChecks()
 
 	assert.Eventually(t, func() bool {
-		mainnetStatus := manager.(*healthCheckManager).GetUpstreamStatus("mainnet")
-		return mainnetStatus.IsHealthy(5)
-	}, 2*time.Second, 10*time.Millisecond, "Healthy upstreams did not include expected values.")
+		return len(mockBlockHeightChecker.Calls) >= 1
+	}, 1*time.Second, time.Millisecond)
 
-	mockBlockHeightChecker.ExpectedCalls = nil
-	mockBlockHeightChecker.Calls = nil
-	mockBlockHeightChecker.Mock.On("IsPassing", mock.Anything).Return(false)
+	mockPeerChecker.AssertNumberOfCalls(t, "RunCheck", 1)
+	mockSyncingChecker.AssertNumberOfCalls(t, "RunCheck", 1)
+	mockBlockHeightChecker.AssertNumberOfCalls(t, "RunCheck", 1)
 
-	// Verify that no healthy upstreams are returned after a check starts failing.
+	tickerChan <- time.Now()
+
 	assert.Eventually(t, func() bool {
-		mainnetStatus := manager.(*healthCheckManager).GetUpstreamStatus("mainnet")
-		return mainnetStatus.IsHealthy(5) == false
-	}, 2*time.Second, 10*time.Millisecond, "Found healthy upstreams when expected none.")
-	mockBlockHeightChecker.AssertNotCalled(t, "GetBlockHeight")
+		return len(mockBlockHeightChecker.Calls) >= 2
+	}, 1*time.Second, time.Millisecond)
+
+	mockPeerChecker.AssertNumberOfCalls(t, "RunCheck", 2)
+	mockSyncingChecker.AssertNumberOfCalls(t, "RunCheck", 2)
+	mockBlockHeightChecker.AssertNumberOfCalls(t, "RunCheck", 2)
 }

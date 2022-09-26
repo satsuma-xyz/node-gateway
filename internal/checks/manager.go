@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	periodicHealthCheckInterval = 5 * time.Second
+	PeriodicHealthCheckInterval = 5 * time.Second
 )
 
 //go:generate mockery --output ../mocks --name HealthCheckManager --with-expecter
@@ -26,14 +26,24 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) types.BlockHeightChecker
+	newBlockHeightCheck func(
+		config *conf.UpstreamConfig,
+		clientGetter client.EthClientGetter,
+		blockHeightObserver BlockHeightObserver,
+	) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	blockHeightObserver BlockHeightObserver
+	healthCheckTicker   *time.Ticker
 	configs             []conf.UpstreamConfig
 }
 
-func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf.UpstreamConfig, blockHeightObserver BlockHeightObserver) HealthCheckManager {
+func NewHealthCheckManager(
+	ethClientGetter client.EthClientGetter,
+	config []conf.UpstreamConfig,
+	blockHeightObserver BlockHeightObserver,
+	healthCheckTicker *time.Ticker,
+) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
@@ -42,6 +52,7 @@ func NewHealthCheckManager(ethClientGetter client.EthClientGetter, config []conf
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
 		blockHeightObserver: blockHeightObserver,
+		healthCheckTicker:   healthCheckTicker,
 	}
 }
 
@@ -127,37 +138,41 @@ func (h *healthCheckManager) initializeChecks() {
 }
 
 func (h *healthCheckManager) runPeriodicChecks() {
-	for {
-		var wg sync.WaitGroup
+	h.runChecksOnce()
 
-		for i := range h.configs {
-			config := h.configs[i]
-			zap.L().Debug("Running healthchecks on upstream.", zap.String("upstreamID", config.ID))
-
-			wg.Add(1)
-
-			go func(c types.BlockHeightChecker) {
-				defer wg.Done()
-				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].BlockHeightCheck)
-
-			wg.Add(1)
-
-			go func(c types.Checker) {
-				defer wg.Done()
-				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].PeerCheck)
-
-			wg.Add(1)
-
-			go func(c types.Checker) {
-				defer wg.Done()
-				c.RunCheck()
-			}(h.upstreamIDToStatus[config.ID].SyncingCheck)
-		}
-
-		wg.Wait()
-
-		time.Sleep(periodicHealthCheckInterval)
+	for range h.healthCheckTicker.C {
+		h.runChecksOnce()
 	}
+}
+
+func (h *healthCheckManager) runChecksOnce() {
+	var wg sync.WaitGroup
+
+	for i := range h.configs {
+		config := h.configs[i]
+		zap.L().Debug("Running healthchecks on upstream.", zap.String("upstreamID", config.ID))
+
+		wg.Add(1)
+
+		go func(c types.BlockHeightChecker) {
+			defer wg.Done()
+			c.RunCheck()
+		}(h.upstreamIDToStatus[config.ID].BlockHeightCheck)
+
+		wg.Add(1)
+
+		go func(c types.Checker) {
+			defer wg.Done()
+			c.RunCheck()
+		}(h.upstreamIDToStatus[config.ID].PeerCheck)
+
+		wg.Add(1)
+
+		go func(c types.Checker) {
+			defer wg.Done()
+			c.RunCheck()
+		}(h.upstreamIDToStatus[config.ID].SyncingCheck)
+	}
+
+	wg.Wait()
 }
