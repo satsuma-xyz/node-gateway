@@ -77,7 +77,7 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &SimpleIsStatePresentFilter{}
+			f := &SimpleIsStatePresent{}
 			assert.Equalf(t, tt.want, f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig), "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}

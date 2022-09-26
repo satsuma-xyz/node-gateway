@@ -63,9 +63,9 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	return upstreamStatus.BlockHeightCheck.IsPassing(maxHeightForGroup)
 }
 
-type SimpleIsStatePresentFilter struct{}
+type SimpleIsStatePresent struct{}
 
-func (f *SimpleIsStatePresentFilter) Apply(
+func (f *SimpleIsStatePresent) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
@@ -107,8 +107,8 @@ func CreateSingleNodeFilter(
 			healthCheckManager: manager,
 			chainMetadataStore: store,
 		}
-	case SimpleIsStatePresent:
-		return &SimpleIsStatePresentFilter{}
+	case SimpleStatePresent:
+		return &SimpleIsStatePresent{}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -117,8 +117,8 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	Healthy              NodeFilterType = "healthy"
-	GlobalMaxHeight      NodeFilterType = "globalMaxHeight"
-	MaxHeightForGroup    NodeFilterType = "maxHeightForGroup"
-	SimpleIsStatePresent NodeFilterType = "simpleIsStatePresent"
+	Healthy            NodeFilterType = "healthy"
+	GlobalMaxHeight    NodeFilterType = "globalMaxHeight"
+	MaxHeightForGroup  NodeFilterType = "maxHeightForGroup"
+	SimpleStatePresent NodeFilterType = "simpleStatePresent"
 )
