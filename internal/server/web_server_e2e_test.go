@@ -17,33 +17,7 @@ import (
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestBody, err := jsonrpc.DecodeRequestBody(request)
-		assert.NoError(t, err)
-
-		switch requestBody.Method {
-		case "eth_syncing":
-			body := jsonrpc.ResponseBody{Result: false}
-			writeResponseBody(t, writer, body)
-
-		case "net_peerCount":
-			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(10)}
-			writeResponseBody(t, writer, body)
-
-		case "eth_getBlockByNumber":
-			body := jsonrpc.ResponseBody{
-				Result: types.Header{Number: big.NewInt(1000)},
-			}
-			writeResponseBody(t, writer, body)
-
-		case "eth_blockNumber":
-			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(1000)}
-			writeResponseBody(t, writer, body)
-
-		default:
-			panic("Unknown method " + requestBody.Method)
-		}
-	}))
+	upstream := setUpHealthyUpstream(t)
 	defer upstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
@@ -86,6 +60,36 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, result.StatusCode)
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.Result)
+}
+
+func setUpHealthyUpstream(t *testing.T) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		assert.NoError(t, err)
+
+		switch requestBody.Method {
+		case "eth_syncing":
+			body := jsonrpc.ResponseBody{Result: false}
+			writeResponseBody(t, writer, body)
+
+		case "net_peerCount":
+			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(10)}
+			writeResponseBody(t, writer, body)
+
+		case "eth_getBlockByNumber":
+			body := jsonrpc.ResponseBody{
+				Result: types.Header{Number: big.NewInt(1000)},
+			}
+			writeResponseBody(t, writer, body)
+
+		case "eth_blockNumber":
+			body := jsonrpc.ResponseBody{Result: hexutil.Uint64(1000)}
+			writeResponseBody(t, writer, body)
+
+		default:
+			panic("Unknown method " + requestBody.Method)
+		}
+	}))
 }
 
 func writeResponseBody(t *testing.T, writer http.ResponseWriter, body jsonrpc.ResponseBody) {
