@@ -6,9 +6,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 )
 
-const (
-	MaxAllowedBlocksBehindHead = 10
-)
+const DefaultMaxBlocksBehind = 10
 
 type NodeFilter interface {
 	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
@@ -88,10 +86,11 @@ func CreateNodeFilter(
 	filterNames []NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	var filters = make([]NodeFilter, len(filterNames))
 	for i := range filterNames {
-		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store)
+		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, routingConfig)
 	}
 
 	return &AndFilter{filters}
@@ -101,6 +100,7 @@ func CreateSingleNodeFilter(
 	filterName NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	switch filterName {
 	case Healthy:
@@ -112,10 +112,15 @@ func CreateSingleNodeFilter(
 			maxBlocksBehind:    0,
 		}
 	case NearGlobalMaxHeight:
+		maxBlocksBehind := DefaultMaxBlocksBehind
+		if routingConfig.MaxBlocksBehind != 0 {
+			maxBlocksBehind = routingConfig.MaxBlocksBehind
+		}
+
 		return &IsCloseToGlobalMaxHeight{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
-			maxBlocksBehind:    MaxAllowedBlocksBehindHead,
+			maxBlocksBehind:    uint64(maxBlocksBehind),
 		}
 	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{

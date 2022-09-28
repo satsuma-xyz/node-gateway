@@ -114,10 +114,15 @@ type GlobalConfig struct {
 	Port int `yaml:"port"`
 }
 
+type RoutingConfig struct {
+	MaxBlocksBehind int `yaml:"maxBlocksBehind"`
+}
+
 type Config struct {
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
 	Global    GlobalConfig
+	Routing   RoutingConfig
 }
 
 func LoadConfig(configFilePath string) (Config, error) {
