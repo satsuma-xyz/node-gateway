@@ -98,7 +98,7 @@ func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Reque
 	if h.router.IsInitialized() {
 		respondRaw(writer, []byte("OK"), http.StatusOK)
 	} else {
-		respondRaw(writer, []byte("Starting"), http.StatusOK)
+		respondRaw(writer, []byte("Starting up"), http.StatusServiceUnavailable)
 	}
 }
 
