@@ -18,11 +18,15 @@ import (
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
-	upstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){})
-	defer upstream.Close()
+	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, w http.ResponseWriter){})
+	defer healthyUpstream.Close()
+
+	unhealthyUpstream := setUpUnhealthyUpstream(t)
+	defer unhealthyUpstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
-		{ID: "testNode", HTTPURL: upstream.URL},
+		{ID: "healthyNode", HTTPURL: healthyUpstream.URL},
+		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL},
 	}
 
 	conf := config.Config{
@@ -189,6 +193,23 @@ func setUpHealthyUpstream(
 			} else {
 				panic("Unknown method " + requestBody.Method)
 			}
+		}
+	}))
+}
+
+func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		assert.NoError(t, err)
+
+		switch requestBody.Method {
+		case "eth_syncing", "net_peerCount", "eth_getBlockByNumber":
+			errorBody := jsonrpc.ResponseBody{Error: &jsonrpc.Error{Message: "This is a failing fake node!"}}
+			writeResponseBody(t, writer, errorBody)
+		default:
+			t.Errorf("Expected unhealthy node to not receive any requests but got %s!", requestBody.Method)
 		}
 	}))
 }
