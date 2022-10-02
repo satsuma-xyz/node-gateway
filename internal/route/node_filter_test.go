@@ -12,14 +12,14 @@ import (
 
 type AlwaysPass struct{}
 
-func (AlwaysPass) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
-	return true
+func (AlwaysPass) Apply(metadata.RequestMetadata, *config.UpstreamConfig) (bool, error) {
+	return true, nil
 }
 
 type AlwaysFail struct{}
 
-func (AlwaysFail) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
-	return false
+func (AlwaysFail) Apply(metadata.RequestMetadata, *config.UpstreamConfig) (bool, error) {
+	return false, nil
 }
 
 func TestAndFilter_Apply(t *testing.T) {
@@ -27,29 +27,31 @@ func TestAndFilter_Apply(t *testing.T) {
 		filters []NodeFilter
 	}
 
-	type args struct { //nolint:govet // field alignment doesn't matter in tests
+	type argsType struct { //nolint:govet // field alignment doesn't matter in tests
 		requestMetadata metadata.RequestMetadata
 		upstreamConfig  *config.UpstreamConfig
 	}
 
+	args := argsType{upstreamConfig: cfg("test-node")}
 	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
 		name   string
 		fields fields
-		args   args
+		args   argsType
 		want   bool
 	}{
-		{"No filters", fields{}, args{}, true},
-		{"One passing filter", fields{[]NodeFilter{AlwaysPass{}}}, args{}, true},
-		{"Multiple passing filters", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}}, args{}, true},
-		{"One failing filter", fields{[]NodeFilter{AlwaysFail{}}}, args{}, false},
-		{"Multiple passing and one failing", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}}, args{}, false},
+		{"No filters", fields{}, args, true},
+		{"One passing filter", fields{[]NodeFilter{AlwaysPass{}}}, args, true},
+		{"Multiple passing filters", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}}, args, true},
+		{"One failing filter", fields{[]NodeFilter{AlwaysFail{}}}, args, false},
+		{"Multiple passing and one failing", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}}, args, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &AndFilter{
 				filters: tt.fields.filters,
 			}
-			assert.Equalf(t, tt.want, a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig), "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
+			ok, _ := a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
+			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
 }
@@ -79,13 +81,16 @@ func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
 	blockHeightCheck.EXPECT().GetError().Return(nil)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
-	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+	ok, _ := filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	assert.False(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
-	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+	ok, _ = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	assert.True(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
-	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+	ok, _ = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	assert.True(t, ok)
 }
 
 func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
@@ -114,7 +119,8 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &SimpleIsStatePresent{}
-			assert.Equalf(t, tt.want, f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig), "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
+			ok, _ := f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
+			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
 }
