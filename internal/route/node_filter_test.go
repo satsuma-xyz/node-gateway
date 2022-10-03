@@ -82,22 +82,13 @@ func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
 	blockHeightCheck.EXPECT().GetError().Return(nil)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
-
-	ok := filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
-
-	assert.False(t, ok)
+	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
-
-	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
-
-	assert.True(t, ok)
+	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
-
-	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
-
-	assert.True(t, ok)
+	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 }
 
 func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
