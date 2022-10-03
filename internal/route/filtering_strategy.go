@@ -32,7 +32,7 @@ func (s *FilteringRoutingStrategy) filter(
 		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 
 		for _, upstreamConfig := range upstreamConfigs {
-			ok, _ := s.NodeFilter.Apply(requestMetadata, upstreamConfig)
+			ok := s.NodeFilter.Apply(requestMetadata, upstreamConfig)
 			if ok {
 				filteredUpstreams = append(filteredUpstreams, upstreamConfig)
 			}

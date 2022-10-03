@@ -12,14 +12,14 @@ import (
 
 type AlwaysPass struct{}
 
-func (AlwaysPass) Apply(metadata.RequestMetadata, *config.UpstreamConfig) (bool, error) {
-	return true, nil
+func (AlwaysPass) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
+	return true
 }
 
 type AlwaysFail struct{}
 
-func (AlwaysFail) Apply(metadata.RequestMetadata, *config.UpstreamConfig) (bool, error) {
-	return false, nil
+func (AlwaysFail) Apply(metadata.RequestMetadata, *config.UpstreamConfig) bool {
+	return false
 }
 
 func TestAndFilter_Apply(t *testing.T) {
@@ -50,7 +50,7 @@ func TestAndFilter_Apply(t *testing.T) {
 			a := &AndFilter{
 				filters: tt.fields.filters,
 			}
-			ok, _ := a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
+			ok := a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
 			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
@@ -81,15 +81,15 @@ func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
 	blockHeightCheck.EXPECT().GetError().Return(nil)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
-	ok, _ := filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	ok := filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
 	assert.False(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
-	ok, _ = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
 	assert.True(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
-	ok, _ = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
 	assert.True(t, ok)
 }
 
@@ -119,7 +119,7 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &SimpleIsStatePresent{}
-			ok, _ := f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
+			ok := f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
 			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
