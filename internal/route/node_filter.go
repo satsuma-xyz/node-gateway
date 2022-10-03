@@ -22,6 +22,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 
 	for filterIndex := range a.filters {
 		filter := a.filters[filterIndex]
+
 		ok := filter.Apply(requestMetadata, upstreamConfig)
 		if !ok {
 			result = false
@@ -32,6 +33,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 	if result {
 		zap.L().Debug("Upstream passed all filters for request.", zap.String("upstreamID", upstreamConfig.ID), zap.Any("requestMetadata", requestMetadata))
 	}
+
 	return result
 }
 
@@ -43,6 +45,7 @@ type HasEnoughPeers struct {
 func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	peerCheck, _ := upstreamStatus.PeerCheck.(*checks.PeerCheck)
+
 	if peerCheck.ShouldRun {
 		if peerCheck.Err != nil {
 			zap.L().Debug("HasEnoughPeers failed: most recent health check did not succeed.", zap.Error(peerCheck.Err))
@@ -54,6 +57,7 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 		}
 
 		zap.L().Debug("HasEnoughPeers failed.", zap.Uint64("MinimumPeerCount", f.minimumPeerCount), zap.Uint64("ActualPeerCount", peerCheck.PeerCount))
+
 		return false
 	}
 
@@ -67,7 +71,7 @@ type IsDoneSyncing struct {
 func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
-	isSyncingCheck := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
+	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
 
 	if isSyncingCheck.ShouldRun {
 		if isSyncingCheck.Err != nil {
@@ -75,11 +79,12 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 			return false
 		}
 
-		if isSyncingCheck.IsSyncing == false {
+		if !isSyncingCheck.IsSyncing {
 			return true
 		}
 
 		zap.L().Debug("Upstream is still syncing!", zap.String("UpstreamID", upstreamConfig.ID))
+
 		return false
 	}
 
@@ -114,6 +119,7 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 	}
 
 	zap.L().Debug("Upstream too far behind global max height! UpstreamHeight: %d, MaxHeight: %d", zap.Uint64("UpstreamHeight", upstreamHeight), zap.Uint64("MaxHeight", maxHeight))
+
 	return false
 }
 
@@ -137,6 +143,7 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	}
 
 	zap.L().Debug("Upstream not at max height for group!", zap.Uint64("UpstreamHeight", check.GetBlockHeight()), zap.Uint64("MaxHeightForGroup", maxHeightForGroup))
+
 	return false
 }
 

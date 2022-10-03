@@ -33,6 +33,7 @@ func TestAndFilter_Apply(t *testing.T) {
 	}
 
 	args := argsType{upstreamConfig: cfg("test-node")}
+
 	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
 		name   string
 		fields fields
@@ -81,15 +82,21 @@ func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
 	blockHeightCheck.EXPECT().GetError().Return(nil)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
+
 	ok := filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+
 	assert.False(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
+
 	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+
 	assert.True(t, ok)
 
 	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
+
 	ok = filter.Apply(metadata.RequestMetadata{}, upstreamConfig)
+
 	assert.True(t, ok)
 }
 
