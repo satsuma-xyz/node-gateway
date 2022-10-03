@@ -119,7 +119,7 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 		return true
 	}
 
-	zap.L().Debug("Upstream too far behind global max height! UpstreamHeight: %d, MaxHeight: %d", zap.Uint64("UpstreamHeight", upstreamHeight), zap.Uint64("MaxHeight", maxHeight))
+	zap.L().Debug("Upstream too far behind global max height!", zap.Uint64("UpstreamHeight", upstreamHeight), zap.Uint64("MaxHeight", maxHeight))
 
 	return false
 }
