@@ -14,7 +14,8 @@ type NodeFilter interface {
 }
 
 type AndFilter struct {
-	filters []NodeFilter
+	filters    []NodeFilter
+	isTopLevel bool
 }
 
 func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
@@ -30,7 +31,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 		}
 	}
 
-	if result {
+	if result && a.isTopLevel {
 		zap.L().Debug("Upstream passed all filters for request.", zap.String("upstreamID", upstreamConfig.ID), zap.Any("requestMetadata", requestMetadata))
 	}
 
@@ -171,7 +172,7 @@ func CreateNodeFilter(
 		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, routingConfig)
 	}
 
-	return &AndFilter{filters}
+	return &AndFilter{filters, true}
 }
 
 func CreateSingleNodeFilter(
