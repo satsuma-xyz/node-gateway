@@ -32,7 +32,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 	}
 
 	if result && a.isTopLevel {
-		zap.L().Debug("Upstream passed all filters for request.", zap.String("upstreamID", upstreamConfig.ID), zap.Any("requestMetadata", requestMetadata))
+		zap.L().Debug("Upstream passed all filters for request.", zap.String("upstreamID", upstreamConfig.ID), zap.Any("RequestMetadata", requestMetadata))
 	}
 
 	return result
@@ -155,7 +155,13 @@ func (f *SimpleIsStatePresent) Apply(
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
 	if requestMetadata.IsStateRequired {
-		return upstreamConfig.NodeType == config.Archive
+		if upstreamConfig.NodeType == config.Archive {
+			return true
+		}
+
+		zap.L().Debug("Upstream is not an archive node but state is required!", zap.String("UpstreamID", upstreamConfig.ID), zap.Any("RequestMetadata", requestMetadata))
+
+		return false
 	}
 
 	return true
