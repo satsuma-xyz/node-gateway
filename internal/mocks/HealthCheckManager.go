@@ -59,6 +59,42 @@ func (_c *HealthCheckManager_GetUpstreamStatus_Call) Return(_a0 *types.UpstreamS
 	return _c
 }
 
+// IsInitialized provides a mock function with given fields:
+func (_m *HealthCheckManager) IsInitialized() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// HealthCheckManager_IsInitialized_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsInitialized'
+type HealthCheckManager_IsInitialized_Call struct {
+	*mock.Call
+}
+
+// IsInitialized is a helper method to define mock.On call
+func (_e *HealthCheckManager_Expecter) IsInitialized() *HealthCheckManager_IsInitialized_Call {
+	return &HealthCheckManager_IsInitialized_Call{Call: _e.mock.On("IsInitialized")}
+}
+
+func (_c *HealthCheckManager_IsInitialized_Call) Run(run func()) *HealthCheckManager_IsInitialized_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *HealthCheckManager_IsInitialized_Call) Return(_a0 bool) *HealthCheckManager_IsInitialized_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // StartHealthChecks provides a mock function with given fields:
 func (_m *HealthCheckManager) StartHealthChecks() {
 	_m.Called()

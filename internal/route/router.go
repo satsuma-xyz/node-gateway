@@ -29,6 +29,7 @@ import (
 //go:generate mockery --output ../mocks --name Router
 type Router interface {
 	Start()
+	IsInitialized() bool
 	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
 }
 
@@ -91,6 +92,10 @@ func groupUpstreamsByPriority(
 func (r *SimpleRouter) Start() {
 	r.chainMetadataStore.Start()
 	r.healthCheckManager.StartHealthChecks()
+}
+
+func (r *SimpleRouter) IsInitialized() bool {
+	return r.healthCheckManager.IsInitialized()
 }
 
 func (r *SimpleRouter) Route(

@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	"github.com/satsuma-data/node-gateway/internal/metadata"
+	metadata "github.com/satsuma-data/node-gateway/internal/metadata"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/satsuma-data/node-gateway/internal/types"
@@ -22,23 +22,20 @@ func (_m *MockRoutingStrategy) EXPECT() *MockRoutingStrategy_Expecter {
 	return &MockRoutingStrategy_Expecter{mock: &_m.Mock}
 }
 
-// RouteNextRequest provides a mock function with given fields: upstreamsByPriority
-func (_m *MockRoutingStrategy) RouteNextRequest(
-	upstreamsByPriority types.PriorityToUpstreamsMap,
-	requestMetadata metadata.RequestMetadata,
-) (string, error) {
-	ret := _m.Called(upstreamsByPriority)
+// RouteNextRequest provides a mock function with given fields: upstreamsByPriority, requestMetadata
+func (_m *MockRoutingStrategy) RouteNextRequest(upstreamsByPriority types.PriorityToUpstreamsMap, requestMetadata metadata.RequestMetadata) (string, error) {
+	ret := _m.Called(upstreamsByPriority, requestMetadata)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(types.PriorityToUpstreamsMap) string); ok {
-		r0 = rf(upstreamsByPriority)
+	if rf, ok := ret.Get(0).(func(types.PriorityToUpstreamsMap, metadata.RequestMetadata) string); ok {
+		r0 = rf(upstreamsByPriority, requestMetadata)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(types.PriorityToUpstreamsMap) error); ok {
-		r1 = rf(upstreamsByPriority)
+	if rf, ok := ret.Get(1).(func(types.PriorityToUpstreamsMap, metadata.RequestMetadata) error); ok {
+		r1 = rf(upstreamsByPriority, requestMetadata)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -53,13 +50,14 @@ type MockRoutingStrategy_RouteNextRequest_Call struct {
 
 // RouteNextRequest is a helper method to define mock.On call
 //   - upstreamsByPriority types.PriorityToUpstreamsMap
-func (_e *MockRoutingStrategy_Expecter) RouteNextRequest(upstreamsByPriority interface{}) *MockRoutingStrategy_RouteNextRequest_Call {
-	return &MockRoutingStrategy_RouteNextRequest_Call{Call: _e.mock.On("RouteNextRequest", upstreamsByPriority)}
+//   - requestMetadata metadata.RequestMetadata
+func (_e *MockRoutingStrategy_Expecter) RouteNextRequest(upstreamsByPriority interface{}, requestMetadata interface{}) *MockRoutingStrategy_RouteNextRequest_Call {
+	return &MockRoutingStrategy_RouteNextRequest_Call{Call: _e.mock.On("RouteNextRequest", upstreamsByPriority, requestMetadata)}
 }
 
-func (_c *MockRoutingStrategy_RouteNextRequest_Call) Run(run func(upstreamsByPriority types.PriorityToUpstreamsMap)) *MockRoutingStrategy_RouteNextRequest_Call {
+func (_c *MockRoutingStrategy_RouteNextRequest_Call) Run(run func(upstreamsByPriority types.PriorityToUpstreamsMap, requestMetadata metadata.RequestMetadata)) *MockRoutingStrategy_RouteNextRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(types.PriorityToUpstreamsMap))
+		run(args[0].(types.PriorityToUpstreamsMap), args[1].(metadata.RequestMetadata))
 	})
 	return _c
 }
