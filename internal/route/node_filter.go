@@ -6,6 +6,8 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 )
 
+const DefaultMaxBlocksBehind = 10
+
 type NodeFilter interface {
 	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
 }
@@ -37,17 +39,21 @@ func (f *IsHealthy) Apply(_ metadata.RequestMetadata, upstreamConfig *config.Ups
 	return upstreamStatus.PeerCheck.IsPassing() && upstreamStatus.SyncingCheck.IsPassing()
 }
 
-type IsAtGlobalMaxHeight struct {
+type IsCloseToGlobalMaxHeight struct {
 	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
+	maxBlocksBehind    uint64
 }
 
-func (f *IsAtGlobalMaxHeight) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsCloseToGlobalMaxHeight) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
 	maxHeight := f.chainMetadataStore.GetGlobalMaxHeight()
 
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
-	return upstreamStatus.BlockHeightCheck.IsPassing(maxHeight)
+	checkIsHealthy := upstreamStatus.BlockHeightCheck.GetError() == nil
+	isClose := upstreamStatus.BlockHeightCheck.GetBlockHeight()+f.maxBlocksBehind >= maxHeight
+
+	return checkIsHealthy && isClose
 }
 
 type IsAtMaxHeightForGroup struct {
@@ -80,10 +86,11 @@ func CreateNodeFilter(
 	filterNames []NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	var filters = make([]NodeFilter, len(filterNames))
 	for i := range filterNames {
-		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store)
+		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, routingConfig)
 	}
 
 	return &AndFilter{filters}
@@ -93,14 +100,27 @@ func CreateSingleNodeFilter(
 	filterName NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	switch filterName {
 	case Healthy:
 		return &IsHealthy{manager}
 	case GlobalMaxHeight:
-		return &IsAtGlobalMaxHeight{
+		return &IsCloseToGlobalMaxHeight{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
+			maxBlocksBehind:    0,
+		}
+	case NearGlobalMaxHeight:
+		maxBlocksBehind := DefaultMaxBlocksBehind
+		if routingConfig.MaxBlocksBehind != 0 {
+			maxBlocksBehind = routingConfig.MaxBlocksBehind
+		}
+
+		return &IsCloseToGlobalMaxHeight{
+			healthCheckManager: manager,
+			chainMetadataStore: store,
+			maxBlocksBehind:    uint64(maxBlocksBehind),
 		}
 	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{
@@ -117,8 +137,9 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	Healthy            NodeFilterType = "healthy"
-	GlobalMaxHeight    NodeFilterType = "globalMaxHeight"
-	MaxHeightForGroup  NodeFilterType = "maxHeightForGroup"
-	SimpleStatePresent NodeFilterType = "simpleStatePresent"
+	Healthy             NodeFilterType = "healthy"
+	GlobalMaxHeight     NodeFilterType = "globalMaxHeight"
+	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
+	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
+	SimpleStatePresent  NodeFilterType = "simpleStatePresent"
 )

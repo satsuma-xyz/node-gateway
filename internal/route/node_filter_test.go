@@ -5,6 +5,8 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
+	"github.com/satsuma-data/node-gateway/internal/mocks"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,6 +52,40 @@ func TestAndFilter_Apply(t *testing.T) {
 			assert.Equalf(t, tt.want, a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig), "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
+}
+
+func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
+	upstreamConfig := &config.UpstreamConfig{ID: "upstream1"}
+
+	healthCheckManager := mocks.NewHealthCheckManager(t)
+
+	blockHeightCheck := mocks.NewBlockHeightChecker(t)
+	upstreamStatus := types.UpstreamStatus{BlockHeightCheck: blockHeightCheck}
+	healthCheckManager.EXPECT().GetUpstreamStatus(upstreamConfig.ID).Return(&upstreamStatus)
+
+	chainMetadataStore := metadata.NewChainMetadataStore()
+	chainMetadataStore.Start()
+	chainMetadataStore.ProcessUpdate(metadata.BlockHeightUpdate{
+		GroupID:     "group1",
+		BlockHeight: 100,
+	})
+
+	filter := IsCloseToGlobalMaxHeight{
+		healthCheckManager: healthCheckManager,
+		chainMetadataStore: chainMetadataStore,
+		maxBlocksBehind:    10,
+	}
+
+	blockHeightCheck.EXPECT().GetError().Return(nil)
+
+	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
+	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+
+	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
+	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+
+	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
+	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 }
 
 func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {

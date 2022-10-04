@@ -1,6 +1,11 @@
 global:
   port: 8080
 
+routing:
+  # Number of blocks a node can be behind the max known height and
+  # still get requests routed to it.
+  maxBlocksBehind: 10
+
 # (Optional) List of upstream node groups.
 # If defined, all upstreams must define group membership via the `group` field.
 groups:
