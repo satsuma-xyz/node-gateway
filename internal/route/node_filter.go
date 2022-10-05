@@ -32,7 +32,10 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 	}
 
 	if result && a.isTopLevel {
-		zap.L().Debug("Upstream passed all filters for request.", zap.String("upstreamID", upstreamConfig.ID), zap.Any("RequestMetadata", requestMetadata))
+		zap.L().Debug("Upstream passed all filters for request.",
+			zap.String("upstreamID", upstreamConfig.ID),
+			zap.Any("RequestMetadata", requestMetadata),
+		)
 	}
 
 	return result
@@ -49,7 +52,7 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 
 	if peerCheck.ShouldRun {
 		if peerCheck.Err != nil {
-			zap.L().Debug("HasEnoughPeers failed: most recent health check did not succeed.", zap.Error(peerCheck.Err))
+			zap.L().Debug("HasEnoughPeers failed: most recent health check did not succeed.", zap.String("upstreamID", upstreamConfig.ID), zap.Error(peerCheck.Err))
 			return false
 		}
 
@@ -57,7 +60,11 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 			return true
 		}
 
-		zap.L().Debug("HasEnoughPeers failed.", zap.Uint64("MinimumPeerCount", f.minimumPeerCount), zap.Uint64("ActualPeerCount", peerCheck.PeerCount))
+		zap.L().Debug("HasEnoughPeers failed.",
+			zap.String("UpstreamID", upstreamConfig.ID),
+			zap.Uint64("MinimumPeerCount", f.minimumPeerCount),
+			zap.Uint64("ActualPeerCount", peerCheck.PeerCount),
+		)
 
 		return false
 	}
@@ -76,7 +83,12 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 
 	if isSyncingCheck.ShouldRun {
 		if isSyncingCheck.Err != nil {
-			zap.L().Debug("IsDoneSyncing failed: most recent health check did not succeed.", zap.Error(isSyncingCheck.Err))
+			zap.L().Debug(
+				"IsDoneSyncing failed: most recent health check did not succeed.",
+				zap.Error(isSyncingCheck.Err),
+				zap.String("UpstreamID", upstreamConfig.ID),
+			)
+
 			return false
 		}
 
@@ -107,7 +119,11 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 
 	checkIsHealthy := check.GetError() == nil
 	if !checkIsHealthy {
-		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.", zap.Error(check.GetError()))
+		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
+			zap.Error(check.GetError()),
+			zap.String("UpstreamID", upstreamConfig.ID),
+		)
+
 		return false
 	}
 
@@ -119,7 +135,12 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 		return true
 	}
 
-	zap.L().Debug("Upstream too far behind global max height!", zap.Uint64("UpstreamHeight", upstreamHeight), zap.Uint64("MaxHeight", maxHeight))
+	zap.L().Debug(
+		"Upstream too far behind global max height!",
+		zap.String("UpstreamID", upstreamConfig.ID),
+		zap.Uint64("UpstreamHeight", upstreamHeight),
+		zap.Uint64("MaxHeight", maxHeight),
+	)
 
 	return false
 }
@@ -134,7 +155,11 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	check := upstreamStatus.BlockHeightCheck
 
 	if check.GetError() != nil {
-		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.", zap.Error(check.GetError()))
+		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
+			zap.String("UpstreamID", upstreamConfig.ID),
+			zap.Error(check.GetError()),
+		)
+
 		return false
 	}
 
@@ -143,7 +168,12 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 		return true
 	}
 
-	zap.L().Debug("Upstream not at max height for group!", zap.Uint64("UpstreamHeight", check.GetBlockHeight()), zap.Uint64("MaxHeightForGroup", maxHeightForGroup))
+	zap.L().Debug(
+		"Upstream not at max height for group!",
+		zap.String("UpstreamID", upstreamConfig.ID),
+		zap.Uint64("UpstreamHeight", check.GetBlockHeight()),
+		zap.Uint64("MaxHeightForGroup", maxHeightForGroup),
+	)
 
 	return false
 }
@@ -159,7 +189,11 @@ func (f *SimpleIsStatePresent) Apply(
 			return true
 		}
 
-		zap.L().Debug("Upstream is not an archive node but state is required!", zap.String("UpstreamID", upstreamConfig.ID), zap.Any("RequestMetadata", requestMetadata))
+		zap.L().Debug(
+			"Upstream is not an archive node but state is required!",
+			zap.String("UpstreamID", upstreamConfig.ID),
+			zap.Any("RequestMetadata", requestMetadata),
+		)
 
 		return false
 	}
