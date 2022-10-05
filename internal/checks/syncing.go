@@ -12,11 +12,11 @@ import (
 
 type SyncingCheck struct {
 	client         client.EthClient
-	err            error
+	Err            error
 	clientGetter   client.EthClientGetter
 	upstreamConfig *conf.UpstreamConfig
-	isSyncing      bool
-	shouldRun      bool
+	IsSyncing      bool
+	ShouldRun      bool
 }
 
 func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
@@ -24,9 +24,9 @@ func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.
 		upstreamConfig: upstreamConfig,
 		clientGetter:   clientGetter,
 		// Set `isSyncing:true` until we check the upstream node's syncing status.
-		isSyncing: true,
+		IsSyncing: true,
 		// Set `ShouldRun:true` until we verify `eth.syncing` is a supported method of the Upstream.
-		shouldRun: true,
+		ShouldRun: true,
 	}
 
 	if err := c.Initialize(); err != nil {
@@ -41,18 +41,18 @@ func (c *SyncingCheck) Initialize() error {
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		c.err = err
-		return c.err
+		c.Err = err
+		return c.Err
 	}
 
 	c.client = httpClient
 
 	c.runCheck()
 
-	if isMethodNotSupportedErr(c.err) {
+	if isMethodNotSupportedErr(c.Err) {
 		zap.L().Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
-		c.shouldRun = false
+		c.ShouldRun = false
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (c *SyncingCheck) RunCheck() {
 		}
 	}
 
-	if c.shouldRun {
+	if c.ShouldRun {
 		c.runCheck()
 	}
 }
@@ -78,15 +78,15 @@ func (c *SyncingCheck) runCheck() {
 
 	runCheck := func() {
 		result, err := c.client.SyncProgress(context.Background())
-		if c.err = err; err != nil {
+		if c.Err = err; err != nil {
 			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
 		}
 
-		c.isSyncing = result != nil
+		c.IsSyncing = result != nil
 
 		gauge := 0
-		if c.isSyncing {
+		if c.IsSyncing {
 			gauge = 1
 		}
 
@@ -101,8 +101,8 @@ func (c *SyncingCheck) runCheck() {
 }
 
 func (c *SyncingCheck) IsPassing() bool {
-	if c.shouldRun && (c.isSyncing || c.err != nil) {
-		zap.L().Error("SyncingCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("isSyncing", c.isSyncing), zap.Error(c.err))
+	if c.ShouldRun && (c.IsSyncing || c.Err != nil) {
+		zap.L().Error("SyncingCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("isSyncing", c.IsSyncing), zap.Error(c.Err))
 
 		return false
 	}
