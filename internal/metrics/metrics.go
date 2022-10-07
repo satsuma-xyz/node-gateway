@@ -101,7 +101,7 @@ var (
 			Name:      "upstream_batch_rpc_requests",
 			Help:      "Count of total batch RPC requests forwarded to upstreams.",
 		},
-		[]string{"client", "upstream_id", "url"},
+		[]string{"client", "upstream_id", "url", "batch_size"},
 	)
 
 	UpstreamBatchRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -111,7 +111,7 @@ var (
 			Name:      "upstream_batch_rpc_request_errors",
 			Help:      "Count of total errors when forwarding batch RPC requests to upstreams.",
 		},
-		[]string{"client", "upstream_id", "url", "response_code"},
+		[]string{"client", "upstream_id", "url", "batch_size", "response_code"},
 	)
 
 	UpstreamBatchRPCDuration = promauto.NewHistogramVec(
@@ -122,7 +122,7 @@ var (
 			Help:      "Latency of batch RPC requests forwarded to upstreams.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"client", "upstream_id", "url", "response_code"},
+		[]string{"client", "upstream_id", "url", "batch_size", "response_code"},
 	)
 
 	// Health check metrics

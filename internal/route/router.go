@@ -127,11 +127,12 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	if len(batchRequest.Requests) > 1 {
+	if batchRequest.IsOriginallyBatch {
 		metrics.UpstreamBatchRPCRequestsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			id,
 			configToRoute.HTTPURL,
+			strconv.Itoa(len(batchRequest.Requests)),
 		).Inc()
 	}
 
@@ -164,11 +165,12 @@ func (r *SimpleRouter) Route(
 	}
 
 	if err != nil {
-		if len(batchRequest.Requests) > 1 {
+		if batchRequest.IsOriginallyBatch {
 			metrics.UpstreamBatchRPCRequestErrorsTotal.WithLabelValues(
 				util.GetClientFromContext(ctx),
 				id,
 				configToRoute.HTTPURL,
+				strconv.Itoa(len(batchRequest.Requests)),
 				HTTPReponseCode,
 			).Inc()
 		} else {
@@ -202,11 +204,12 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	if len(batchRequest.Requests) > 1 {
+	if batchRequest.IsOriginallyBatch {
 		metrics.UpstreamBatchRPCDuration.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			configToRoute.ID,
 			configToRoute.HTTPURL,
+			strconv.Itoa(len(batchRequest.Requests)),
 			HTTPReponseCode,
 		).Observe(time.Since(start).Seconds())
 	} else {
