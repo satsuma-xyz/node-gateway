@@ -127,27 +127,23 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
+	rpcMethod := batchRequest.Requests[0].Method
 	if batchRequest.IsOriginallyBatch {
-		metrics.UpstreamBatchRPCRequestsTotal.WithLabelValues(
-			util.GetClientFromContext(ctx),
-			id,
-			configToRoute.HTTPURL,
-			strconv.Itoa(len(batchRequest.Requests)),
-		).Inc()
+		rpcMethod = "batch"
 	}
 
-	// To help correlate request IDs to responses.
-	// It's the responsibility of the client to provide unique IDs.
-	reqIDToRequestMap := make(map[int]jsonrpc.RequestBody)
-	for _, req := range batchRequest.Requests {
-		reqIDToRequestMap[int(req.ID)] = req
-	}
+	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+		util.GetClientFromContext(ctx),
+		id,
+		configToRoute.HTTPURL,
+		rpcMethod,
+	).Inc()
 
 	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", batchRequest), zap.String("client", util.GetClientFromContext(ctx)))
 
 	go func() {
 		for _, request := range batchRequest.Requests {
-			metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+			metrics.UpstreamJSONRPCRequestsTotal.WithLabelValues(
 				util.GetClientFromContext(ctx),
 				id,
 				configToRoute.HTTPURL,
@@ -165,34 +161,31 @@ func (r *SimpleRouter) Route(
 	}
 
 	if err != nil {
-		if batchRequest.IsOriginallyBatch {
-			metrics.UpstreamBatchRPCRequestErrorsTotal.WithLabelValues(
-				util.GetClientFromContext(ctx),
-				id,
-				configToRoute.HTTPURL,
-				strconv.Itoa(len(batchRequest.Requests)),
-				HTTPReponseCode,
-			).Inc()
-		} else {
-			metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
-				util.GetClientFromContext(ctx),
-				id,
-				configToRoute.HTTPURL,
-				batchRequest.Requests[0].Method,
-				HTTPReponseCode,
-				"",
-			).Inc()
-		}
+		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+			util.GetClientFromContext(ctx),
+			id,
+			configToRoute.HTTPURL,
+			rpcMethod,
+			HTTPReponseCode,
+			"",
+		).Inc()
 	}
 
 	if body != nil {
+		// To help correlate request IDs to responses.
+		// It's the responsibility of the client to provide unique IDs.
+		reqIDToRequestMap := make(map[int]jsonrpc.RequestBody)
+		for _, req := range batchRequest.Requests {
+			reqIDToRequestMap[int(req.ID)] = req
+		}
+
 		for _, resp := range body.Responses {
 			if resp.Error != nil {
 				zap.L().Warn("Encountered error in upstream JSONRPC response.",
 					zap.Any("request", batchRequest), zap.Any("error", resp.Error),
 					zap.String("client", util.GetClientFromContext(ctx)))
 
-				metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+				metrics.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
 					util.GetClientFromContext(ctx),
 					id,
 					configToRoute.HTTPURL,
@@ -204,24 +197,14 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	if batchRequest.IsOriginallyBatch {
-		metrics.UpstreamBatchRPCDuration.WithLabelValues(
-			util.GetClientFromContext(ctx),
-			configToRoute.ID,
-			configToRoute.HTTPURL,
-			strconv.Itoa(len(batchRequest.Requests)),
-			HTTPReponseCode,
-		).Observe(time.Since(start).Seconds())
-	} else {
-		metrics.UpstreamRPCDuration.WithLabelValues(
-			util.GetClientFromContext(ctx),
-			configToRoute.ID,
-			configToRoute.HTTPURL,
-			batchRequest.Requests[0].Method,
-			HTTPReponseCode,
-			"",
-		).Observe(time.Since(start).Seconds())
-	}
+	metrics.UpstreamRPCDuration.WithLabelValues(
+		util.GetClientFromContext(ctx),
+		configToRoute.ID,
+		configToRoute.HTTPURL,
+		rpcMethod,
+		HTTPReponseCode,
+		"",
+	).Observe(time.Since(start).Seconds())
 
 	return body, response, err
 }

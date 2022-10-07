@@ -70,6 +70,17 @@ var (
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
+		// jsonrpc_method is "batch" for batch requests
+		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
+	)
+
+	UpstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_jsonrpc_requests",
+			Help:      "Count of total JSON RPC requests forwarded to upstreams, including ones in batches.",
+		},
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
@@ -80,6 +91,18 @@ var (
 			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
+		// jsonrpc_method is "batch" for batch requests
+		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+	)
+
+	UpstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_jsonrpc_request_errors",
+			Help:      "Count of total errors when forwarding RPC requests to upstreams, including ones in batches.",
+		},
+		// jsonrpc_method is "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
@@ -91,39 +114,40 @@ var (
 			Help:      "Latency of RPC requests forwarded to upstreams.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
+		// jsonrpc_method is "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
-	UpstreamBatchRPCRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "router",
-			Name:      "upstream_batch_rpc_requests",
-			Help:      "Count of total batch RPC requests forwarded to upstreams.",
-		},
-		[]string{"client", "upstream_id", "url", "batch_size"},
-	)
+	// UpstreamBatchRPCRequestsTotal = promauto.NewCounterVec(
+	// 	prometheus.CounterOpts{
+	// 		Namespace: metricsNamespace,
+	// 		Subsystem: "router",
+	// 		Name:      "upstream_batch_rpc_requests",
+	// 		Help:      "Count of total batch RPC requests forwarded to upstreams.",
+	// 	},
+	// 	[]string{"client", "upstream_id", "url"},
+	// )
 
-	UpstreamBatchRPCRequestErrorsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "router",
-			Name:      "upstream_batch_rpc_request_errors",
-			Help:      "Count of total errors when forwarding batch RPC requests to upstreams.",
-		},
-		[]string{"client", "upstream_id", "url", "batch_size", "response_code"},
-	)
+	// UpstreamBatchRPCRequestErrorsTotal = promauto.NewCounterVec(
+	// 	prometheus.CounterOpts{
+	// 		Namespace: metricsNamespace,
+	// 		Subsystem: "router",
+	// 		Name:      "upstream_batch_rpc_request_errors",
+	// 		Help:      "Count of total errors when forwarding batch RPC requests to upstreams.",
+	// 	},
+	// 	[]string{"client", "upstream_id", "url", "response_code"},
+	// )
 
-	UpstreamBatchRPCDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "router",
-			Name:      "upstream_batch_rpc_duration_seconds",
-			Help:      "Latency of batch RPC requests forwarded to upstreams.",
-			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
-		},
-		[]string{"client", "upstream_id", "url", "batch_size", "response_code"},
-	)
+	// UpstreamBatchRPCDuration = promauto.NewHistogramVec(
+	// 	prometheus.HistogramOpts{
+	// 		Namespace: metricsNamespace,
+	// 		Subsystem: "router",
+	// 		Name:      "upstream_batch_rpc_duration_seconds",
+	// 		Help:      "Latency of batch RPC requests forwarded to upstreams.",
+	// 		Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+	// 	},
+	// 	[]string{"client", "upstream_id", "url", "response_code"},
+	// )
 
 	// Health check metrics
 
