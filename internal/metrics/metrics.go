@@ -70,6 +70,18 @@ var (
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
+		// jsonrpc_method is "batch" for batch requests
+		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
+	)
+
+	UpstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_jsonrpc_requests",
+			Help: "Count of total JSON RPC requests forwarded to upstreamsm including ones in batches. " +
+				"Batches are deconstructed to single JSON RPC requests for this metric.",
+		},
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
@@ -80,6 +92,19 @@ var (
 			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
+		// jsonrpc_method is "batch" for batch requests
+		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+	)
+
+	UpstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_jsonrpc_request_errors",
+			Help: "Count of total errors when forwarding RPC requests to upstreams, including ones in batches. " +
+				"Batches are deconstructed to single JSON RPC requests for this metric.",
+		},
+		// jsonrpc_method is "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
@@ -91,6 +116,7 @@ var (
 			Help:      "Latency of RPC requests forwarded to upstreams.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
+		// jsonrpc_method is "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 

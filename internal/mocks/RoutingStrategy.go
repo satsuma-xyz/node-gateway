@@ -49,8 +49,8 @@ type MockRoutingStrategy_RouteNextRequest_Call struct {
 }
 
 // RouteNextRequest is a helper method to define mock.On call
-//   - upstreamsByPriority types.PriorityToUpstreamsMap
-//   - requestMetadata metadata.RequestMetadata
+//  - upstreamsByPriority types.PriorityToUpstreamsMap
+//  - requestMetadata metadata.RequestMetadata
 func (_e *MockRoutingStrategy_Expecter) RouteNextRequest(upstreamsByPriority interface{}, requestMetadata interface{}) *MockRoutingStrategy_RouteNextRequest_Call {
 	return &MockRoutingStrategy_RouteNextRequest_Call{Call: _e.mock.On("RouteNextRequest", upstreamsByPriority, requestMetadata)}
 }

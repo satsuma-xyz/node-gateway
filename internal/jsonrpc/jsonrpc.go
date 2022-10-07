@@ -11,44 +11,79 @@ import (
 const JSONRPCVersion = "2.0"
 const InternalServerErrorCode = -32000
 
+type RequestBody interface {
+	Encode() ([]byte, error)
+	GetMethod() string
+	GetSubRequests() []SingleRequestBody
+}
+
 // See: https://www.jsonrpc.org/specification#request_object
-type RequestBody struct {
+type SingleRequestBody struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	Method         string `json:"method,omitempty"`
 	Params         []any  `json:"params,omitempty"`
 	ID             int64  `json:"id,omitempty"`
 }
 
-func (b *RequestBody) EncodeRequestBody() ([]byte, error) {
+func (b *SingleRequestBody) Encode() ([]byte, error) {
 	return json.Marshal(b)
 }
 
-func DecodeRequestBody(req *http.Request) (*RequestBody, error) {
-	// No need to close the request body, the Server implementation will take care of it.
-	requestRawBytes, err := io.ReadAll(req.Body)
+func (b *SingleRequestBody) GetMethod() string {
+	return b.Method
+}
 
-	if err != nil {
-		return nil, NewDecodeError(err, requestRawBytes)
-	}
+func (b *SingleRequestBody) GetSubRequests() []SingleRequestBody {
+	return []SingleRequestBody{*b}
+}
 
-	decoder := json.NewDecoder(bytes.NewReader(requestRawBytes))
-	decoder.DisallowUnknownFields()
+type BatchRequestBody struct {
+	Requests []SingleRequestBody
+}
 
-	var body RequestBody
+func (b *BatchRequestBody) Encode() ([]byte, error) {
+	return json.Marshal(b.Requests)
+}
 
-	if err = decoder.Decode(&body); err != nil {
-		err = NewDecodeError(err, requestRawBytes)
-	}
+func (b *BatchRequestBody) GetMethod() string {
+	return "batch"
+}
 
-	return &body, err
+func (b *BatchRequestBody) GetSubRequests() []SingleRequestBody {
+	return append([]SingleRequestBody(nil), b.Requests...)
+}
+
+type ResponseBody interface {
+	Encode() ([]byte, error)
+	GetSubResponses() []SingleResponseBody
 }
 
 // See: http://www.jsonrpc.org/specification#response_object
-type ResponseBody struct {
+type SingleResponseBody struct {
 	Result  any    `json:"result,omitempty"`
 	Error   *Error `json:"error,omitempty"`
 	JSONRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
+}
+
+func (b *SingleResponseBody) Encode() ([]byte, error) {
+	return json.Marshal(b)
+}
+
+func (b *SingleResponseBody) GetSubResponses() []SingleResponseBody {
+	return []SingleResponseBody{*b}
+}
+
+type BatchResponseBody struct {
+	Responses []SingleResponseBody
+}
+
+func (b *BatchResponseBody) Encode() ([]byte, error) {
+	return json.Marshal(b.Responses)
+}
+
+func (b *BatchResponseBody) GetSubResponses() []SingleResponseBody {
+	return append([]SingleResponseBody(nil), b.Responses...)
 }
 
 // See: http://www.jsonrpc.org/specification#error_object
@@ -58,8 +93,8 @@ type Error struct {
 	Code    int    `json:"code"`
 }
 
-func (b *ResponseBody) EncodeResponseBody() ([]byte, error) {
-	return json.Marshal(b)
+type Decodable interface {
+	SingleRequestBody | []SingleRequestBody | SingleResponseBody | []SingleResponseBody
 }
 
 type DecodeError struct {
@@ -78,7 +113,33 @@ func (e DecodeError) Error() string {
 	return fmt.Sprintf("decode error: %s, content: %s", e.Err.Error(), string(e.Content))
 }
 
-func DecodeResponseBody(resp *http.Response) (*ResponseBody, error) {
+func DecodeRequestBody(req *http.Request) (RequestBody, error) {
+	// No need to close the request body, the Server implementation will take care of it.
+	requestRawBytes, err := io.ReadAll(req.Body)
+
+	if err != nil {
+		return nil, NewDecodeError(err, requestRawBytes)
+	}
+
+	var body *SingleRequestBody
+
+	// Try non-batch first as these are probably more common.
+	if body, err = decode[SingleRequestBody](requestRawBytes); err == nil {
+		return body, nil
+	}
+
+	var batchBody *[]SingleRequestBody
+
+	if batchBody, err = decode[[]SingleRequestBody](requestRawBytes); err == nil {
+		return &BatchRequestBody{
+			Requests: *batchBody,
+		}, nil
+	}
+
+	return nil, NewDecodeError(err, requestRawBytes)
+}
+
+func DecodeResponseBody(resp *http.Response) (ResponseBody, error) {
 	// As per the spec, it is the caller's responsibility to close the response body.
 	defer resp.Body.Close()
 	responseRawBytes, err := io.ReadAll(resp.Body)
@@ -92,25 +153,84 @@ func DecodeResponseBody(resp *http.Response) (*ResponseBody, error) {
 		return nil, nil
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(responseRawBytes))
-	decoder.DisallowUnknownFields()
+	var body *SingleResponseBody
 
-	var body ResponseBody
-
-	if err = decoder.Decode(&body); err != nil {
-		err = NewDecodeError(err, responseRawBytes)
+	// Try non-batch first as these are probably more common.
+	if body, err = decode[SingleResponseBody](responseRawBytes); err == nil {
+		return body, nil
 	}
 
-	return &body, err
+	var batchBody *[]SingleResponseBody
+
+	if batchBody, err = decode[[]SingleResponseBody](responseRawBytes); err == nil {
+		return &BatchResponseBody{
+			Responses: *batchBody,
+		}, nil
+	}
+
+	return nil, NewDecodeError(err, responseRawBytes)
 }
 
-func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode, id int) ResponseBody {
-	return ResponseBody{
+func decode[T Decodable](rawBytes []byte) (*T, error) {
+	decoder := json.NewDecoder(bytes.NewReader(rawBytes))
+	decoder.DisallowUnknownFields()
+
+	var body T
+
+	if err := decoder.Decode(&body); err != nil {
+		return nil, NewDecodeError(err, rawBytes)
+	}
+
+	return &body, nil
+}
+
+func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) ResponseBody {
+	return &SingleResponseBody{
 		JSONRPC: JSONRPCVersion,
 		Error: &Error{
 			Code:    jsonRPCStatusCode,
 			Message: message,
 		},
-		ID: id,
+	}
+}
+
+func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode int, request RequestBody) ResponseBody {
+	switch r := request.(type) {
+	case *SingleRequestBody:
+		return &SingleResponseBody{
+			JSONRPC: r.JSONRPCVersion,
+			Error: &Error{
+				Code:    jsonRPCStatusCode,
+				Message: message,
+			},
+			ID: int(r.ID),
+		}
+	case *BatchRequestBody:
+		subRequests := r.GetSubRequests()
+		responses := make([]SingleResponseBody, 0, len(subRequests))
+
+		for _, subReq := range subRequests {
+			response := SingleResponseBody{
+				JSONRPC: subReq.JSONRPCVersion,
+				Error: &Error{
+					Code:    jsonRPCStatusCode,
+					Message: message,
+				},
+				ID: int(subReq.ID),
+			}
+			responses = append(responses, response)
+		}
+
+		return &BatchResponseBody{
+			Responses: responses,
+		}
+	default:
+		return &SingleResponseBody{
+			JSONRPC: JSONRPCVersion,
+			Error: &Error{
+				Code:    jsonRPCStatusCode,
+				Message: message,
+			},
+		}
 	}
 }

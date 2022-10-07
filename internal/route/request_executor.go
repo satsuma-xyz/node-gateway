@@ -18,12 +18,18 @@ type RequestExecutor struct {
 	httpClient client.HTTPClient
 }
 
+type ExecutorResult struct {
+	err               error
+	httpResponse      *http.Response
+	batchResponseBody jsonrpc.BatchResponseBody
+}
+
 func (r *RequestExecutor) routeToConfig(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
 	configToRoute *config.UpstreamConfig,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
-	bodyBytes, err := requestBody.EncodeRequestBody()
+) (jsonrpc.ResponseBody, *http.Response, error) {
+	bodyBytes, err := requestBody.Encode()
 	if err != nil {
 		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
 		return nil, nil, err

@@ -19,7 +19,7 @@ import (
 
 func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	router := mocks.NewRouter(t)
-	expectedRPCResponse := &jsonrpc.ResponseBody{
+	expectedRPCResponse := &jsonrpc.SingleResponseBody{
 		JSONRPC: jsonrpc.JSONRPCVersion,
 		Result:  "results",
 		ID:      2,
