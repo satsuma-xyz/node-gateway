@@ -18,20 +18,26 @@ type RequestExecutor struct {
 	httpClient client.HTTPClient
 }
 
+type ExecutorResult struct {
+	batchResponseBody jsonrpc.BatchResponseBody
+	httpResponse      *http.Response
+	err               error
+}
+
 func (r *RequestExecutor) routeToConfig(
 	ctx context.Context,
-	requestBody jsonrpc.RequestBody,
+	batchRequest jsonrpc.BatchRequestBody,
 	configToRoute *config.UpstreamConfig,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
-	bodyBytes, err := requestBody.EncodeRequestBody()
+) (*jsonrpc.BatchResponseBody, *http.Response, error) {
+	bodyBytes, err := batchRequest.EncodeRequestBody()
 	if err != nil {
-		zap.L().Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
+		zap.L().Error("Could not serialize request.", zap.Any("request", batchRequest), zap.Error(err))
 		return nil, nil, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		zap.L().Error("Could not create new http request.", zap.Any("request", requestBody), zap.Error(err))
+		zap.L().Error("Could not create new http request.", zap.Any("request", batchRequest), zap.Error(err))
 		return nil, nil, err
 	}
 
@@ -43,18 +49,18 @@ func (r *RequestExecutor) routeToConfig(
 	resp, err := r.httpClient.Do(httpReq)
 
 	if err != nil {
-		zap.L().Error("Error encountered when executing request.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Error("Error encountered when executing request.", zap.Any("request", batchRequest), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := jsonrpc.DecodeResponseBody(resp)
 	if err != nil {
-		zap.L().Warn("Could not deserialize response.", zap.Any("request", requestBody), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
+		zap.L().Warn("Could not deserialize response.", zap.Any("request", batchRequest), zap.String("response", fmt.Sprintf("%v", resp)), zap.Error(err))
 		return nil, nil, err
 	}
 
-	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", requestBody), zap.Any("response", respBody))
+	zap.L().Debug("Successfully routed request to upstream.", zap.String("upstreamID", configToRoute.ID), zap.Any("request", batchRequest), zap.Any("response", respBody))
 
 	return respBody, resp, nil
 }

@@ -30,7 +30,7 @@ import (
 type Router interface {
 	Start()
 	IsInitialized() bool
-	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
+	Route(ctx context.Context, batchRequest jsonrpc.BatchRequestBody) (*jsonrpc.BatchResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -100,9 +100,9 @@ func (r *SimpleRouter) IsInitialized() bool {
 
 func (r *SimpleRouter) Route(
 	ctx context.Context,
-	requestBody jsonrpc.RequestBody,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
-	requestMetadata := r.metadataParser.Parse(requestBody)
+	batchRequest jsonrpc.BatchRequestBody,
+) (*jsonrpc.BatchResponseBody, *http.Response, error) {
+	requestMetadata := r.metadataParser.Parse(batchRequest)
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
 
 	if err != nil {
@@ -127,50 +127,98 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
-	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
-		util.GetClientFromContext(ctx),
-		id,
-		configToRoute.HTTPURL,
-		requestBody.Method,
-	).Inc()
+	if len(batchRequest.Requests) > 1 {
+		metrics.UpstreamBatchRPCRequestsTotal.WithLabelValues(
+			util.GetClientFromContext(ctx),
+			id,
+			configToRoute.HTTPURL,
+		).Inc()
+	}
+
+	// To help correlate request IDs to responses.
+	// It's the responsibility of the client to provide unique IDs.
+	reqIDToRequestMap := make(map[int]jsonrpc.RequestBody)
+	for _, req := range batchRequest.Requests {
+		reqIDToRequestMap[int(req.ID)] = req
+	}
+
+	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", batchRequest), zap.String("client", util.GetClientFromContext(ctx)))
+
+	go func() {
+		for _, request := range batchRequest.Requests {
+			metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+				util.GetClientFromContext(ctx),
+				id,
+				configToRoute.HTTPURL,
+				request.Method,
+			).Inc()
+		}
+	}()
 
 	start := time.Now()
-	body, response, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
+	body, response, err := r.requestExecutor.routeToConfig(ctx, batchRequest, &configToRoute)
 	HTTPReponseCode := ""
 
 	if response != nil {
 		HTTPReponseCode = strconv.Itoa(response.StatusCode)
 	}
 
-	isJSONRPCError := body != nil && body.Error != nil
-	if err != nil || isJSONRPCError {
-		JSONRPCResponseCode := ""
-
-		if isJSONRPCError {
-			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error), zap.String("client", util.GetClientFromContext(ctx)))
-
-			JSONRPCResponseCode = strconv.Itoa(body.Error.Code)
+	if err != nil {
+		if len(batchRequest.Requests) > 1 {
+			metrics.UpstreamBatchRPCRequestErrorsTotal.WithLabelValues(
+				util.GetClientFromContext(ctx),
+				id,
+				configToRoute.HTTPURL,
+				HTTPReponseCode,
+			).Inc()
+		} else {
+			metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+				util.GetClientFromContext(ctx),
+				id,
+				configToRoute.HTTPURL,
+				batchRequest.Requests[0].Method,
+				HTTPReponseCode,
+				"",
+			).Inc()
 		}
-
-		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
-			util.GetClientFromContext(ctx),
-			id,
-			configToRoute.HTTPURL,
-			requestBody.Method,
-			HTTPReponseCode,
-			JSONRPCResponseCode,
-		).Inc()
 	}
 
-	metrics.UpstreamRPCDuration.WithLabelValues(
-		util.GetClientFromContext(ctx),
-		configToRoute.ID,
-		configToRoute.HTTPURL,
-		requestBody.Method,
-		HTTPReponseCode,
-		"",
-	).Observe(time.Since(start).Seconds())
+	if body != nil {
+		for _, resp := range body.Responses {
+			if resp.Error != nil {
+				zap.L().Warn("Encountered error in upstream JSONRPC response.",
+					zap.Any("request", batchRequest), zap.Any("error", resp.Error),
+					zap.String("client", util.GetClientFromContext(ctx)))
+
+				metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+					util.GetClientFromContext(ctx),
+					id,
+					configToRoute.HTTPURL,
+					reqIDToRequestMap[resp.ID].Method,
+					HTTPReponseCode,
+					strconv.Itoa(resp.Error.Code),
+				).Inc()
+			}
+		}
+	}
+
+	if len(batchRequest.Requests) > 1 {
+		metrics.UpstreamBatchRPCDuration.WithLabelValues(
+			util.GetClientFromContext(ctx),
+			configToRoute.ID,
+			configToRoute.HTTPURL,
+			HTTPReponseCode,
+		).Observe(time.Since(start).Seconds())
+	} else {
+		metrics.UpstreamRPCDuration.WithLabelValues(
+			util.GetClientFromContext(ctx),
+			configToRoute.ID,
+			configToRoute.HTTPURL,
+			batchRequest.Requests[0].Method,
+			HTTPReponseCode,
+			"",
+		).Observe(time.Since(start).Seconds())
+	}
 
 	return body, response, err
 }

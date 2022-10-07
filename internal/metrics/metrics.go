@@ -94,6 +94,37 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
+	UpstreamBatchRPCRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_batch_rpc_requests",
+			Help:      "Count of total batch RPC requests forwarded to upstreams.",
+		},
+		[]string{"client", "upstream_id", "url"},
+	)
+
+	UpstreamBatchRPCRequestErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_batch_rpc_request_errors",
+			Help:      "Count of total errors when forwarding batch RPC requests to upstreams.",
+		},
+		[]string{"client", "upstream_id", "url", "response_code"},
+	)
+
+	UpstreamBatchRPCDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "router",
+			Name:      "upstream_batch_rpc_duration_seconds",
+			Help:      "Latency of batch RPC requests forwarded to upstreams.",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+		},
+		[]string{"client", "upstream_id", "url", "response_code"},
+	)
+
 	// Health check metrics
 
 	BlockHeight = promauto.NewGaugeVec(

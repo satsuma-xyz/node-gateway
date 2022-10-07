@@ -9,7 +9,7 @@ import (
 
 func TestRequestMetadataParser_Parse(t *testing.T) {
 	type args struct {
-		requestBody jsonrpc.RequestBody
+		requestBody jsonrpc.BatchRequestBody
 	}
 
 	type testArgs struct {
@@ -21,7 +21,9 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 	testForMethod := func(methodName string, isStateRequired bool) testArgs {
 		return testArgs{
 			methodName,
-			args{jsonrpc.RequestBody{Method: methodName}},
+			args{jsonrpc.BatchRequestBody{
+				Requests: []jsonrpc.RequestBody{{Method: methodName}},
+			}},
 			RequestMetadata{IsStateRequired: isStateRequired},
 		}
 	}

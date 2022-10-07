@@ -19,10 +19,14 @@ import (
 
 func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	router := mocks.NewRouter(t)
-	expectedRPCResponse := &jsonrpc.ResponseBody{
-		JSONRPC: jsonrpc.JSONRPCVersion,
-		Result:  "results",
-		ID:      2,
+	expectedRPCResponse := &jsonrpc.BatchResponseBody{
+		Responses: []jsonrpc.ResponseBody{
+			{
+				JSONRPC: jsonrpc.JSONRPCVersion,
+				Result:  "results",
+				ID:      2,
+			},
+		},
 	}
 	router.On("Route", mock.Anything, mock.Anything).
 		Return(expectedRPCResponse,

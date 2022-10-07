@@ -29,22 +29,22 @@ func (_m *Router) IsInitialized() bool {
 	return r0
 }
 
-// Route provides a mock function with given fields: ctx, requestBody
-func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
-	ret := _m.Called(ctx, requestBody)
+// Route provides a mock function with given fields: ctx, batchRequest
+func (_m *Router) Route(ctx context.Context, batchRequest jsonrpc.BatchRequestBody) (*jsonrpc.BatchResponseBody, *http.Response, error) {
+	ret := _m.Called(ctx, batchRequest)
 
-	var r0 *jsonrpc.ResponseBody
-	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) *jsonrpc.ResponseBody); ok {
-		r0 = rf(ctx, requestBody)
+	var r0 *jsonrpc.BatchResponseBody
+	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.BatchRequestBody) *jsonrpc.BatchResponseBody); ok {
+		r0 = rf(ctx, batchRequest)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*jsonrpc.ResponseBody)
+			r0 = ret.Get(0).(*jsonrpc.BatchResponseBody)
 		}
 	}
 
 	var r1 *http.Response
-	if rf, ok := ret.Get(1).(func(context.Context, jsonrpc.RequestBody) *http.Response); ok {
-		r1 = rf(ctx, requestBody)
+	if rf, ok := ret.Get(1).(func(context.Context, jsonrpc.BatchRequestBody) *http.Response); ok {
+		r1 = rf(ctx, batchRequest)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*http.Response)
@@ -52,8 +52,8 @@ func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*
 	}
 
 	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, jsonrpc.RequestBody) error); ok {
-		r2 = rf(ctx, requestBody)
+	if rf, ok := ret.Get(2).(func(context.Context, jsonrpc.BatchRequestBody) error); ok {
+		r2 = rf(ctx, batchRequest)
 	} else {
 		r2 = ret.Error(2)
 	}

@@ -123,19 +123,19 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	body, err := jsonrpc.DecodeRequestBody(req)
+	requestBody, err := jsonrpc.DecodeRequestBody(req)
 	if err != nil {
 		errMsg := fmt.Sprintf("Request body could not be parsed, err: %s", err.Error())
-		resp := jsonrpc.CreateErrorJSONRPCResponseBody(errMsg, jsonrpc.InternalServerErrorCode, int(body.ID))
+		resp := jsonrpc.CreateErrorJSONRPCResponseBody(errMsg, jsonrpc.InternalServerErrorCode)
 		zap.L().Error(errMsg)
 		respondJSONRPC(writer, &resp, http.StatusBadRequest)
 
 		return
 	}
 
-	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", body))
+	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
 
-	respBody, resp, err := h.router.Route(ctx, *body)
+	respBody, resp, err := h.router.Route(ctx, *requestBody)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
@@ -146,7 +146,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 			respondRaw(writer, e.Content, http.StatusOK)
 			return
 		default:
-			resp := jsonrpc.CreateErrorJSONRPCResponseBody(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, int(body.ID))
+			resp := jsonrpc.CreateErrorJSONRPCResponseBodyWithRequests(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, requestBody.Requests)
 			respondJSONRPC(writer, &resp, http.StatusInternalServerError)
 
 			return
@@ -155,7 +155,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	respondJSONRPC(writer, respBody, resp.StatusCode)
 
-	zap.L().Debug("Request successfully routed.", zap.Any("requestBody", body))
+	zap.L().Debug("Request successfully routed.", zap.Any("requestBody", requestBody))
 }
 
 func getClientID(req *http.Request) string {
@@ -171,7 +171,7 @@ func getClientID(req *http.Request) string {
 	return "unknown"
 }
 
-func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.ResponseBody, httpStatusCode int) {
+func respondJSONRPC(writer http.ResponseWriter, response *jsonrpc.BatchResponseBody, httpStatusCode int) {
 	if response == nil {
 		writer.WriteHeader(httpStatusCode)
 		return

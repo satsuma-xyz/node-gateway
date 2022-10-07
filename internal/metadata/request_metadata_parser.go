@@ -6,15 +6,17 @@ import (
 
 type RequestMetadataParser struct{}
 
-func (p *RequestMetadataParser) Parse(requestBody jsonrpc.RequestBody) RequestMetadata {
-	result := RequestMetadata{}
+func (p *RequestMetadataParser) Parse(batchRequest jsonrpc.BatchRequestBody) RequestMetadata {
+	result := RequestMetadata{
+		IsStateRequired: false,
+	}
 
-	switch requestBody.Method {
-	case "eth_getBalance", "eth_getStorageAt", "eth_getTransactionCount", "eth_getCode", "eth_call", "eth_estimateGas":
-		// List of state methods: https://ethereum.org/en/developers/docs/apis/json-rpc/#state_methods
-		result.IsStateRequired = true
-	default:
-		result.IsStateRequired = false
+	for _, requestBody := range batchRequest.Requests {
+		switch requestBody.Method {
+		case "eth_getBalance", "eth_getStorageAt", "eth_getTransactionCount", "eth_getCode", "eth_call", "eth_estimateGas":
+			// List of state methods: https://ethereum.org/en/developers/docs/apis/json-rpc/#state_methods
+			result.IsStateRequired = true
+		}
 	}
 
 	return result
