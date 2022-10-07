@@ -19,9 +19,9 @@ type RequestExecutor struct {
 }
 
 type ExecutorResult struct {
-	batchResponseBody jsonrpc.BatchResponseBody
-	httpResponse      *http.Response
 	err               error
+	httpResponse      *http.Response
+	batchResponseBody jsonrpc.BatchResponseBody
 }
 
 func (r *RequestExecutor) routeToConfig(
