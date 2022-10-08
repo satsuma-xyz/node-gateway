@@ -77,8 +77,9 @@ func wireRouter(config conf.Config) route.Router {
 		NodeFilter:      nodeFilter,
 		BackingStrategy: route.NewPriorityRoundRobinStrategy(),
 	}
+	metricContainer := metrics.NewContainer()
 
-	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy)
+	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer)
 }
 
 func (s *RPCServer) Start() error {

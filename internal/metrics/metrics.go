@@ -247,6 +247,13 @@ var (
 	)
 )
 
+type Container struct {
+}
+
+func NewContainer() *Container {
+	return new(Container)
+}
+
 func NewMetricsServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())

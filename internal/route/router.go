@@ -42,6 +42,7 @@ type SimpleRouter struct {
 	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
 	upstreamConfigs     []config.UpstreamConfig
+	metricsContainer    *metrics.Container
 }
 
 func NewRouter(
@@ -50,6 +51,7 @@ func NewRouter(
 	chainMetadataStore *metadata.ChainMetadataStore,
 	healthCheckManager checks.HealthCheckManager,
 	routingStrategy RoutingStrategy,
+	metricsContainer *metrics.Container,
 ) Router {
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
@@ -59,6 +61,7 @@ func NewRouter(
 		routingStrategy:     routingStrategy,
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 		metadataParser:      metadata.RequestMetadataParser{},
+		metricsContainer:    metricsContainer,
 	}
 
 	return r
