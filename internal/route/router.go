@@ -130,7 +130,7 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		id,
 		configToRoute.HTTPURL,

@@ -63,7 +63,7 @@ var (
 
 	// Upstream routing metrics
 
-	UpstreamRPCRequestsTotal = promauto.NewCounterVec(
+	upstreamRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -74,7 +74,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
-	UpstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
+	upstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -85,7 +85,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
-	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
+	upstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -96,7 +96,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
-	UpstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
+	upstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -108,7 +108,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
-	UpstreamRPCDuration = promauto.NewHistogramVec(
+	upstreamRPCDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -258,11 +258,11 @@ type Container struct {
 func NewContainer() *Container {
 	result := new(Container)
 	presetLabels := make(prometheus.Labels)
-	result.UpstreamRPCRequestsTotal = UpstreamRPCRequestsTotal.MustCurryWith(presetLabels)
-	result.UpstreamJSONRPCRequestsTotal = UpstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
-	result.UpstreamRPCRequestErrorsTotal = UpstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
-	result.UpstreamJSONRPCRequestErrorsTotal = UpstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
-	result.UpstreamRPCDuration = UpstreamRPCDuration.MustCurryWith(presetLabels)
+	result.UpstreamRPCRequestsTotal = upstreamRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestsTotal = upstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
 	return result
 }
 
