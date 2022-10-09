@@ -248,10 +248,22 @@ var (
 )
 
 type Container struct {
+	UpstreamRPCRequestsTotal          *prometheus.CounterVec
+	UpstreamJSONRPCRequestsTotal      *prometheus.CounterVec
+	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
+	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
+	UpstreamRPCDuration               prometheus.ObserverVec
 }
 
 func NewContainer() *Container {
-	return new(Container)
+	result := new(Container)
+	presetLabels := make(prometheus.Labels)
+	result.UpstreamRPCRequestsTotal = UpstreamRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestsTotal = UpstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCRequestErrorsTotal = UpstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestErrorsTotal = UpstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCDuration = UpstreamRPCDuration.MustCurryWith(presetLabels)
+	return result
 }
 
 func NewMetricsServer() *http.Server {
