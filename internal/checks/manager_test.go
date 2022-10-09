@@ -53,6 +53,7 @@ func TestHealthCheckManager(t *testing.T) {
 	manager.(*healthCheckManager).newPeerCheck = func(
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
 	) types.Checker {
 		return mockPeerChecker
 	}

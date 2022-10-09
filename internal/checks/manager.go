@@ -19,6 +19,13 @@ const (
 	PeriodicHealthCheckInterval = 5 * time.Second
 )
 
+type NewBlockHeightCheck func(
+	config *conf.UpstreamConfig,
+	clientGetter client.EthClientGetter,
+	blockHeightObserver BlockHeightObserver,
+	container *metrics.Container,
+) types.BlockHeightChecker
+
 //go:generate mockery --output ../mocks --name HealthCheckManager --with-expecter
 type HealthCheckManager interface {
 	StartHealthChecks()
@@ -29,14 +36,9 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(
-		config *conf.UpstreamConfig,
-		clientGetter client.EthClientGetter,
-		blockHeightObserver BlockHeightObserver,
-		container *metrics.Container,
-	) types.BlockHeightChecker
-	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
-	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
+	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container) types.BlockHeightChecker
+	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container) types.Checker
+	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter) types.Checker
 	blockHeightObserver BlockHeightObserver
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
@@ -115,7 +117,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				peerCheck = h.newPeerCheck(&config, client.NewEthClient)
+				peerCheck = h.newPeerCheck(&config, client.NewEthClient, h.metricsContainer)
 			}()
 
 			var syncingCheck types.Checker

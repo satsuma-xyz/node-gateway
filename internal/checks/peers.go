@@ -11,18 +11,24 @@ import (
 )
 
 type PeerCheck struct {
-	client         client.EthClient
-	Err            error
-	clientGetter   client.EthClientGetter
-	upstreamConfig *conf.UpstreamConfig
-	PeerCount      uint64
-	ShouldRun      bool
+	client           client.EthClient
+	Err              error
+	clientGetter     client.EthClientGetter
+	metricsContainer *metrics.Container
+	upstreamConfig   *conf.UpstreamConfig
+	PeerCount        uint64
+	ShouldRun        bool
 }
 
-func NewPeerChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
+func NewPeerChecker(
+	upstreamConfig *conf.UpstreamConfig,
+	clientGetter client.EthClientGetter,
+	metricsContainer *metrics.Container,
+) types.Checker {
 	c := &PeerCheck{
-		upstreamConfig: upstreamConfig,
-		clientGetter:   clientGetter,
+		upstreamConfig:   upstreamConfig,
+		clientGetter:     clientGetter,
+		metricsContainer: metricsContainer,
 		// Set `ShouldRun:true` until we verify `peerCount` is a supported method of the Upstream.
 		ShouldRun: true,
 	}
@@ -60,7 +66,7 @@ func (c *PeerCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
 			zap.L().Error("Errorr initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			metrics.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
+			c.metricsContainer.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
 
@@ -77,19 +83,19 @@ func (c *PeerCheck) runCheck() {
 	runCheck := func() {
 		peerCount, err := c.client.PeerCount(context.Background())
 		if c.Err = err; c.Err != nil {
-			metrics.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+			c.metricsContainer.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
 		}
 
 		c.PeerCount = peerCount
-		metrics.PeerCount.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.PeerCount))
+		c.metricsContainer.PeerCount.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.PeerCount))
 
 		zap.L().Debug("Ran PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("peerCount", c.PeerCount), zap.Error(c.Err))
 	}
 
 	runCheckWithMetrics(runCheck,
-		metrics.PeerCountCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		metrics.PeerCountCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		c.metricsContainer.PeerCountCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		c.metricsContainer.PeerCountCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *PeerCheck) IsPassing() bool {

@@ -253,10 +253,16 @@ type Container struct {
 	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
 	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
 	UpstreamRPCDuration               prometheus.ObserverVec
-	BlockHeight                       *prometheus.GaugeVec
-	BlockHeightCheckRequests          *prometheus.CounterVec
-	BlockHeightCheckDuration          prometheus.ObserverVec
-	BlockHeightCheckErrors            *prometheus.CounterVec
+
+	BlockHeight              *prometheus.GaugeVec
+	BlockHeightCheckRequests *prometheus.CounterVec
+	BlockHeightCheckDuration prometheus.ObserverVec
+	BlockHeightCheckErrors   *prometheus.CounterVec
+
+	PeerCount              *prometheus.GaugeVec
+	PeerCountCheckRequests *prometheus.CounterVec
+	PeerCountCheckDuration prometheus.ObserverVec
+	PeerCountCheckErrors   *prometheus.CounterVec
 }
 
 func NewContainer() *Container {
@@ -267,10 +273,17 @@ func NewContainer() *Container {
 	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
+
 	result.BlockHeight = blockHeight.MustCurryWith(presetLabels)
 	result.BlockHeightCheckRequests = blockHeightCheckRequests.MustCurryWith(presetLabels)
 	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
 	result.BlockHeightCheckErrors = blockHeightCheckErrors.MustCurryWith(presetLabels)
+
+	result.PeerCount = PeerCount.MustCurryWith(presetLabels)
+	result.PeerCountCheckRequests = PeerCountCheckRequests.MustCurryWith(presetLabels)
+	result.PeerCountCheckDuration = PeerCountCheckDuration.MustCurryWith(presetLabels)
+	result.PeerCountCheckErrors = PeerCountCheckErrors.MustCurryWith(presetLabels)
+
 	return result
 }
 
