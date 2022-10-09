@@ -253,6 +253,7 @@ type Container struct {
 	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
 	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
 	UpstreamRPCDuration               prometheus.ObserverVec
+	BlockHeight                       *prometheus.GaugeVec
 }
 
 func NewContainer() *Container {
@@ -263,6 +264,7 @@ func NewContainer() *Container {
 	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
+	result.BlockHeight = BlockHeight.MustCurryWith(presetLabels)
 	return result
 }
 

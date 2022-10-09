@@ -21,6 +21,7 @@ type BlockHeightCheck struct {
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
 	blockHeightObserver BlockHeightObserver
+	metricsContainer    *metrics.Container
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
@@ -29,11 +30,17 @@ type BlockHeightObserver interface {
 	ProcessUpdate(update metadata.BlockHeightUpdate)
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) internalTypes.BlockHeightChecker {
+func NewBlockHeightChecker(
+	config *conf.UpstreamConfig,
+	clientGetter client.EthClientGetter,
+	blockHeightObserver BlockHeightObserver,
+	metricsContainer *metrics.Container,
+) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig:      config,
 		clientGetter:        clientGetter,
 		blockHeightObserver: blockHeightObserver,
+		metricsContainer:    metricsContainer,
 	}
 
 	c.Initialize()
@@ -104,7 +111,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 
 		c.SetBlockHeight(header.Number.Uint64())
 
-		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 	}
@@ -143,7 +150,7 @@ func (c *BlockHeightCheck) GetError() error {
 func (c *BlockHeightCheck) subscribeNewHead() error {
 	onNewHead := func(header *ethTypes.Header) {
 		c.SetBlockHeight(header.Number.Uint64())
-		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 		c.webSocketError = nil
 		c.blockHeightError = nil
 	}

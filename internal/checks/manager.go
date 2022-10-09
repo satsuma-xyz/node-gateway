@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
 	"go.uber.org/zap"
@@ -32,11 +33,13 @@ type healthCheckManager struct {
 		config *conf.UpstreamConfig,
 		clientGetter client.EthClientGetter,
 		blockHeightObserver BlockHeightObserver,
+		container *metrics.Container,
 	) types.BlockHeightChecker
 	newPeerCheck        func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	newSyncingCheck     func(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker
 	blockHeightObserver BlockHeightObserver
 	healthCheckTicker   *time.Ticker
+	metricsContainer    *metrics.Container
 	configs             []conf.UpstreamConfig
 	isInitialized       atomic.Bool
 }
@@ -46,6 +49,7 @@ func NewHealthCheckManager(
 	config []conf.UpstreamConfig,
 	blockHeightObserver BlockHeightObserver,
 	healthCheckTicker *time.Ticker,
+	metricsContainer *metrics.Container,
 ) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
@@ -56,6 +60,7 @@ func NewHealthCheckManager(
 		newSyncingCheck:     NewSyncingChecker,
 		blockHeightObserver: blockHeightObserver,
 		healthCheckTicker:   healthCheckTicker,
+		metricsContainer:    metricsContainer,
 	}
 }
 
@@ -100,7 +105,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver)
+				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver, h.metricsContainer)
 			}()
 
 			var peerCheck types.Checker
