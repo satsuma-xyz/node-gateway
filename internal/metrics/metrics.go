@@ -122,7 +122,7 @@ var (
 
 	// Health check metrics
 
-	BlockHeight = promauto.NewGaugeVec(
+	blockHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -132,7 +132,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckRequests = promauto.NewCounterVec(
+	blockHeightCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -142,7 +142,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckDuration = promauto.NewHistogramVec(
+	blockHeightCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -153,7 +153,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckErrors = promauto.NewCounterVec(
+	blockHeightCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -267,10 +267,10 @@ func NewContainer() *Container {
 	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
-	result.BlockHeight = BlockHeight.MustCurryWith(presetLabels)
-	result.BlockHeightCheckRequests = BlockHeightCheckRequests.MustCurryWith(presetLabels)
-	result.BlockHeightCheckDuration = BlockHeightCheckDuration.MustCurryWith(presetLabels)
-	result.BlockHeightCheckErrors = BlockHeightCheckErrors.MustCurryWith(presetLabels)
+	result.BlockHeight = blockHeight.MustCurryWith(presetLabels)
+	result.BlockHeightCheckRequests = blockHeightCheckRequests.MustCurryWith(presetLabels)
+	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
+	result.BlockHeightCheckErrors = blockHeightCheckErrors.MustCurryWith(presetLabels)
 	return result
 }
 
