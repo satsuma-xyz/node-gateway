@@ -254,6 +254,9 @@ type Container struct {
 	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
 	UpstreamRPCDuration               prometheus.ObserverVec
 	BlockHeight                       *prometheus.GaugeVec
+	BlockHeightCheckRequests          *prometheus.CounterVec
+	BlockHeightCheckDuration          prometheus.ObserverVec
+	BlockHeightCheckErrors            *prometheus.CounterVec
 }
 
 func NewContainer() *Container {
@@ -265,6 +268,9 @@ func NewContainer() *Container {
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
 	result.BlockHeight = BlockHeight.MustCurryWith(presetLabels)
+	result.BlockHeightCheckRequests = BlockHeightCheckRequests.MustCurryWith(presetLabels)
+	result.BlockHeightCheckDuration = BlockHeightCheckDuration.MustCurryWith(presetLabels)
+	result.BlockHeightCheckErrors = BlockHeightCheckErrors.MustCurryWith(presetLabels)
 	return result
 }
 
