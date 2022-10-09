@@ -163,7 +163,7 @@ var (
 		[]string{"upstream_id", "url", "errorType"},
 	)
 
-	PeerCount = promauto.NewGaugeVec(
+	peerCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -173,7 +173,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckRequests = promauto.NewCounterVec(
+	peerCountCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -183,7 +183,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckDuration = promauto.NewHistogramVec(
+	peerCountCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -194,7 +194,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckErrors = promauto.NewCounterVec(
+	peerCountCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -279,10 +279,10 @@ func NewContainer() *Container {
 	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
 	result.BlockHeightCheckErrors = blockHeightCheckErrors.MustCurryWith(presetLabels)
 
-	result.PeerCount = PeerCount.MustCurryWith(presetLabels)
-	result.PeerCountCheckRequests = PeerCountCheckRequests.MustCurryWith(presetLabels)
-	result.PeerCountCheckDuration = PeerCountCheckDuration.MustCurryWith(presetLabels)
-	result.PeerCountCheckErrors = PeerCountCheckErrors.MustCurryWith(presetLabels)
+	result.PeerCount = peerCount.MustCurryWith(presetLabels)
+	result.PeerCountCheckRequests = peerCountCheckRequests.MustCurryWith(presetLabels)
+	result.PeerCountCheckDuration = peerCountCheckDuration.MustCurryWith(presetLabels)
+	result.PeerCountCheckErrors = peerCountCheckErrors.MustCurryWith(presetLabels)
 
 	return result
 }

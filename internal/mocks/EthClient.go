@@ -19,6 +19,14 @@ type EthClient struct {
 	mock.Mock
 }
 
+type EthClient_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *EthClient) EXPECT() *EthClient_Expecter {
+	return &EthClient_Expecter{mock: &_m.Mock}
+}
+
 // HeaderByNumber provides a mock function with given fields: ctx, number
 func (_m *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	ret := _m.Called(ctx, number)
@@ -42,6 +50,30 @@ func (_m *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*type
 	return r0, r1
 }
 
+// EthClient_HeaderByNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeaderByNumber'
+type EthClient_HeaderByNumber_Call struct {
+	*mock.Call
+}
+
+// HeaderByNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - number *big.Int
+func (_e *EthClient_Expecter) HeaderByNumber(ctx interface{}, number interface{}) *EthClient_HeaderByNumber_Call {
+	return &EthClient_HeaderByNumber_Call{Call: _e.mock.On("HeaderByNumber", ctx, number)}
+}
+
+func (_c *EthClient_HeaderByNumber_Call) Run(run func(ctx context.Context, number *big.Int)) *EthClient_HeaderByNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*big.Int))
+	})
+	return _c
+}
+
+func (_c *EthClient_HeaderByNumber_Call) Return(_a0 *types.Header, _a1 error) *EthClient_HeaderByNumber_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // PeerCount provides a mock function with given fields: ctx
 func (_m *EthClient) PeerCount(ctx context.Context) (uint64, error) {
 	ret := _m.Called(ctx)
@@ -61,6 +93,29 @@ func (_m *EthClient) PeerCount(ctx context.Context) (uint64, error) {
 	}
 
 	return r0, r1
+}
+
+// EthClient_PeerCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PeerCount'
+type EthClient_PeerCount_Call struct {
+	*mock.Call
+}
+
+// PeerCount is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *EthClient_Expecter) PeerCount(ctx interface{}) *EthClient_PeerCount_Call {
+	return &EthClient_PeerCount_Call{Call: _e.mock.On("PeerCount", ctx)}
+}
+
+func (_c *EthClient_PeerCount_Call) Run(run func(ctx context.Context)) *EthClient_PeerCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *EthClient_PeerCount_Call) Return(_a0 uint64, _a1 error) *EthClient_PeerCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
 }
 
 // SubscribeNewHead provides a mock function with given fields: ctx, ch
@@ -86,6 +141,30 @@ func (_m *EthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Head
 	return r0, r1
 }
 
+// EthClient_SubscribeNewHead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubscribeNewHead'
+type EthClient_SubscribeNewHead_Call struct {
+	*mock.Call
+}
+
+// SubscribeNewHead is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ch chan<- *types.Header
+func (_e *EthClient_Expecter) SubscribeNewHead(ctx interface{}, ch interface{}) *EthClient_SubscribeNewHead_Call {
+	return &EthClient_SubscribeNewHead_Call{Call: _e.mock.On("SubscribeNewHead", ctx, ch)}
+}
+
+func (_c *EthClient_SubscribeNewHead_Call) Run(run func(ctx context.Context, ch chan<- *types.Header)) *EthClient_SubscribeNewHead_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(chan<- *types.Header))
+	})
+	return _c
+}
+
+func (_c *EthClient_SubscribeNewHead_Call) Return(_a0 ethereum.Subscription, _a1 error) *EthClient_SubscribeNewHead_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
 // SyncProgress provides a mock function with given fields: ctx
 func (_m *EthClient) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
 	ret := _m.Called(ctx)
@@ -107,6 +186,29 @@ func (_m *EthClient) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, 
 	}
 
 	return r0, r1
+}
+
+// EthClient_SyncProgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SyncProgress'
+type EthClient_SyncProgress_Call struct {
+	*mock.Call
+}
+
+// SyncProgress is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *EthClient_Expecter) SyncProgress(ctx interface{}) *EthClient_SyncProgress_Call {
+	return &EthClient_SyncProgress_Call{Call: _e.mock.On("SyncProgress", ctx)}
+}
+
+func (_c *EthClient_SyncProgress_Call) Run(run func(ctx context.Context)) *EthClient_SyncProgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *EthClient_SyncProgress_Call) Return(_a0 *ethereum.SyncProgress, _a1 error) *EthClient_SyncProgress_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
 }
 
 type mockConstructorTestingTNewEthClient interface {

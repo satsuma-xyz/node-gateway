@@ -13,7 +13,7 @@ import (
 
 func TestPeerChecker(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(6), nil)
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(6), nil)
 
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
 		return ethClient, nil
@@ -48,7 +48,7 @@ func TestPeerChecker(t *testing.T) {
 
 func TestPeerChecker_MethodNotSupported(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(0), methodNotSupportedError{})
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(0), methodNotSupportedError{})
 
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
 		return ethClient, nil
