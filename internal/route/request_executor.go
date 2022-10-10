@@ -26,10 +26,10 @@ type ExecutorResult struct {
 
 func (r *RequestExecutor) routeToConfig(
 	ctx context.Context,
-	batchRequest jsonrpc.BatchRequestBody,
+	batchRequest jsonrpc.RequestBody,
 	configToRoute *config.UpstreamConfig,
 ) (*jsonrpc.BatchResponseBody, *http.Response, error) {
-	bodyBytes, err := batchRequest.EncodeRequestBody()
+	bodyBytes, err := batchRequest.Encode()
 	if err != nil {
 		zap.L().Error("Could not serialize request.", zap.Any("request", batchRequest), zap.Error(err))
 		return nil, nil, err

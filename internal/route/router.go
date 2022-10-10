@@ -30,7 +30,7 @@ import (
 type Router interface {
 	Start()
 	IsInitialized() bool
-	Route(ctx context.Context, batchRequest jsonrpc.BatchRequestBody) (*jsonrpc.BatchResponseBody, *http.Response, error)
+	Route(ctx context.Context, batchRequest jsonrpc.RequestBody) (*jsonrpc.BatchResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -100,7 +100,7 @@ func (r *SimpleRouter) IsInitialized() bool {
 
 func (r *SimpleRouter) Route(
 	ctx context.Context,
-	batchRequest jsonrpc.BatchRequestBody,
+	batchRequest jsonrpc.RequestBody,
 ) (*jsonrpc.BatchResponseBody, *http.Response, error) {
 	requestMetadata := r.metadataParser.Parse(batchRequest)
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
@@ -127,10 +127,7 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	rpcMethod := batchRequest.Requests[0].Method
-	if batchRequest.IsOriginallyBatch {
-		rpcMethod = "batch"
-	}
+	rpcMethod := batchRequest.GetMethod()
 
 	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
@@ -142,7 +139,7 @@ func (r *SimpleRouter) Route(
 	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", batchRequest), zap.String("client", util.GetClientFromContext(ctx)))
 
 	go func() {
-		for _, request := range batchRequest.Requests {
+		for _, request := range batchRequest.GetSubRequests() {
 			metrics.UpstreamJSONRPCRequestsTotal.WithLabelValues(
 				util.GetClientFromContext(ctx),
 				id,
@@ -174,8 +171,8 @@ func (r *SimpleRouter) Route(
 	if body != nil {
 		// To help correlate request IDs to responses.
 		// It's the responsibility of the client to provide unique IDs.
-		reqIDToRequestMap := make(map[int]jsonrpc.RequestBody)
-		for _, req := range batchRequest.Requests {
+		reqIDToRequestMap := make(map[int]*jsonrpc.SingleRequestBody)
+		for _, req := range batchRequest.GetSubRequests() {
 			reqIDToRequestMap[int(req.ID)] = req
 		}
 
@@ -189,7 +186,7 @@ func (r *SimpleRouter) Route(
 					util.GetClientFromContext(ctx),
 					id,
 					configToRoute.HTTPURL,
-					reqIDToRequestMap[resp.ID].Method,
+					reqIDToRequestMap[resp.ID].GetMethod(),
 					HTTPReponseCode,
 					strconv.Itoa(resp.Error.Code),
 				).Inc()

@@ -18,7 +18,7 @@ import (
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
-	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody{})
+	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody{})
 	defer healthyUpstream.Close()
 
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
@@ -50,15 +50,15 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	nonStatefulMethod := "eth_getBlockTransactionCountByNumber"
 	expectedBlockTxCount := 29
 
-	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody{
+	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody{
 		//nolint:unparam // error method always return nil
-		statefulMethod: func(t *testing.T, _ jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
 			return nil
 		},
-		nonStatefulMethod: func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		nonStatefulMethod: func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Logf("Serving method %s from full node as expected", nonStatefulMethod)
 
@@ -70,8 +70,8 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	})
 	defer fullNodeUpstream.Close()
 
-	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody{
-		statefulMethod: func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody{
+		statefulMethod: func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
@@ -81,7 +81,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 			}
 		},
 		//nolint:unparam // error method always return nil
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Errorf("Unexpected call to method %s: archive node is at lower priority!", nonStatefulMethod)
 
@@ -129,16 +129,16 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	nonStatefulMethod := "eth_getBlockTransactionCountByNumber"
 	expectedBlockTxCount := 29
 
-	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody{
+	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody{
 		//nolint:unparam // error method always return nil
-		statefulMethod: func(t *testing.T, _ jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
 			return nil
 		},
 		//nolint:unparam // error method always return nil
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Errorf("Unexpected call to non-stateful method %s on a full node!", nonStatefulMethod)
 
@@ -147,8 +147,8 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	})
 	defer fullNodeUpstream.Close()
 
-	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody{
-		statefulMethod: func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+	archiveNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody{
+		statefulMethod: func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
@@ -157,7 +157,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 				ID:     int(request.ID),
 			}
 		},
-		nonStatefulMethod: func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody {
+		nonStatefulMethod: func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody {
 			t.Helper()
 			t.Logf("Serving method %s from archive node as expected.", nonStatefulMethod)
 
@@ -210,10 +210,10 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 func executeRequest(t *testing.T, methodNames []string, handler *RPCHandler) (int, *jsonrpc.BatchResponseBody) {
 	t.Helper()
 
-	requests := make([]jsonrpc.RequestBody, 0)
+	requests := make([]jsonrpc.SingleRequestBody, 0)
 
 	for i, methodName := range methodNames {
-		singleRequest := jsonrpc.RequestBody{
+		singleRequest := jsonrpc.SingleRequestBody{
 			JSONRPCVersion: "2.0",
 			Method:         methodName,
 			ID:             int64(i),
@@ -258,7 +258,7 @@ func startRouterAndHandler(conf config.Config) *RPCHandler {
 
 func setUpHealthyUpstream(
 	t *testing.T,
-	additionalHandlers map[string]func(t *testing.T, request jsonrpc.RequestBody) *jsonrpc.ResponseBody,
+	additionalHandlers map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) *jsonrpc.ResponseBody,
 ) *httptest.Server {
 	t.Helper()
 

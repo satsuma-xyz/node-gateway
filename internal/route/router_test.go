@@ -110,7 +110,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), jsonrpc.BatchRequestBody{Requests: []jsonrpc.RequestBody{{}}})
+	jsonRPCResp, httpResp, err := router.Route(context.Background(), jsonrpc.BatchRequestBody{Requests: []jsonrpc.SingleRequestBody{{}}})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
@@ -155,7 +155,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), jsonrpc.BatchRequestBody{Requests: []jsonrpc.RequestBody{{}}})
+	jsonRPCResp, httpResp, err := router.Route(context.Background(), jsonrpc.BatchRequestBody{Requests: []jsonrpc.SingleRequestBody{{}}})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)

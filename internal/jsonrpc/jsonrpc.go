@@ -11,19 +11,55 @@ import (
 const JSONRPCVersion = "2.0"
 const InternalServerErrorCode = -32000
 
+type RequestBody interface {
+	Encode() ([]byte, error)
+	GetMethod() string
+	GetSubRequests() []*SingleRequestBody
+}
+
 // See: https://www.jsonrpc.org/specification#request_object
-type RequestBody struct {
+type SingleRequestBody struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	Method         string `json:"method,omitempty"`
 	Params         []any  `json:"params,omitempty"`
 	ID             int64  `json:"id,omitempty"`
 }
 
+func (b *SingleRequestBody) Encode() ([]byte, error) {
+	return json.Marshal(b)
+}
+
+func (b *SingleRequestBody) GetMethod() string {
+	return b.Method
+}
+
+func (b *SingleRequestBody) GetSubRequests() []*SingleRequestBody {
+	return []*SingleRequestBody{b}
+}
+
 // All requests, even non-batch, are represented by BatchRequestBody for convenience.
-// A non-batch request is characterized by len([]RequestBody) == 1 and IsBatch == false.
+// A non-batch request is characterized by len([]SingleRequestBody) == 1 and IsBatch == false.
 type BatchRequestBody struct {
-	Requests          []RequestBody
+	Requests          []SingleRequestBody
 	IsOriginallyBatch bool // This is required to distinguish clients that batch a single request.
+}
+
+func (b *BatchRequestBody) Encode() ([]byte, error) {
+	return json.Marshal(b.Requests)
+}
+
+func (b *BatchRequestBody) GetMethod() string {
+	return "batch"
+}
+
+func (b *BatchRequestBody) GetSubRequests() []*SingleRequestBody {
+	result := make([]*SingleRequestBody, len(b.Requests))
+
+	for index := range b.Requests {
+		result = append(result, &b.Requests[index])
+	}
+
+	return result
 }
 
 func (b *BatchRequestBody) EncodeRequestBody() ([]byte, error) {
@@ -65,7 +101,7 @@ type Error struct {
 }
 
 type Decodable interface {
-	RequestBody | []RequestBody | ResponseBody | []ResponseBody
+	SingleRequestBody | []SingleRequestBody | ResponseBody | []ResponseBody
 }
 
 type DecodeError struct {
@@ -84,7 +120,7 @@ func (e DecodeError) Error() string {
 	return fmt.Sprintf("decode error: %s, content: %s", e.Err.Error(), string(e.Content))
 }
 
-func DecodeRequestBody(req *http.Request) (*BatchRequestBody, error) {
+func DecodeRequestBody(req *http.Request) (RequestBody, error) {
 	// No need to close the request body, the Server implementation will take care of it.
 	requestRawBytes, err := io.ReadAll(req.Body)
 
@@ -92,19 +128,20 @@ func DecodeRequestBody(req *http.Request) (*BatchRequestBody, error) {
 		return nil, NewDecodeError(err, requestRawBytes)
 	}
 
-	var body *RequestBody
+	var body *SingleRequestBody
 
 	// Try non-batch first as these are probably more common.
-	if body, err = decode[RequestBody](requestRawBytes); err == nil {
-		return &BatchRequestBody{
-			Requests:          []RequestBody{*body},
-			IsOriginallyBatch: false,
-		}, nil
+	if body, err = decode[SingleRequestBody](requestRawBytes); err == nil {
+		return body, nil
+		//return &BatchRequestBody{
+		//	Requests:          []SingleRequestBody{*body},
+		//	IsOriginallyBatch: false,
+		//}, nil
 	}
 
-	var batchBody *[]RequestBody
+	var batchBody *[]SingleRequestBody
 
-	if batchBody, err = decode[[]RequestBody](requestRawBytes); err == nil {
+	if batchBody, err = decode[[]SingleRequestBody](requestRawBytes); err == nil {
 		return &BatchRequestBody{
 			Requests:          *batchBody,
 			IsOriginallyBatch: true,
@@ -177,7 +214,7 @@ func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) Batch
 	}
 }
 
-func CreateErrorJSONRPCResponseBodyWithRequests(message string, jsonRPCStatusCode int, reqs []RequestBody) BatchResponseBody {
+func CreateErrorJSONRPCResponseBodyWithRequests(message string, jsonRPCStatusCode int, reqs []*SingleRequestBody) BatchResponseBody {
 	responseBodies := make([]ResponseBody, 0, len(reqs))
 
 	for _, req := range reqs {

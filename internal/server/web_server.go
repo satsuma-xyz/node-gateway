@@ -108,7 +108,7 @@ type RPCHandler struct {
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		respondJSON(writer, "Method not allowed.", http.StatusMethodNotAllowed)
+		respondJSON(writer, "GetMethod not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -135,7 +135,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
 
-	respBody, resp, err := h.router.Route(ctx, *requestBody)
+	respBody, resp, err := h.router.Route(ctx, requestBody)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
@@ -146,7 +146,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 			respondRaw(writer, e.Content, http.StatusOK)
 			return
 		default:
-			resp := jsonrpc.CreateErrorJSONRPCResponseBodyWithRequests(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, requestBody.Requests)
+			resp := jsonrpc.CreateErrorJSONRPCResponseBodyWithRequests(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, requestBody.GetSubRequests())
 			respondJSONRPC(writer, &resp, http.StatusInternalServerError)
 
 			return

@@ -22,7 +22,7 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 		return testArgs{
 			methodName,
 			args{jsonrpc.BatchRequestBody{
-				Requests: []jsonrpc.RequestBody{{Method: methodName}},
+				Requests: []jsonrpc.SingleRequestBody{{Method: methodName}},
 			}},
 			RequestMetadata{IsStateRequired: isStateRequired},
 		}

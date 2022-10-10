@@ -16,7 +16,7 @@ var defaultUpstreamConfig = &config.UpstreamConfig{
 
 type methodNotSupportedError struct{}
 
-func (e methodNotSupportedError) Error() string  { return "Method Not Supported." }
+func (e methodNotSupportedError) Error() string  { return "GetMethod Not Supported." }
 func (e methodNotSupportedError) ErrorCode() int { return -32601 }
 
 func TestMethodIsNotSupportedError(t *testing.T) {
