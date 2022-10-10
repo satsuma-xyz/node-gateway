@@ -205,7 +205,7 @@ var (
 	)
 
 	// Use 0 or 1
-	SyncStatus = promauto.NewGaugeVec(
+	syncStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -215,7 +215,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckRequests = promauto.NewCounterVec(
+	syncStatusCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -225,7 +225,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckDuration = promauto.NewHistogramVec(
+	syncStatusCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -236,7 +236,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckErrors = promauto.NewCounterVec(
+	syncStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -290,10 +290,10 @@ func NewContainer() *Container {
 	result.PeerCountCheckDuration = peerCountCheckDuration.MustCurryWith(presetLabels)
 	result.PeerCountCheckErrors = peerCountCheckErrors.MustCurryWith(presetLabels)
 
-	result.SyncStatus = SyncStatus.MustCurryWith(presetLabels)
-	result.SyncStatusCheckRequests = SyncStatusCheckRequests.MustCurryWith(presetLabels)
-	result.SyncStatusCheckDuration = SyncStatusCheckDuration.MustCurryWith(presetLabels)
-	result.SyncStatusCheckErrors = SyncStatusCheckErrors.MustCurryWith(presetLabels)
+	result.SyncStatus = syncStatus.MustCurryWith(presetLabels)
+	result.SyncStatusCheckRequests = syncStatusCheckRequests.MustCurryWith(presetLabels)
+	result.SyncStatusCheckDuration = syncStatusCheckDuration.MustCurryWith(presetLabels)
+	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
 
 	return result
 }
