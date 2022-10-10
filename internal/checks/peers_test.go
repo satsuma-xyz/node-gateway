@@ -20,7 +20,7 @@ func TestPeerChecker(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer("test_net"), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
@@ -55,7 +55,7 @@ func TestPeerChecker_MethodNotSupported(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer("test_net"), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)

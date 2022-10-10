@@ -38,7 +38,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer("test_net"), zap.L())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 
@@ -66,7 +66,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer("test_net"), zap.L())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 	assert.False(t, checker.IsPassing(maxBlockHeight))
@@ -101,7 +101,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 		chainMetadataStore := metadata.NewChainMetadataStore()
 		chainMetadataStore.Start()
 
-		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
+		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore, metrics.NewContainer("test_net"), zap.L())
 
 		checker.RunCheck()
 		ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 0)

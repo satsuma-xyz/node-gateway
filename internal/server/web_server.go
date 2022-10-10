@@ -77,7 +77,7 @@ type DependencyContainer struct {
 }
 
 func wireDependencies(config conf.Config, logger *zap.Logger) *DependencyContainer {
-	metricContainer := metrics.NewContainer()
+	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
