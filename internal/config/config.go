@@ -118,12 +118,43 @@ type RoutingConfig struct {
 	MaxBlocksBehind int `yaml:"maxBlocksBehind"`
 }
 
-type Config struct {
+type SingleChainConfig struct {
+	ChainName string `yaml:"chainName"`
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
-	Global    GlobalConfig
 	Routing   RoutingConfig
-	ChainName string `yaml:"chainName"`
+}
+
+func (c *SingleChainConfig) isValid() bool {
+	isChainConfigValid := true
+	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
+
+	for _, upstream := range c.Upstreams {
+		isChainConfigValid = isChainConfigValid && upstream.isValid(c.Groups)
+	}
+
+	if c.ChainName == "" {
+		zap.L().Error("chainName cannot be empty", zap.Any("config", c))
+		isChainConfigValid = false
+	}
+
+	return isChainConfigValid
+}
+
+func isChainsValid(chainsConfig []SingleChainConfig) bool {
+	isValid := len(chainsConfig) > 0
+
+	for chainIndex := range chainsConfig {
+		chainConfig := &chainsConfig[chainIndex]
+
+		isValid = isValid && chainConfig.isValid()
+	}
+	return isValid
+}
+
+type Config struct {
+	Global GlobalConfig
+	Chains []SingleChainConfig
 }
 
 func LoadConfig(configFilePath string) (Config, error) {
@@ -144,13 +175,7 @@ func parseConfig(configBytes []byte) (Config, error) {
 		return config, err
 	}
 
-	isValid := IsGroupsValid(config.Groups)
-
-	for _, upstream := range config.Upstreams {
-		isValid = isValid && upstream.isValid(config.Groups)
-	}
-
-	isValid = isValid && config.ChainName != ""
+	isValid := isChainsValid(config.Chains)
 
 	if !isValid {
 		err = errors.New("invalid config found")

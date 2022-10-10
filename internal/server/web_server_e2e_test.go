@@ -32,9 +32,11 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	}
 
 	conf := config.Config{
-		Upstreams: upstreamConfigs,
-		Groups:    nil,
-		Global:    config.GlobalConfig{},
+		Chains: []config.SingleChainConfig{{
+			Upstreams: upstreamConfigs,
+			Groups:    nil,
+		}},
+		Global: config.GlobalConfig{},
 	}
 
 	handler := startRouterAndHandler(conf)
@@ -104,9 +106,11 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 		{ID: archiveNodeGroupID, Priority: 1},
 	}
 	conf := config.Config{
-		Upstreams: upstreamConfigs,
-		Groups:    groupConfigs,
-		Global:    config.GlobalConfig{},
+		Chains: []config.SingleChainConfig{{
+			Upstreams: upstreamConfigs,
+			Groups:    groupConfigs,
+		}},
+		Global: config.GlobalConfig{},
 	}
 
 	handler := startRouterAndHandler(conf)
@@ -258,7 +262,8 @@ func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandl
 
 func startRouterAndHandler(conf config.Config) *RPCHandler {
 	testLogger := zap.L()
-	dependencyContainer := wireDependencies(conf, testLogger)
+	currentChainConfig := &conf.Chains[0]
+	dependencyContainer := wireSingleChainDependencies(currentChainConfig, testLogger)
 	router := dependencyContainer.router
 	router.Start()
 

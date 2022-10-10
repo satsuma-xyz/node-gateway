@@ -18,11 +18,13 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             global:
               port: 8080
 
-            upstreams:
-              - id: alchemy-eth
-                wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-                healthCheck:
-                  useWsForBlockHeight: true
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    healthCheck:
+                      useWsForBlockHeight: true
             `,
 		},
 		{
@@ -31,11 +33,13 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             global:
               port: 8080
 
-            upstreams:
-              - id: alchemy-eth
-                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-                healthCheck:
-                  useWsForBlockHeight: true
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    healthCheck:
+                      useWsForBlockHeight: true
             `,
 		},
 		{
@@ -44,16 +48,18 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             global:
               port: 8080
 
-            upstreams:
-              - id: alchemy-eth
-                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-                group: primary
-            
-            groups:
-              - id: primary
-                priority: 0
-              - id: fallback
-                priority: 0
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: primary
+                
+                groups:
+                  - id: primary
+                    priority: 0
+                  - id: fallback
+                    priority: 0
             `,
 		},
 		{
@@ -62,13 +68,15 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             global:
               port: 8080
 
-            upstreams:
-              - id: alchemy-eth
-                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-            
-            groups:
-              - id: primary
-                priority: 0
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                
+                groups:
+                  - id: primary
+                    priority: 0
             `,
 		},
 		{
@@ -77,14 +85,16 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             global:
               port: 8080
 
-            upstreams:
-              - id: alchemy-eth
-                httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-                group: something-that-doesnt-exist
-            
-            groups:
-              - id: primary
-                priority: 0
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: something-that-doesnt-exist
+                
+                groups:
+                  - id: primary
+                    priority: 0
             `,
 		},
 	} {
@@ -107,27 +117,28 @@ func TestParseConfig_ValidConfig(t *testing.T) {
     global:
       port: 8080
 
-    chainName: ethereum
+    chains:
+      - chainName: ethereum
 
-    groups:
-      - id: primary
-        priority: 0
-      - id: fallback
-        priority: 1
+        groups:
+          - id: primary
+            priority: 0
+          - id: fallback
+            priority: 1
 
-    upstreams:
-      - id: alchemy-eth
-        httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-        wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-        healthCheck:
-          useWsForBlockHeight: true
-        group: primary
-        nodeType: full
-      - id: ankr-polygon
-        httpURL: "https://rpc.ankr.com/polygon"
-        wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
-        group: fallback
-        nodeType: archive
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            healthCheck:
+              useWsForBlockHeight: true
+            group: primary
+            nodeType: full
+          - id: ankr-polygon
+            httpURL: "https://rpc.ankr.com/polygon"
+            wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
+            group: fallback
+            nodeType: archive
   `
 	configBytes := []byte(config)
 
@@ -138,42 +149,44 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	}
 
 	expectedConfig := Config{
-		Upstreams: []UpstreamConfig{
-			{
-				ID:      "alchemy-eth",
-				HTTPURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
-				WSURL:   "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
-				HealthCheckConfig: HealthCheckConfig{
-					UseWSForBlockHeight: newBool(true),
-				},
-				GroupID:  "primary",
-				NodeType: Full,
-			},
-			{
-				ID:      "ankr-polygon",
-				HTTPURL: "https://rpc.ankr.com/polygon",
-				WSURL:   "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
-				HealthCheckConfig: HealthCheckConfig{
-					UseWSForBlockHeight: nil,
-				},
-				GroupID:  "fallback",
-				NodeType: Archive,
-			},
-		},
 		Global: GlobalConfig{
 			Port: 8080,
 		},
-		ChainName: "ethereum",
-		Groups: []GroupConfig{
-			{
-				ID:       "primary",
-				Priority: 0,
+		Chains: []SingleChainConfig{{
+			Upstreams: []UpstreamConfig{
+				{
+					ID:      "alchemy-eth",
+					HTTPURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+					WSURL:   "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+					HealthCheckConfig: HealthCheckConfig{
+						UseWSForBlockHeight: newBool(true),
+					},
+					GroupID:  "primary",
+					NodeType: Full,
+				},
+				{
+					ID:      "ankr-polygon",
+					HTTPURL: "https://rpc.ankr.com/polygon",
+					WSURL:   "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}",
+					HealthCheckConfig: HealthCheckConfig{
+						UseWSForBlockHeight: nil,
+					},
+					GroupID:  "fallback",
+					NodeType: Archive,
+				},
 			},
-			{
-				ID:       "fallback",
-				Priority: 1,
+			ChainName: "ethereum",
+			Groups: []GroupConfig{
+				{
+					ID:       "primary",
+					Priority: 0,
+				},
+				{
+					ID:       "fallback",
+					Priority: 1,
+				},
 			},
-		},
+		}},
 	}
 
 	if !reflect.DeepEqual(parsedConfig, expectedConfig) {
