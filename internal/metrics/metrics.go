@@ -263,11 +263,17 @@ type Container struct {
 	PeerCountCheckRequests *prometheus.CounterVec
 	PeerCountCheckDuration prometheus.ObserverVec
 	PeerCountCheckErrors   *prometheus.CounterVec
+
+	SyncStatus              *prometheus.GaugeVec
+	SyncStatusCheckRequests *prometheus.CounterVec
+	SyncStatusCheckDuration prometheus.ObserverVec
+	SyncStatusCheckErrors   *prometheus.CounterVec
 }
 
 func NewContainer() *Container {
 	result := new(Container)
 	presetLabels := make(prometheus.Labels)
+
 	result.UpstreamRPCRequestsTotal = upstreamRPCRequestsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestsTotal = upstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
@@ -283,6 +289,11 @@ func NewContainer() *Container {
 	result.PeerCountCheckRequests = peerCountCheckRequests.MustCurryWith(presetLabels)
 	result.PeerCountCheckDuration = peerCountCheckDuration.MustCurryWith(presetLabels)
 	result.PeerCountCheckErrors = peerCountCheckErrors.MustCurryWith(presetLabels)
+
+	result.SyncStatus = SyncStatus.MustCurryWith(presetLabels)
+	result.SyncStatusCheckRequests = SyncStatusCheckRequests.MustCurryWith(presetLabels)
+	result.SyncStatusCheckDuration = SyncStatusCheckDuration.MustCurryWith(presetLabels)
+	result.SyncStatusCheckErrors = SyncStatusCheckErrors.MustCurryWith(presetLabels)
 
 	return result
 }

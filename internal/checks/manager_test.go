@@ -60,6 +60,7 @@ func TestHealthCheckManager(t *testing.T) {
 	manager.(*healthCheckManager).newSyncingCheck = func(
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
 	) types.Checker {
 		return mockSyncingChecker
 	}

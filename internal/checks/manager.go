@@ -38,7 +38,7 @@ type healthCheckManager struct {
 	ethClientGetter     client.EthClientGetter
 	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container) types.BlockHeightChecker
 	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container) types.Checker
-	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter) types.Checker
+	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container) types.Checker
 	blockHeightObserver BlockHeightObserver
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
@@ -127,7 +127,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient)
+				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient, h.metricsContainer)
 			}()
 
 			innerWG.Wait()

@@ -11,18 +11,20 @@ import (
 )
 
 type SyncingCheck struct {
-	client         client.EthClient
-	Err            error
-	clientGetter   client.EthClientGetter
-	upstreamConfig *conf.UpstreamConfig
-	IsSyncing      bool
-	ShouldRun      bool
+	client           client.EthClient
+	Err              error
+	clientGetter     client.EthClientGetter
+	metricsContainer *metrics.Container
+	upstreamConfig   *conf.UpstreamConfig
+	IsSyncing        bool
+	ShouldRun        bool
 }
 
-func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter) types.Checker {
+func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter, metricsContainer *metrics.Container) types.Checker {
 	c := &SyncingCheck{
-		upstreamConfig: upstreamConfig,
-		clientGetter:   clientGetter,
+		upstreamConfig:   upstreamConfig,
+		clientGetter:     clientGetter,
+		metricsContainer: metricsContainer,
 		// Set `isSyncing:true` until we check the upstream node's syncing status.
 		IsSyncing: true,
 		// Set `ShouldRun:true` until we verify `eth.syncing` is a supported method of the Upstream.
@@ -62,7 +64,7 @@ func (c *SyncingCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
 			zap.L().Error("Error initializing SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
+			c.metricsContainer.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
 
@@ -79,7 +81,7 @@ func (c *SyncingCheck) runCheck() {
 	runCheck := func() {
 		result, err := c.client.SyncProgress(context.Background())
 		if c.Err = err; err != nil {
-			metrics.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+			c.metricsContainer.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
 		}
 
@@ -90,14 +92,14 @@ func (c *SyncingCheck) runCheck() {
 			gauge = 1
 		}
 
-		metrics.SyncStatus.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(gauge))
+		c.metricsContainer.SyncStatus.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(gauge))
 
 		zap.L().Debug("Ran SyncingCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("syncProgress", result))
 	}
 
 	runCheckWithMetrics(runCheck,
-		metrics.SyncStatusCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		metrics.SyncStatusCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		c.metricsContainer.SyncStatusCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		c.metricsContainer.SyncStatusCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *SyncingCheck) IsPassing() bool {
