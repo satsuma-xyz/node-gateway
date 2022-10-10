@@ -38,11 +38,11 @@ type SimpleRouter struct {
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
 	requestExecutor    RequestExecutor
+	metricsContainer   *metrics.Container
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
 	upstreamConfigs     []config.UpstreamConfig
-	metricsContainer    *metrics.Container
 }
 
 func NewRouter(
