@@ -8,6 +8,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestPriorityStrategy_HighPriority(t *testing.T) {
@@ -16,7 +17,7 @@ func TestPriorityStrategy_HighPriority(t *testing.T) {
 		1: {cfg("erigon")},
 	}
 
-	strategy := NewPriorityRoundRobinStrategy()
+	strategy := NewPriorityRoundRobinStrategy(zap.L())
 
 	for i := 0; i < 10; i++ {
 		firstUpstreamID, _ := strategy.RouteNextRequest(upstreams, metadata.RequestMetadata{})
@@ -39,7 +40,7 @@ func TestPriorityStrategy_LowerPriority(t *testing.T) {
 		1: {cfg("fallback1"), cfg("fallback2")},
 	}
 
-	strategy := NewPriorityRoundRobinStrategy()
+	strategy := NewPriorityRoundRobinStrategy(zap.L())
 
 	for i := 0; i < 10; i++ {
 		firstUpstreamID, _ := strategy.RouteNextRequest(upstreams, metadata.RequestMetadata{})
@@ -56,7 +57,7 @@ func TestPriorityStrategy_NoUpstreams(t *testing.T) {
 		1: {},
 	}
 
-	strategy := NewPriorityRoundRobinStrategy()
+	strategy := NewPriorityRoundRobinStrategy(zap.L())
 
 	for i := 0; i < 10; i++ {
 		upstreamID, err := strategy.RouteNextRequest(upstreams, metadata.RequestMetadata{})

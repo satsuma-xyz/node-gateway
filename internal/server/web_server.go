@@ -32,14 +32,16 @@ type RPCServer struct {
 	config     conf.Config
 }
 
-func NewRPCServer(config conf.Config) RPCServer {
-	dependencyContainer := wireDependencies(config)
+func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
+	dependencyContainer := wireDependencies(config, rootLogger)
 	router := dependencyContainer.router
 	handler := &RPCHandler{
 		router: router,
+		logger: rootLogger,
 	}
 	healthCheckHandler := &HealthCheckHandler{
 		router: router,
+		logger: rootLogger,
 	}
 
 	port := defaultServerPort
@@ -72,20 +74,21 @@ type DependencyContainer struct {
 	metricsContainer *metrics.Container
 }
 
-func wireDependencies(config conf.Config) *DependencyContainer {
+func wireDependencies(config conf.Config, logger *zap.Logger) *DependencyContainer {
 	metricContainer := metrics.NewContainer()
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker, metricContainer)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
 
 	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.SimpleStateOrTracePresent, route.NearGlobalMaxHeight}
-	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, &config.Routing)
+	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &config.Routing)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,
-		BackingStrategy: route.NewPriorityRoundRobinStrategy(),
+		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger),
+		Logger:          logger,
 	}
 
-	router := route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer)
+	router := route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
 
 	return &DependencyContainer{
 		router:           router,
@@ -104,23 +107,25 @@ func (s *RPCServer) Shutdown() error {
 
 type HealthCheckHandler struct {
 	router route.Router
+	logger *zap.Logger
 }
 
 func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Request) {
 	if h.router.IsInitialized() {
-		respondRaw(writer, []byte("OK"), http.StatusOK)
+		respondRaw(h.logger, writer, []byte("OK"), http.StatusOK)
 	} else {
-		respondRaw(writer, []byte("Starting up"), http.StatusServiceUnavailable)
+		respondRaw(h.logger, writer, []byte("Starting up"), http.StatusServiceUnavailable)
 	}
 }
 
 type RPCHandler struct {
 	router route.Router
+	logger *zap.Logger
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		respondJSON(writer, "Method not allowed.", http.StatusMethodNotAllowed)
+		respondJSON(h.logger, writer, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -131,7 +136,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	// 'application/json' or 'application/jsonrequest'.
 	// See https://www.jsonrpc.org/historical/json-rpc-over-http.html.
 	if !slices.Contains([]string{"application/json", "application/json-rpc", "application/jsonrequest"}, headerContentType) {
-		respondJSON(writer, "Content-Type not supported.", http.StatusUnsupportedMediaType)
+		respondJSON(h.logger, writer, "Content-Type not supported.", http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -139,13 +144,13 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		errMsg := fmt.Sprintf("Request body could not be parsed, err: %s", err.Error())
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(errMsg, jsonrpc.InternalServerErrorCode)
-		zap.L().Error(errMsg)
-		respondJSONRPC(writer, resp, http.StatusBadRequest)
+		h.logger.Error(errMsg)
+		respondJSONRPC(h.logger, writer, resp, http.StatusBadRequest)
 
 		return
 	}
 
-	zap.L().Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
+	h.logger.Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
 
 	respBody, resp, err := h.router.Route(ctx, requestBody)
 	if resp != nil {
@@ -155,19 +160,19 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		switch e := err.(type) {
 		case jsonrpc.DecodeError:
-			respondRaw(writer, e.Content, http.StatusOK)
+			respondRaw(nil, writer, e.Content, http.StatusOK)
 			return
 		default:
 			resp := jsonrpc.CreateErrorJSONRPCResponseBodyWithRequest(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, requestBody)
-			respondJSONRPC(writer, resp, http.StatusInternalServerError)
+			respondJSONRPC(h.logger, writer, resp, http.StatusInternalServerError)
 
 			return
 		}
 	}
 
-	respondJSONRPC(writer, respBody, resp.StatusCode)
+	respondJSONRPC(h.logger, writer, respBody, resp.StatusCode)
 
-	zap.L().Debug("Request successfully routed.", zap.Any("requestBody", requestBody))
+	h.logger.Debug("Request successfully routed.", zap.Any("requestBody", requestBody))
 }
 
 func getClientID(req *http.Request) string {
@@ -183,7 +188,12 @@ func getClientID(req *http.Request) string {
 	return "unknown"
 }
 
-func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, httpStatusCode int) {
+func respondJSONRPC(
+	logger *zap.Logger,
+	writer http.ResponseWriter,
+	response jsonrpc.ResponseBody,
+	httpStatusCode int,
+) {
 	if response == nil {
 		writer.WriteHeader(httpStatusCode)
 		return
@@ -191,7 +201,7 @@ func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, h
 
 	respBytes, err := response.Encode()
 	if err != nil {
-		zap.L().Error("Failed to serialize response.", zap.Error(err), zap.String("response", string(respBytes)))
+		logger.Error("Failed to serialize response.", zap.Error(err), zap.String("response", string(respBytes)))
 		return
 	}
 
@@ -202,12 +212,12 @@ func respondJSONRPC(writer http.ResponseWriter, response jsonrpc.ResponseBody, h
 	writer.WriteHeader(httpStatusCode)
 
 	if i, err := writer.Write(respBytes); err != nil {
-		zap.L().Error("Failed to write JSON RPC response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
+		logger.Error("Failed to write JSON RPC response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(respBytes)))
 		return
 	}
 }
 
-func respondJSON(writer http.ResponseWriter, message string, httpStatusCode int) {
+func respondJSON(logger *zap.Logger, writer http.ResponseWriter, message string, httpStatusCode int) {
 	resp := make(map[string]string)
 	if message != "" {
 		resp["message"] = message
@@ -221,16 +231,16 @@ func respondJSON(writer http.ResponseWriter, message string, httpStatusCode int)
 
 	jsonResp, _ := json.Marshal(resp)
 	if i, err := writer.Write(jsonResp); err != nil {
-		zap.L().Error("Failed to write response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
+		logger.Error("Failed to write response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(jsonResp)))
 		return
 	}
 }
 
-func respondRaw(writer http.ResponseWriter, body []byte, httpStatusCode int) {
+func respondRaw(logger *zap.Logger, writer http.ResponseWriter, body []byte, httpStatusCode int) {
 	writer.WriteHeader(httpStatusCode)
 
 	if i, err := writer.Write(body); err != nil {
-		zap.L().Error("Failed to write raw response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(body)))
+		logger.Error("Failed to write raw response body.", zap.Error(err), zap.Int("bytesWritten", i), zap.String("response", string(body)))
 		return
 	}
 }

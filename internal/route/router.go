@@ -39,6 +39,7 @@ type SimpleRouter struct {
 	routingStrategy    RoutingStrategy
 	requestExecutor    RequestExecutor
 	metricsContainer   *metrics.Container
+	logger             *zap.Logger
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
@@ -52,6 +53,7 @@ func NewRouter(
 	healthCheckManager checks.HealthCheckManager,
 	routingStrategy RoutingStrategy,
 	metricsContainer *metrics.Container,
+	logger *zap.Logger,
 ) Router {
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
@@ -62,6 +64,7 @@ func NewRouter(
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
+		logger:              logger,
 	}
 
 	return r
@@ -137,7 +140,7 @@ func (r *SimpleRouter) Route(
 		requestBody.GetMethod(),
 	).Inc()
 
-	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
+	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 
 	go func() {
 		for _, request := range requestBody.GetSubRequests() {

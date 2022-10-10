@@ -9,6 +9,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/satsuma-data/node-gateway/internal/types"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -41,12 +42,13 @@ func TestHealthCheckManager(t *testing.T) {
 
 	metricsContainer := metrics.NewContainer()
 
-	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker, metricsContainer)
+	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker, metricsContainer, zap.L())
 	manager.(*healthCheckManager).newBlockHeightCheck = func(
 		*config.UpstreamConfig,
 		client.EthClientGetter,
 		BlockHeightObserver,
 		*metrics.Container,
+		*zap.Logger,
 	) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
@@ -54,6 +56,7 @@ func TestHealthCheckManager(t *testing.T) {
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
 		metricsContainer *metrics.Container,
+		logger *zap.Logger,
 	) types.Checker {
 		return mockPeerChecker
 	}
@@ -61,6 +64,7 @@ func TestHealthCheckManager(t *testing.T) {
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
 		metricsContainer *metrics.Container,
+		logger *zap.Logger,
 	) types.Checker {
 		return mockSyncingChecker
 	}

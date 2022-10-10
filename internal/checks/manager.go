@@ -36,12 +36,13 @@ type HealthCheckManager interface {
 type healthCheckManager struct {
 	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container) types.BlockHeightChecker
-	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container) types.Checker
-	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container) types.Checker
+	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container, *zap.Logger) types.BlockHeightChecker
+	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
+	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
 	blockHeightObserver BlockHeightObserver
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
+	logger              *zap.Logger
 	configs             []conf.UpstreamConfig
 	isInitialized       atomic.Bool
 }
@@ -52,6 +53,7 @@ func NewHealthCheckManager(
 	blockHeightObserver BlockHeightObserver,
 	healthCheckTicker *time.Ticker,
 	metricsContainer *metrics.Container,
+	logger *zap.Logger,
 ) HealthCheckManager {
 	return &healthCheckManager{
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
@@ -63,11 +65,12 @@ func NewHealthCheckManager(
 		blockHeightObserver: blockHeightObserver,
 		healthCheckTicker:   healthCheckTicker,
 		metricsContainer:    metricsContainer,
+		logger:              logger,
 	}
 }
 
 func (h *healthCheckManager) StartHealthChecks() {
-	zap.L().Info("Starting health checks.")
+	h.logger.Info("Starting health checks.")
 
 	go func() {
 		h.initializeChecks()
@@ -107,7 +110,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver, h.metricsContainer)
+				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver, h.metricsContainer, h.logger)
 			}()
 
 			var peerCheck types.Checker
@@ -117,7 +120,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				peerCheck = h.newPeerCheck(&config, client.NewEthClient, h.metricsContainer)
+				peerCheck = h.newPeerCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
 			}()
 
 			var syncingCheck types.Checker
@@ -127,7 +130,7 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient, h.metricsContainer)
+				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
 			}()
 
 			innerWG.Wait()
@@ -160,7 +163,7 @@ func (h *healthCheckManager) runChecksOnce() {
 
 	for i := range h.configs {
 		config := h.configs[i]
-		zap.L().Debug("Running healthchecks on upstream.", zap.String("upstreamID", config.ID))
+		h.logger.Debug("Running healthchecks on upstream.", zap.String("upstreamID", config.ID))
 
 		wg.Add(1)
 

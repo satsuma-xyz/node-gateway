@@ -10,6 +10,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 )
 
 func TestSyncingChecker(t *testing.T) {
@@ -20,7 +21,7 @@ func TestSyncingChecker(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
+	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
 
 	assert.False(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "SyncProgress", 1)
@@ -48,7 +49,7 @@ func TestSyncingChecker_MethodNotSupported(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
+	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "SyncProgress", 1)
