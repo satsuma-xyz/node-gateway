@@ -107,6 +107,8 @@ func TestParseConfig_ValidConfig(t *testing.T) {
     global:
       port: 8080
 
+    chainName: ethereum
+
     groups:
       - id: primary
         priority: 0
@@ -161,6 +163,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 		Global: GlobalConfig{
 			Port: 8080,
 		},
+		ChainName: "ethereum",
 		Groups: []GroupConfig{
 			{
 				ID:       "primary",
