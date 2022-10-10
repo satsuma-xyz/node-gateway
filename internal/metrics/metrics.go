@@ -70,7 +70,7 @@ var (
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
-		// jsonrpc_method is "batch" for batch requests
+		// jsonrpc_method is  "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
@@ -248,6 +248,10 @@ var (
 )
 
 type Container struct {
+	RPCRequestsCounter  *prometheus.CounterVec
+	RPCRequestsDuration prometheus.ObserverVec
+	RPCResponseSizes    prometheus.ObserverVec
+
 	UpstreamRPCRequestsTotal          *prometheus.CounterVec
 	UpstreamJSONRPCRequestsTotal      *prometheus.CounterVec
 	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
@@ -280,6 +284,10 @@ func NewContainer() *Container {
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
 
+	result.RPCRequestsCounter = rpcRequestsCounter.MustCurryWith(presetLabels)
+	result.RPCRequestsDuration = rpcRequestsDuration.MustCurryWith(presetLabels)
+	result.RPCResponseSizes = rpcResponseSizes.MustCurryWith(presetLabels)
+
 	result.BlockHeight = blockHeight.MustCurryWith(presetLabels)
 	result.BlockHeightCheckRequests = blockHeightCheckRequests.MustCurryWith(presetLabels)
 	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
@@ -309,10 +317,10 @@ func NewMetricsServer() *http.Server {
 	}
 }
 
-func InstrumentHandler(handler http.Handler) http.Handler {
-	withRequestsCounter := promhttp.InstrumentHandlerCounter(rpcRequestsCounter, handler)
-	withRequestsDuration := promhttp.InstrumentHandlerDuration(rpcRequestsDuration, withRequestsCounter)
-	withResponseSizes := promhttp.InstrumentHandlerResponseSize(rpcResponseSizes, withRequestsDuration)
+func InstrumentHandler(handler http.Handler, container *Container) http.Handler {
+	withRequestsCounter := promhttp.InstrumentHandlerCounter(container.RPCRequestsCounter, handler)
+	withRequestsDuration := promhttp.InstrumentHandlerDuration(container.RPCRequestsDuration, withRequestsCounter)
+	withResponseSizes := promhttp.InstrumentHandlerResponseSize(container.RPCResponseSizes, withRequestsDuration)
 
 	return withResponseSizes
 }

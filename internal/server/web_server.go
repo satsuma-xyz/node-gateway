@@ -33,7 +33,8 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config) RPCServer {
-	router := wireRouter(config)
+	dependencyContainer := wireDependencies(config)
+	router := dependencyContainer.router
 	handler := &RPCHandler{
 		router: router,
 	}
@@ -49,7 +50,7 @@ func NewRPCServer(config conf.Config) RPCServer {
 	mux := http.NewServeMux()
 	mux.Handle("/health", healthCheckHandler)
 
-	mux.Handle("/", metrics.InstrumentHandler(handler))
+	mux.Handle("/", metrics.InstrumentHandler(handler, dependencyContainer.metricsContainer))
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -66,7 +67,12 @@ func NewRPCServer(config conf.Config) RPCServer {
 	return *rpcServer
 }
 
-func wireRouter(config conf.Config) route.Router {
+type DependencyContainer struct {
+	router           route.Router
+	metricsContainer *metrics.Container
+}
+
+func wireDependencies(config conf.Config) *DependencyContainer {
 	metricContainer := metrics.NewContainer()
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -79,7 +85,12 @@ func wireRouter(config conf.Config) route.Router {
 		BackingStrategy: route.NewPriorityRoundRobinStrategy(),
 	}
 
-	return route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer)
+	router := route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer)
+
+	return &DependencyContainer{
+		router:           router,
+		metricsContainer: metricContainer,
+	}
 }
 
 func (s *RPCServer) Start() error {
