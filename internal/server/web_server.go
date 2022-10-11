@@ -39,44 +39,21 @@ type SingleChainDependendencyContainer struct {
 }
 
 func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
-	var singleChainDependencies []SingleChainDependendencyContainer
-	for chainIndex := range config.Chains {
-		currentChainConfig := &config.Chains[chainIndex]
-		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
-
-		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
-		singleChainDependencies = append(singleChainDependencies, SingleChainDependendencyContainer{
-			ChainName: currentChainConfig.ChainName,
-			Router:    dependencyContainer.router,
-			handler:   dependencyContainer.handler,
-		})
-	}
-
-	healthCheckHandler := &HealthCheckHandler{
-		singleChainDependencies: singleChainDependencies,
-		logger:                  rootLogger,
-	}
+	dependencyContainer := wireDependenciesForAllChains(config, rootLogger)
 
 	port := defaultServerPort
 	if config.Global.Port > 0 {
 		port = config.Global.Port
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/health", healthCheckHandler)
-
-	for _, container := range singleChainDependencies {
-		mux.Handle(container.handler.path, container.handler)
-	}
-
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           mux,
+		Handler:           dependencyContainer.handler,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
 	var routers []route.Router
-	for _, dependency := range singleChainDependencies {
+	for _, dependency := range dependencyContainer.singleChainDependencies {
 		routers = append(routers, dependency.Router)
 	}
 
@@ -89,13 +66,43 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 	return *rpcServer
 }
 
-type DependencyContainer struct {
-	handler          *RPCHandler
-	router           route.Router
-	metricsContainer *metrics.Container
+func wireDependenciesForAllChains(
+	config conf.Config,
+	rootLogger *zap.Logger,
+) DependencyContainer {
+	var singleChainDependencies []SingleChainDependendencyContainer
+	for chainIndex := range config.Chains {
+		currentChainConfig := &config.Chains[chainIndex]
+		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
+
+		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
+		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
+	}
+
+	healthCheckHandler := &HealthCheckHandler{
+		singleChainDependencies: singleChainDependencies,
+		logger:                  rootLogger,
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/health", healthCheckHandler)
+
+	for _, container := range singleChainDependencies {
+		mux.Handle(container.handler.path, container.handler)
+	}
+
+	return DependencyContainer{
+		singleChainDependencies: singleChainDependencies,
+		handler:                 mux,
+	}
 }
 
-func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Logger) *DependencyContainer {
+type DependencyContainer struct {
+	singleChainDependencies []SingleChainDependendencyContainer
+	handler                 *http.ServeMux
+}
+
+func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Logger) SingleChainDependendencyContainer {
 	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -117,10 +124,10 @@ func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Log
 		logger: logger,
 	}
 
-	return &DependencyContainer{
-		handler:          handler,
-		router:           router,
-		metricsContainer: metricContainer,
+	return SingleChainDependendencyContainer{
+		ChainName: config.ChainName,
+		Router:    router,
+		handler:   handler,
 	}
 }
 
@@ -196,7 +203,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	h.logger.Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
 
-	respBody, resp, err := h.router.Route(ctx, requestBody)
+	upstreamID, respBody, resp, err := h.router.Route(ctx, requestBody)
 	if resp != nil {
 		defer resp.Body.Close()
 	}
@@ -214,6 +221,7 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	writer.Header().Set("X-Upstream-ID", upstreamID)
 	respondJSONRPC(h.logger, writer, respBody, resp.StatusCode)
 
 	h.logger.Debug("Request successfully routed.", zap.Any("requestBody", requestBody))

@@ -56,8 +56,8 @@ type EthClient_HeaderByNumber_Call struct {
 }
 
 // HeaderByNumber is a helper method to define mock.On call
-//   - ctx context.Context
-//   - number *big.Int
+//  - ctx context.Context
+//  - number *big.Int
 func (_e *EthClient_Expecter) HeaderByNumber(ctx interface{}, number interface{}) *EthClient_HeaderByNumber_Call {
 	return &EthClient_HeaderByNumber_Call{Call: _e.mock.On("HeaderByNumber", ctx, number)}
 }
@@ -101,7 +101,7 @@ type EthClient_PeerCount_Call struct {
 }
 
 // PeerCount is a helper method to define mock.On call
-//   - ctx context.Context
+//  - ctx context.Context
 func (_e *EthClient_Expecter) PeerCount(ctx interface{}) *EthClient_PeerCount_Call {
 	return &EthClient_PeerCount_Call{Call: _e.mock.On("PeerCount", ctx)}
 }
@@ -147,8 +147,8 @@ type EthClient_SubscribeNewHead_Call struct {
 }
 
 // SubscribeNewHead is a helper method to define mock.On call
-//   - ctx context.Context
-//   - ch chan<- *types.Header
+//  - ctx context.Context
+//  - ch chan<- *types.Header
 func (_e *EthClient_Expecter) SubscribeNewHead(ctx interface{}, ch interface{}) *EthClient_SubscribeNewHead_Call {
 	return &EthClient_SubscribeNewHead_Call{Call: _e.mock.On("SubscribeNewHead", ctx, ch)}
 }
@@ -194,7 +194,7 @@ type EthClient_SyncProgress_Call struct {
 }
 
 // SyncProgress is a helper method to define mock.On call
-//   - ctx context.Context
+//  - ctx context.Context
 func (_e *EthClient_Expecter) SyncProgress(ctx interface{}) *EthClient_SyncProgress_Call {
 	return &EthClient_SyncProgress_Call{Call: _e.mock.On("SyncProgress", ctx)}
 }

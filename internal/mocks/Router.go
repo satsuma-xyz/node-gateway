@@ -15,6 +15,14 @@ type Router struct {
 	mock.Mock
 }
 
+type Router_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *Router) EXPECT() *Router_Expecter {
+	return &Router_Expecter{mock: &_m.Mock}
+}
+
 // IsInitialized provides a mock function with given fields:
 func (_m *Router) IsInitialized() bool {
 	ret := _m.Called()
@@ -29,41 +37,116 @@ func (_m *Router) IsInitialized() bool {
 	return r0
 }
 
+// Router_IsInitialized_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsInitialized'
+type Router_IsInitialized_Call struct {
+	*mock.Call
+}
+
+// IsInitialized is a helper method to define mock.On call
+func (_e *Router_Expecter) IsInitialized() *Router_IsInitialized_Call {
+	return &Router_IsInitialized_Call{Call: _e.mock.On("IsInitialized")}
+}
+
+func (_c *Router_IsInitialized_Call) Run(run func()) *Router_IsInitialized_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Router_IsInitialized_Call) Return(_a0 bool) *Router_IsInitialized_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
 // Route provides a mock function with given fields: ctx, requestBody
-func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
+func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (string, jsonrpc.ResponseBody, *http.Response, error) {
 	ret := _m.Called(ctx, requestBody)
 
-	var r0 jsonrpc.ResponseBody
-	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) jsonrpc.ResponseBody); ok {
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) string); ok {
 		r0 = rf(ctx, requestBody)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(jsonrpc.ResponseBody)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
-	var r1 *http.Response
-	if rf, ok := ret.Get(1).(func(context.Context, jsonrpc.RequestBody) *http.Response); ok {
+	var r1 jsonrpc.ResponseBody
+	if rf, ok := ret.Get(1).(func(context.Context, jsonrpc.RequestBody) jsonrpc.ResponseBody); ok {
 		r1 = rf(ctx, requestBody)
 	} else {
 		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*http.Response)
+			r1 = ret.Get(1).(jsonrpc.ResponseBody)
 		}
 	}
 
-	var r2 error
-	if rf, ok := ret.Get(2).(func(context.Context, jsonrpc.RequestBody) error); ok {
+	var r2 *http.Response
+	if rf, ok := ret.Get(2).(func(context.Context, jsonrpc.RequestBody) *http.Response); ok {
 		r2 = rf(ctx, requestBody)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(*http.Response)
+		}
 	}
 
-	return r0, r1, r2
+	var r3 error
+	if rf, ok := ret.Get(3).(func(context.Context, jsonrpc.RequestBody) error); ok {
+		r3 = rf(ctx, requestBody)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
+}
+
+// Router_Route_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Route'
+type Router_Route_Call struct {
+	*mock.Call
+}
+
+// Route is a helper method to define mock.On call
+//  - ctx context.Context
+//  - requestBody jsonrpc.RequestBody
+func (_e *Router_Expecter) Route(ctx interface{}, requestBody interface{}) *Router_Route_Call {
+	return &Router_Route_Call{Call: _e.mock.On("Route", ctx, requestBody)}
+}
+
+func (_c *Router_Route_Call) Run(run func(ctx context.Context, requestBody jsonrpc.RequestBody)) *Router_Route_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(jsonrpc.RequestBody))
+	})
+	return _c
+}
+
+func (_c *Router_Route_Call) Return(_a0 string, _a1 jsonrpc.ResponseBody, _a2 *http.Response, _a3 error) *Router_Route_Call {
+	_c.Call.Return(_a0, _a1, _a2, _a3)
+	return _c
 }
 
 // Start provides a mock function with given fields:
 func (_m *Router) Start() {
 	_m.Called()
+}
+
+// Router_Start_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Start'
+type Router_Start_Call struct {
+	*mock.Call
+}
+
+// Start is a helper method to define mock.On call
+func (_e *Router_Expecter) Start() *Router_Start_Call {
+	return &Router_Start_Call{Call: _e.mock.On("Start")}
+}
+
+func (_c *Router_Start_Call) Run(run func()) *Router_Start_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Router_Start_Call) Return() *Router_Start_Call {
+	_c.Call.Return()
+	return _c
 }
 
 type mockConstructorTestingTNewRouter interface {

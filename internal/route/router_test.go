@@ -39,7 +39,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
-	jsonResp, httpResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
+	_, jsonResp, httpResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, jsonResp)
@@ -112,10 +112,11 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
+	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
@@ -157,10 +158,11 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
+	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
