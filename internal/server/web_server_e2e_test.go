@@ -22,7 +22,7 @@ import (
 
 func TestMain(m *testing.M) {
 	loggingConfig := zap.NewDevelopmentConfig()
-	loggingConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	loggingConfig.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
 	logger, err := loggingConfig.Build()
 	if err != nil {
 		panic(err.Error())
