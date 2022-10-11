@@ -42,7 +42,7 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 	}
 
 	var routers []route.Router
-	for _, dependency := range dependencyContainer.singleChainDependencies {
+	for _, dependency := range dependencyContainer.singleChainGraphs {
 		routers = append(routers, dependency.Router)
 	}
 

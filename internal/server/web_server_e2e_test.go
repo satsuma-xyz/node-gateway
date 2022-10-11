@@ -345,8 +345,8 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
 	testLogger := zap.L()
 
 	dependencyContainer := wireDependenciesForAllChains(conf, testLogger)
-	for chainIndex := range dependencyContainer.singleChainDependencies {
-		router := dependencyContainer.singleChainDependencies[chainIndex].Router
+	for chainIndex := range dependencyContainer.singleChainGraphs {
+		router := dependencyContainer.singleChainGraphs[chainIndex].Router
 		router.Start()
 
 		for router.IsInitialized() == false {

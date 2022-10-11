@@ -22,7 +22,7 @@ type SingleChainObjectGraph struct {
 func wireDependenciesForAllChains(
 	config config.Config,
 	rootLogger *zap.Logger,
-) DependencyContainer {
+) ObjectGraph {
 	var singleChainDependencies []SingleChainObjectGraph
 	for chainIndex := range config.Chains {
 		currentChainConfig := &config.Chains[chainIndex]
@@ -44,15 +44,15 @@ func wireDependenciesForAllChains(
 		mux.Handle(container.handler.path, container.handler)
 	}
 
-	return DependencyContainer{
-		singleChainDependencies: singleChainDependencies,
-		handler:                 mux,
+	return ObjectGraph{
+		singleChainGraphs: singleChainDependencies,
+		handler:           mux,
 	}
 }
 
-type DependencyContainer struct {
-	singleChainDependencies []SingleChainObjectGraph
-	handler                 *http.ServeMux
+type ObjectGraph struct {
+	singleChainGraphs []SingleChainObjectGraph
+	handler           *http.ServeMux
 }
 
 func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) SingleChainObjectGraph {
