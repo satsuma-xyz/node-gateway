@@ -13,49 +13,13 @@ import (
 	"go.uber.org/zap"
 )
 
-type SingleChainObjectGraph struct {
+type singleChainObjectGraph struct {
 	ChainName string
 	Router    route.Router
 	handler   *RPCHandler
 }
 
-func wireDependenciesForAllChains(
-	config config.Config,
-	rootLogger *zap.Logger,
-) ObjectGraph {
-	var singleChainDependencies []SingleChainObjectGraph
-	for chainIndex := range config.Chains {
-		currentChainConfig := &config.Chains[chainIndex]
-		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
-
-		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
-		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
-	}
-
-	healthCheckHandler := &HealthCheckHandler{
-		singleChainDependencies: singleChainDependencies,
-		logger:                  rootLogger,
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/health", healthCheckHandler)
-
-	for _, container := range singleChainDependencies {
-		mux.Handle(container.handler.path, container.handler)
-	}
-
-	return ObjectGraph{
-		singleChainGraphs: singleChainDependencies,
-		handler:           mux,
-	}
-}
-
-type ObjectGraph struct {
-	singleChainGraphs []SingleChainObjectGraph
-	handler           *http.ServeMux
-}
-
-func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) SingleChainObjectGraph {
+func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -77,9 +41,45 @@ func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.L
 		logger: logger,
 	}
 
-	return SingleChainObjectGraph{
+	return singleChainObjectGraph{
 		ChainName: config.ChainName,
 		Router:    router,
 		handler:   handler,
 	}
+}
+
+func wireDependenciesForAllChains(
+	config config.Config,
+	rootLogger *zap.Logger,
+) objectGraph {
+	var singleChainDependencies []singleChainObjectGraph
+	for chainIndex := range config.Chains {
+		currentChainConfig := &config.Chains[chainIndex]
+		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
+
+		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
+		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
+	}
+
+	healthCheckHandler := &HealthCheckHandler{
+		singleChainDependencies: singleChainDependencies,
+		logger:                  rootLogger,
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/health", healthCheckHandler)
+
+	for _, container := range singleChainDependencies {
+		mux.Handle(container.handler.path, container.handler)
+	}
+
+	return objectGraph{
+		singleChainGraphs: singleChainDependencies,
+		handler:           mux,
+	}
+}
+
+type objectGraph struct {
+	singleChainGraphs []singleChainObjectGraph
+	handler           *http.ServeMux
 }

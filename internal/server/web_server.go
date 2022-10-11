@@ -67,7 +67,7 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type HealthCheckHandler struct {
-	singleChainDependencies []SingleChainObjectGraph
+	singleChainDependencies []singleChainObjectGraph
 	logger                  *zap.Logger
 }
 
