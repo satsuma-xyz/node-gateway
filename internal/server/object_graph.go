@@ -71,6 +71,7 @@ func wireDependenciesForAllChains(
 
 	for _, container := range singleChainDependencies {
 		mux.Handle(container.handler.path, container.handler)
+		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.handler.path), zap.String("ChainName", container.ChainName))
 	}
 
 	return objectGraph{
