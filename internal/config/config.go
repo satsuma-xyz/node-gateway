@@ -135,6 +135,7 @@ func (c *SingleChainConfig) isValid() bool {
 
 	if c.ChainName == "" {
 		zap.L().Error("chainName cannot be empty", zap.Any("config", c))
+
 		isChainConfigValid = false
 	}
 
@@ -149,12 +150,13 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 
 		isValid = isValid && chainConfig.isValid()
 	}
+
 	return isValid
 }
 
 type Config struct {
-	Global GlobalConfig
 	Chains []SingleChainConfig
+	Global GlobalConfig
 }
 
 func (config *Config) Validate() error {
@@ -163,6 +165,7 @@ func (config *Config) Validate() error {
 	if !isValid {
 		return errors.New("invalid config found")
 	}
+
 	return nil
 }
 

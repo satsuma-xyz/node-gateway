@@ -41,7 +41,7 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
-	var routers []route.Router
+	routers := make([]route.Router, len(dependencyContainer.singleChainGraphs))
 	for _, dependency := range dependencyContainer.singleChainGraphs {
 		routers = append(routers, dependency.router)
 	}
@@ -59,6 +59,7 @@ func (s *RPCServer) Start() error {
 	for _, router := range s.routers {
 		router.Start()
 	}
+
 	return s.httpServer.ListenAndServe()
 }
 
@@ -67,8 +68,8 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type HealthCheckHandler struct {
-	singleChainDependencies []singleChainObjectGraph
 	logger                  *zap.Logger
+	singleChainDependencies []singleChainObjectGraph
 }
 
 func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Request) {
@@ -85,13 +86,14 @@ func (h *HealthCheckHandler) areAllRoutersInitialized() bool {
 			return false
 		}
 	}
+
 	return true
 }
 
 type RPCHandler struct {
-	path   string
 	router route.Router
 	logger *zap.Logger
+	path   string
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {

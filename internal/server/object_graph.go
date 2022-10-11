@@ -14,52 +14,53 @@ import (
 )
 
 type objectGraph struct {
-	singleChainGraphs []singleChainObjectGraph
 	handler           *http.ServeMux
+	singleChainGraphs []singleChainObjectGraph
 }
 
 type singleChainObjectGraph struct {
-	chainName string
 	router    route.Router
 	handler   *RPCHandler
+	chainName string
 }
 
-func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) singleChainObjectGraph {
-	metricContainer := metrics.NewContainer(config.ChainName)
+func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger) singleChainObjectGraph {
+	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
+	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, chainConfig.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
 
 	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.SimpleStateOrTracePresent, route.NearGlobalMaxHeight}
-	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &config.Routing)
+	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &chainConfig.Routing)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,
 		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger),
 		Logger:          logger,
 	}
 
-	router := route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
+	router := route.NewRouter(chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
 
 	handler := &RPCHandler{
-		path:   "/" + config.ChainName,
+		path:   "/" + chainConfig.ChainName,
 		router: router,
 		logger: logger,
 	}
 
 	return singleChainObjectGraph{
-		chainName: config.ChainName,
+		chainName: chainConfig.ChainName,
 		router:    router,
 		handler:   handler,
 	}
 }
 
 func wireDependenciesForAllChains(
-	config config.Config,
+	gatewayConfig config.Config,
 	rootLogger *zap.Logger,
 ) objectGraph {
-	var singleChainDependencies []singleChainObjectGraph
-	for chainIndex := range config.Chains {
-		currentChainConfig := &config.Chains[chainIndex]
+	singleChainDependencies := make([]singleChainObjectGraph, len(gatewayConfig.Chains))
+
+	for chainIndex := range gatewayConfig.Chains {
+		currentChainConfig := &gatewayConfig.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
 		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)

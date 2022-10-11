@@ -133,12 +133,7 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	requestPath, ok := ctx.Value("path").(string)
-	if !ok {
-		requestPath = "<unknown>"
-	}
-
-	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", upstreamID), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)), zap.String("requestPath", requestPath))
+	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", upstreamID), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		upstreamID,
