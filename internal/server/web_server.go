@@ -43,7 +43,7 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 
 	var routers []route.Router
 	for _, dependency := range dependencyContainer.singleChainGraphs {
-		routers = append(routers, dependency.Router)
+		routers = append(routers, dependency.router)
 	}
 
 	rpcServer := &RPCServer{
@@ -81,7 +81,7 @@ func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Reque
 
 func (h *HealthCheckHandler) areAllRoutersInitialized() bool {
 	for _, singleChainDependencyContainer := range h.singleChainDependencies {
-		if !singleChainDependencyContainer.Router.IsInitialized() {
+		if !singleChainDependencyContainer.router.IsInitialized() {
 			return false
 		}
 	}

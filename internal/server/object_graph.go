@@ -13,9 +13,14 @@ import (
 	"go.uber.org/zap"
 )
 
+type objectGraph struct {
+	singleChainGraphs []singleChainObjectGraph
+	handler           *http.ServeMux
+}
+
 type singleChainObjectGraph struct {
-	ChainName string
-	Router    route.Router
+	chainName string
+	router    route.Router
 	handler   *RPCHandler
 }
 
@@ -42,8 +47,8 @@ func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.L
 	}
 
 	return singleChainObjectGraph{
-		ChainName: config.ChainName,
-		Router:    router,
+		chainName: config.ChainName,
+		router:    router,
 		handler:   handler,
 	}
 }
@@ -71,16 +76,11 @@ func wireDependenciesForAllChains(
 
 	for _, container := range singleChainDependencies {
 		mux.Handle(container.handler.path, container.handler)
-		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.handler.path), zap.String("ChainName", container.ChainName))
+		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.handler.path), zap.String("chainName", container.chainName))
 	}
 
 	return objectGraph{
 		singleChainGraphs: singleChainDependencies,
 		handler:           mux,
 	}
-}
-
-type objectGraph struct {
-	singleChainGraphs []singleChainObjectGraph
-	handler           *http.ServeMux
 }

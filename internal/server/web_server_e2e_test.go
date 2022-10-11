@@ -346,7 +346,7 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
 
 	dependencyContainer := wireDependenciesForAllChains(conf, testLogger)
 	for chainIndex := range dependencyContainer.singleChainGraphs {
-		router := dependencyContainer.singleChainGraphs[chainIndex].Router
+		router := dependencyContainer.singleChainGraphs[chainIndex].router
 		router.Start()
 
 		for router.IsInitialized() == false {
