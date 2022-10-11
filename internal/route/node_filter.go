@@ -14,9 +14,9 @@ type NodeFilter interface {
 }
 
 type AndFilter struct {
+	logger     *zap.Logger
 	filters    []NodeFilter
 	isTopLevel bool
-	logger     *zap.Logger
 }
 
 func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
@@ -220,7 +220,7 @@ func CreateNodeFilter(
 		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, logger, routingConfig)
 	}
 
-	return &AndFilter{filters, true, logger}
+	return &AndFilter{logger: logger, filters: filters, isTopLevel: true}
 }
 
 func CreateSingleNodeFilter(

@@ -15,10 +15,10 @@ type PeerCheck struct {
 	Err              error
 	clientGetter     client.EthClientGetter
 	metricsContainer *metrics.Container
+	logger           *zap.Logger
 	upstreamConfig   *conf.UpstreamConfig
 	PeerCount        uint64
 	ShouldRun        bool
-	logger           *zap.Logger
 }
 
 func NewPeerChecker(
