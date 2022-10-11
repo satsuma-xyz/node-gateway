@@ -20,8 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const testChainName = "test_net"
-
 func TestMain(m *testing.M) {
 	loggingConfig := zap.NewDevelopmentConfig()
 	loggingConfig.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
@@ -48,7 +46,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	conf := config.Config{
 		Chains: []config.SingleChainConfig{{
-			ChainName: testChainName,
+			ChainName: config.TestChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    nil,
 		}},
@@ -57,7 +55,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody := executeSingleRequest(t, "eth_blockNumber", handler)
+	statusCode, responseBody := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -123,7 +121,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	}
 	conf := config.Config{
 		Chains: []config.SingleChainConfig{{
-			ChainName: testChainName,
+			ChainName: config.TestChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    groupConfigs,
 		}},
@@ -132,12 +130,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody := executeSingleRequest(t, statefulMethod, handler)
+	statusCode, responseBody := executeSingleRequest(t, config.TestChainName, statefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
 
-	statusCode, responseBody = executeSingleRequest(t, nonStatefulMethod, handler)
+	statusCode, responseBody = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -224,7 +222,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), idsToExpectedResult[1])
 }
 
-func executeSingleRequest(t *testing.T, methodName string, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
+func executeSingleRequest(t *testing.T, chainName string, methodName string, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
 	t.Helper()
 
 	singleRequest := jsonrpc.SingleRequestBody{
@@ -233,7 +231,7 @@ func executeSingleRequest(t *testing.T, methodName string, handler *RPCHandler) 
 		ID:             1,
 	}
 
-	return executeRequest(t, &singleRequest, handler)
+	return executeRequest(t, chainName, &singleRequest, handler)
 }
 
 func executeBatchRequest(t *testing.T, methodNames []string, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
@@ -255,12 +253,16 @@ func executeBatchRequest(t *testing.T, methodNames []string, handler *RPCHandler
 	return executeRequest(t, &batchRequest, handler)
 }
 
-func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
+func executeRequest(
+	t *testing.T,
+	chainName string,
+	request jsonrpc.RequestBody,
+	handler *RPCHandler,
+) (int, jsonrpc.ResponseBody) {
 	t.Helper()
-
 	requestBytes, _ := request.Encode()
+	req := httptest.NewRequest(http.MethodPost, "/"+chainName, bytes.NewReader(requestBytes))
 
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(requestBytes))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -293,10 +295,7 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *RPCHandler {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	handler := &RPCHandler{
-		router: router,
-		logger: testLogger,
-	}
+	handler := dependencyContainer.handler
 
 	return handler
 }

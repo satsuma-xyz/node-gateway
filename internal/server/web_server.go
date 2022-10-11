@@ -45,16 +45,10 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
 		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
-		router := dependencyContainer.router
-		handler := &RPCHandler{
-			router: router,
-			logger: childLogger,
-		}
-
 		singleChainDependencies = append(singleChainDependencies, SingleChainDependendencyContainer{
 			ChainName: currentChainConfig.ChainName,
-			Router:    router,
-			handler:   handler,
+			Router:    dependencyContainer.router,
+			handler:   dependencyContainer.handler,
 		})
 	}
 
@@ -72,7 +66,7 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 	mux.Handle("/health", healthCheckHandler)
 
 	for _, container := range singleChainDependencies {
-		mux.Handle(container.ChainName, container.handler)
+		mux.Handle(container.handler.path, container.handler)
 	}
 
 	httpServer := &http.Server{
@@ -96,6 +90,7 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 }
 
 type DependencyContainer struct {
+	handler          *RPCHandler
 	router           route.Router
 	metricsContainer *metrics.Container
 }
@@ -116,7 +111,14 @@ func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Log
 
 	router := route.NewRouter(config.Upstreams, config.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
 
+	handler := &RPCHandler{
+		path:   "/" + config.ChainName,
+		router: router,
+		logger: logger,
+	}
+
 	return &DependencyContainer{
+		handler:          handler,
 		router:           router,
 		metricsContainer: metricContainer,
 	}
@@ -156,11 +158,16 @@ func (h *HealthCheckHandler) areAllRoutersInitialized() bool {
 }
 
 type RPCHandler struct {
+	path   string
 	router route.Router
 	logger *zap.Logger
 }
 
 func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != h.path {
+		panic(fmt.Sprintf("Unexpected request with path %s to handler for path %s!", req.URL.Path, h.path))
+	}
+
 	if req.Method != http.MethodPost {
 		respondJSON(h.logger, writer, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
