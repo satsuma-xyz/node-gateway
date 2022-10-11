@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type SingleChainDependencyContainer struct {
+type SingleChainObjectGraph struct {
 	ChainName string
 	Router    route.Router
 	handler   *RPCHandler
@@ -23,7 +23,7 @@ func wireDependenciesForAllChains(
 	config config.Config,
 	rootLogger *zap.Logger,
 ) DependencyContainer {
-	var singleChainDependencies []SingleChainDependencyContainer
+	var singleChainDependencies []SingleChainObjectGraph
 	for chainIndex := range config.Chains {
 		currentChainConfig := &config.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
@@ -51,11 +51,11 @@ func wireDependenciesForAllChains(
 }
 
 type DependencyContainer struct {
-	singleChainDependencies []SingleChainDependencyContainer
+	singleChainDependencies []SingleChainObjectGraph
 	handler                 *http.ServeMux
 }
 
-func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) SingleChainDependencyContainer {
+func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.Logger) SingleChainObjectGraph {
 	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -77,7 +77,7 @@ func wireSingleChainDependencies(config *config.SingleChainConfig, logger *zap.L
 		logger: logger,
 	}
 
-	return SingleChainDependencyContainer{
+	return SingleChainObjectGraph{
 		ChainName: config.ChainName,
 		Router:    router,
 		handler:   handler,
