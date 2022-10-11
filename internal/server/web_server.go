@@ -28,23 +28,39 @@ const (
 
 type RPCServer struct {
 	httpServer *http.Server
-	router     route.Router
+	routers    []route.Router
 	config     conf.Config
 }
 
-func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
-	currentChainConfig := &config.Chains[0]
-	childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
+type SingleChainDependendencyContainer struct {
+	ChainName string
+	Router    route.Router
+	handler   *RPCHandler
+}
 
-	dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
-	router := dependencyContainer.router
-	handler := &RPCHandler{
-		router: router,
-		logger: childLogger,
+func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
+	var singleChainDependencies []SingleChainDependendencyContainer
+	for chainIndex := range config.Chains {
+		currentChainConfig := &config.Chains[chainIndex]
+		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
+
+		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
+		router := dependencyContainer.router
+		handler := &RPCHandler{
+			router: router,
+			logger: childLogger,
+		}
+
+		singleChainDependencies = append(singleChainDependencies, SingleChainDependendencyContainer{
+			ChainName: currentChainConfig.ChainName,
+			Router:    router,
+			handler:   handler,
+		})
 	}
+
 	healthCheckHandler := &HealthCheckHandler{
-		router: router,
-		logger: childLogger,
+		singleChainDependencies: singleChainDependencies,
+		logger:                  rootLogger,
 	}
 
 	port := defaultServerPort
@@ -55,7 +71,9 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 	mux := http.NewServeMux()
 	mux.Handle("/health", healthCheckHandler)
 
-	mux.Handle("/", metrics.InstrumentHandler(handler, dependencyContainer.metricsContainer))
+	for _, container := range singleChainDependencies {
+		mux.Handle(container.ChainName, container.handler)
+	}
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
@@ -63,9 +81,14 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
+	var routers []route.Router
+	for _, dependency := range singleChainDependencies {
+		routers = append(routers, dependency.Router)
+	}
+
 	rpcServer := &RPCServer{
 		httpServer: httpServer,
-		router:     router,
+		routers:    routers,
 		config:     config,
 	}
 
@@ -100,7 +123,9 @@ func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Log
 }
 
 func (s *RPCServer) Start() error {
-	s.router.Start()
+	for _, router := range s.routers {
+		router.Start()
+	}
 	return s.httpServer.ListenAndServe()
 }
 
@@ -109,16 +134,25 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type HealthCheckHandler struct {
-	router route.Router
-	logger *zap.Logger
+	singleChainDependencies []SingleChainDependendencyContainer
+	logger                  *zap.Logger
 }
 
 func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Request) {
-	if h.router.IsInitialized() {
+	if h.areAllRoutersInitialized() {
 		respondRaw(h.logger, writer, []byte("OK"), http.StatusOK)
 	} else {
 		respondRaw(h.logger, writer, []byte("Starting up"), http.StatusServiceUnavailable)
 	}
+}
+
+func (h *HealthCheckHandler) areAllRoutersInitialized() bool {
+	for _, singleChainDependencyContainer := range h.singleChainDependencies {
+		if !singleChainDependencyContainer.Router.IsInitialized() {
+			return false
+		}
+	}
+	return true
 }
 
 type RPCHandler struct {

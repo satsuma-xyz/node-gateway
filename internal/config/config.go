@@ -157,6 +157,15 @@ type Config struct {
 	Chains []SingleChainConfig
 }
 
+func (config *Config) Validate() error {
+	isValid := isChainsValid(config.Chains)
+
+	if !isValid {
+		return errors.New("invalid config found")
+	}
+	return nil
+}
+
 func LoadConfig(configFilePath string) (Config, error) {
 	configBytes, err := os.ReadFile(configFilePath)
 
@@ -175,11 +184,7 @@ func parseConfig(configBytes []byte) (Config, error) {
 		return config, err
 	}
 
-	isValid := isChainsValid(config.Chains)
-
-	if !isValid {
-		err = errors.New("invalid config found")
-	}
+	err = config.Validate()
 
 	return config, err
 }

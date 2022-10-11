@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -19,6 +20,20 @@ import (
 	"go.uber.org/zap"
 )
 
+const testChainName = "test_net"
+
+func TestMain(m *testing.M) {
+	loggingConfig := zap.NewDevelopmentConfig()
+	loggingConfig.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
+	logger, err := loggingConfig.Build()
+	if err != nil {
+		panic(err.Error())
+	}
+	zap.ReplaceGlobals(logger)
+
+	os.Exit(m.Run())
+}
+
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{})
 	defer healthyUpstream.Close()
@@ -27,19 +42,20 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	defer unhealthyUpstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
-		{ID: "healthyNode", HTTPURL: healthyUpstream.URL},
-		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL},
+		{ID: "healthyNode", HTTPURL: healthyUpstream.URL, NodeType: config.Full},
+		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL, NodeType: config.Full},
 	}
 
 	conf := config.Config{
 		Chains: []config.SingleChainConfig{{
+			ChainName: testChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    nil,
 		}},
 		Global: config.GlobalConfig{},
 	}
 
-	handler := startRouterAndHandler(conf)
+	handler := startRouterAndHandler(t, conf)
 
 	statusCode, responseBody := executeSingleRequest(t, "eth_blockNumber", handler)
 
@@ -107,13 +123,14 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	}
 	conf := config.Config{
 		Chains: []config.SingleChainConfig{{
+			ChainName: testChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    groupConfigs,
 		}},
 		Global: config.GlobalConfig{},
 	}
 
-	handler := startRouterAndHandler(conf)
+	handler := startRouterAndHandler(t, conf)
 
 	statusCode, responseBody := executeSingleRequest(t, statefulMethod, handler)
 
@@ -260,7 +277,12 @@ func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandl
 	return result.StatusCode, responseBody
 }
 
-func startRouterAndHandler(conf config.Config) *RPCHandler {
+func startRouterAndHandler(t *testing.T, conf config.Config) *RPCHandler {
+	t.Helper()
+
+	err := conf.Validate()
+	require.NoError(t, err)
+
 	testLogger := zap.L()
 	currentChainConfig := &conf.Chains[0]
 	dependencyContainer := wireSingleChainDependencies(currentChainConfig, testLogger)
