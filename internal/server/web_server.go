@@ -32,7 +32,7 @@ type RPCServer struct {
 	config     conf.Config
 }
 
-type SingleChainDependendencyContainer struct {
+type SingleChainDependencyContainer struct {
 	ChainName string
 	Router    route.Router
 	handler   *RPCHandler
@@ -70,7 +70,7 @@ func wireDependenciesForAllChains(
 	config conf.Config,
 	rootLogger *zap.Logger,
 ) DependencyContainer {
-	var singleChainDependencies []SingleChainDependendencyContainer
+	var singleChainDependencies []SingleChainDependencyContainer
 	for chainIndex := range config.Chains {
 		currentChainConfig := &config.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
@@ -98,11 +98,11 @@ func wireDependenciesForAllChains(
 }
 
 type DependencyContainer struct {
-	singleChainDependencies []SingleChainDependendencyContainer
+	singleChainDependencies []SingleChainDependencyContainer
 	handler                 *http.ServeMux
 }
 
-func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Logger) SingleChainDependendencyContainer {
+func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Logger) SingleChainDependencyContainer {
 	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -124,7 +124,7 @@ func wireSingleChainDependencies(config *conf.SingleChainConfig, logger *zap.Log
 		logger: logger,
 	}
 
-	return SingleChainDependendencyContainer{
+	return SingleChainDependencyContainer{
 		ChainName: config.ChainName,
 		Router:    router,
 		handler:   handler,
@@ -143,7 +143,7 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type HealthCheckHandler struct {
-	singleChainDependencies []SingleChainDependendencyContainer
+	singleChainDependencies []SingleChainDependencyContainer
 	logger                  *zap.Logger
 }
 
