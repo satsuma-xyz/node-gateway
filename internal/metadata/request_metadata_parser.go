@@ -16,7 +16,7 @@ func (p *RequestMetadataParser) Parse(requestBody jsonrpc.RequestBody) RequestMe
 	case "trace_filter", "trace_block", "trace_get", "trace_transaction", "trace_call", "trace_callMany",
 		"trace_rawTransaction", "trace_replayBlockTransactions", "trace_replayTransaction":
 		// List of trace methods: https://openethereum.github.io/JSONRPC-trace-module
-		result.IsStateRequired = true
+		result.IsTraceMethod = true
 	default:
 		result.IsStateRequired = false
 	}

@@ -116,7 +116,7 @@ func TestSimpleIsStatePresentFilter_Apply(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &SimpleIsStatePresent{}
+			f := &SimpleIsStateOrTracePresent{}
 			ok := f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
 			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})

@@ -18,20 +18,23 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 		want RequestMetadata
 	}
 
-	testForMethod := func(methodName string, isStateRequired bool) testArgs {
+	testForMethod := func(methodName string, isStateRequired, isTraceMethod bool) testArgs {
 		return testArgs{
 			methodName,
 			args{jsonrpc.RequestBody{Method: methodName}},
-			RequestMetadata{IsStateRequired: isStateRequired},
+			RequestMetadata{
+				IsStateRequired: isStateRequired,
+				IsTraceMethod:   isTraceMethod,
+			},
 		}
 	}
 
 	tests := []testArgs{
-		testForMethod("eth_call", true),
-		testForMethod("eth_getBalance", true),
-		testForMethod("eth_getBlockByNumber", false),
-		testForMethod("eth_getTransactionReceipt", false),
-		testForMethod("trace_filter", true),
+		testForMethod("eth_call", true, false),
+		testForMethod("eth_getBalance", true, false),
+		testForMethod("eth_getBlockByNumber", false, false),
+		testForMethod("eth_getTransactionReceipt", false, false),
+		testForMethod("trace_filter", false, true),
 	}
 
 	for _, tt := range tests {
