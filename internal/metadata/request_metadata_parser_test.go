@@ -31,6 +31,7 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 		testForMethod("eth_getBalance", true),
 		testForMethod("eth_getBlockByNumber", false),
 		testForMethod("eth_getTransactionReceipt", false),
+		testForMethod("trace_filter", true),
 	}
 
 	for _, tt := range tests {
