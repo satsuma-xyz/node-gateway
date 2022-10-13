@@ -178,19 +178,19 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	return false
 }
 
-type SimpleIsStatePresent struct{}
+type SimpleIsStateOrTracePresent struct{}
 
-func (f *SimpleIsStatePresent) Apply(
+func (f *SimpleIsStateOrTracePresent) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
-	if requestMetadata.IsStateRequired {
+	if requestMetadata.IsStateRequired || requestMetadata.IsTraceMethod {
 		if upstreamConfig.NodeType == config.Archive {
 			return true
 		}
 
 		zap.L().Debug(
-			"Upstream is not an archive node but state is required!",
+			"Upstream is not an archive node but request requires state or is a trace method!",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Any("RequestMetadata", requestMetadata),
 		)
@@ -252,8 +252,8 @@ func CreateSingleNodeFilter(
 			healthCheckManager: manager,
 			chainMetadataStore: store,
 		}
-	case SimpleStatePresent:
-		return &SimpleIsStatePresent{}
+	case SimpleStateOrTracePresent:
+		return &SimpleIsStateOrTracePresent{}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -262,9 +262,9 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	Healthy             NodeFilterType = "healthy"
-	GlobalMaxHeight     NodeFilterType = "globalMaxHeight"
-	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
-	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
-	SimpleStatePresent  NodeFilterType = "simpleStatePresent"
+	Healthy                   NodeFilterType = "healthy"
+	GlobalMaxHeight           NodeFilterType = "globalMaxHeight"
+	NearGlobalMaxHeight       NodeFilterType = "nearGlobalMaxHeight"
+	MaxHeightForGroup         NodeFilterType = "maxHeightForGroup"
+	SimpleStateOrTracePresent NodeFilterType = "simpleStatePresent"
 )
