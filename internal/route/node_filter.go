@@ -190,7 +190,7 @@ func (f *SimpleIsStatePresent) Apply(
 		}
 
 		zap.L().Debug(
-			"Upstream is not an archive node but state is required!",
+			"Upstream is not an archive node but state (e.g. eth_* or trace_* call) is required!",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Any("RequestMetadata", requestMetadata),
 		)
