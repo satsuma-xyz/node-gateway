@@ -19,7 +19,6 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 	}
 
 	testForSingleRequest := func(methodName string, isStateRequired, isTraceMethod bool) testArgs {
-
 		return testArgs{
 			args{
 				requestBody: &jsonrpc.SingleRequestBody{

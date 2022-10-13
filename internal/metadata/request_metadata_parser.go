@@ -58,5 +58,4 @@ func isTraceMethod(method string) bool {
 	default:
 		return false
 	}
-
 }
