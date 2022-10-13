@@ -148,7 +148,8 @@ func (r *SimpleRouter) Route(
 		JSONRPCResponseCode := ""
 
 		if isJSONRPCError {
-			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody), zap.Any("error", body.Error), zap.String("client", util.GetClientFromContext(ctx)))
+			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody),
+				zap.Any("error", body.Error), zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", id))
 
 			JSONRPCResponseCode = strconv.Itoa(body.Error.Code)
 		}
