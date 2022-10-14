@@ -30,15 +30,15 @@ func (_m *Router) IsInitialized() bool {
 }
 
 // Route provides a mock function with given fields: ctx, requestBody
-func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error) {
+func (_m *Router) Route(ctx context.Context, requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error) {
 	ret := _m.Called(ctx, requestBody)
 
-	var r0 *jsonrpc.ResponseBody
-	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) *jsonrpc.ResponseBody); ok {
+	var r0 jsonrpc.ResponseBody
+	if rf, ok := ret.Get(0).(func(context.Context, jsonrpc.RequestBody) jsonrpc.ResponseBody); ok {
 		r0 = rf(ctx, requestBody)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*jsonrpc.ResponseBody)
+			r0 = ret.Get(0).(jsonrpc.ResponseBody)
 		}
 	}
 

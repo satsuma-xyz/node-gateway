@@ -30,7 +30,7 @@ import (
 type Router interface {
 	Start()
 	IsInitialized() bool
-	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (*jsonrpc.ResponseBody, *http.Response, error)
+	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -101,7 +101,7 @@ func (r *SimpleRouter) IsInitialized() bool {
 func (r *SimpleRouter) Route(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
-) (*jsonrpc.ResponseBody, *http.Response, error) {
+) (jsonrpc.ResponseBody, *http.Response, error) {
 	requestMetadata := r.metadataParser.Parse(requestBody)
 	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
 
@@ -127,13 +127,25 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		id,
 		configToRoute.HTTPURL,
-		requestBody.Method,
+		requestBody.GetMethod(),
 	).Inc()
+
+	zap.L().Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
+
+	go func() {
+		for _, request := range requestBody.GetSubRequests() {
+			metrics.UpstreamJSONRPCRequestsTotal.WithLabelValues(
+				util.GetClientFromContext(ctx),
+				id,
+				configToRoute.HTTPURL,
+				request.Method,
+			).Inc()
+		}
+	}()
 
 	start := time.Now()
 	body, response, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
@@ -143,32 +155,48 @@ func (r *SimpleRouter) Route(
 		HTTPReponseCode = strconv.Itoa(response.StatusCode)
 	}
 
-	isJSONRPCError := body != nil && body.Error != nil
-	if err != nil || isJSONRPCError {
-		JSONRPCResponseCode := ""
-
-		if isJSONRPCError {
-			zap.L().Warn("Encountered error in upstream JSONRPC response.", zap.Any("request", requestBody),
-				zap.Any("error", body.Error), zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", id))
-
-			JSONRPCResponseCode = strconv.Itoa(body.Error.Code)
-		}
-
+	if err != nil {
 		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			id,
 			configToRoute.HTTPURL,
-			requestBody.Method,
+			requestBody.GetMethod(),
 			HTTPReponseCode,
-			JSONRPCResponseCode,
+			"",
 		).Inc()
+	}
+
+	if body != nil {
+		// To help correlate request IDs to responses.
+		// It's the responsibility of the client to provide unique IDs.
+		reqIDToRequestMap := make(map[int]jsonrpc.SingleRequestBody)
+		for _, req := range requestBody.GetSubRequests() {
+			reqIDToRequestMap[int(req.ID)] = req
+		}
+
+		for _, resp := range body.GetSubResponses() {
+			if resp.Error != nil {
+				zap.L().Warn("Encountered error in upstream JSONRPC response.",
+					zap.Any("request", requestBody), zap.Any("error", resp.Error),
+					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", id))
+
+				metrics.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
+					util.GetClientFromContext(ctx),
+					id,
+					configToRoute.HTTPURL,
+					reqIDToRequestMap[resp.ID].Method,
+					HTTPReponseCode,
+					strconv.Itoa(resp.Error.Code),
+				).Inc()
+			}
+		}
 	}
 
 	metrics.UpstreamRPCDuration.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		configToRoute.ID,
 		configToRoute.HTTPURL,
-		requestBody.Method,
+		requestBody.GetMethod(),
 		HTTPReponseCode,
 		"",
 	).Observe(time.Since(start).Seconds())

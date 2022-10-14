@@ -42,7 +42,7 @@ type HealthCheckManager_GetUpstreamStatus_Call struct {
 }
 
 // GetUpstreamStatus is a helper method to define mock.On call
-//   - upstreamID string
+//  - upstreamID string
 func (_e *HealthCheckManager_Expecter) GetUpstreamStatus(upstreamID interface{}) *HealthCheckManager_GetUpstreamStatus_Call {
 	return &HealthCheckManager_GetUpstreamStatus_Call{Call: _e.mock.On("GetUpstreamStatus", upstreamID)}
 }
