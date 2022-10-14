@@ -184,7 +184,7 @@ func decode[T Decodable](rawBytes []byte) (*T, error) {
 	return &body, nil
 }
 
-func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) ResponseBody {
+func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) *SingleResponseBody {
 	return &SingleResponseBody{
 		JSONRPC: JSONRPCVersion,
 		Error: &Error{
@@ -197,14 +197,10 @@ func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) Respo
 func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode int, request RequestBody) ResponseBody {
 	switch r := request.(type) {
 	case *SingleRequestBody:
-		return &SingleResponseBody{
-			JSONRPC: r.JSONRPCVersion,
-			Error: &Error{
-				Code:    jsonRPCStatusCode,
-				Message: message,
-			},
-			ID: int(r.ID),
-		}
+		response := CreateErrorJSONRPCResponseBody(message, jsonRPCStatusCode)
+		response.ID = int(r.ID)
+
+		return response
 	case *BatchRequestBody:
 		subRequests := r.GetSubRequests()
 		responses := make([]SingleResponseBody, 0, len(subRequests))
@@ -225,12 +221,7 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 			Responses: responses,
 		}
 	default:
-		return &SingleResponseBody{
-			JSONRPC: JSONRPCVersion,
-			Error: &Error{
-				Code:    jsonRPCStatusCode,
-				Message: message,
-			},
-		}
+		response := CreateErrorJSONRPCResponseBody(message, jsonRPCStatusCode)
+		return response
 	}
 }
