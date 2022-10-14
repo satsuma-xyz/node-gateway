@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script releases the image to our public DockerHub repository.
 
 set -e 
 set -o pipefail
