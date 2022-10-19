@@ -8,6 +8,7 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -37,7 +38,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 
@@ -65,7 +66,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 	assert.False(t, checker.IsPassing(maxBlockHeight))
@@ -100,7 +101,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 		chainMetadataStore := metadata.NewChainMetadataStore()
 		chainMetadataStore.Start()
 
-		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
+		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore, metrics.NewContainer(), zap.L())
 
 		checker.RunCheck()
 		ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 0)
@@ -119,6 +120,7 @@ func TestBlockHeightChecker_IsPassing(t *testing.T) {
 		{
 			name: "No errors, block height high enough.",
 			blockHeightCheck: BlockHeightCheck{
+				logger:         zap.L(),
 				upstreamConfig: defaultUpstreamConfig,
 				blockHeight:    3,
 			},
@@ -128,6 +130,7 @@ func TestBlockHeightChecker_IsPassing(t *testing.T) {
 		{
 			name: "No errors, block height too low.",
 			blockHeightCheck: BlockHeightCheck{
+				logger:         zap.L(),
 				upstreamConfig: defaultUpstreamConfig,
 				blockHeight:    2,
 			},
@@ -137,6 +140,7 @@ func TestBlockHeightChecker_IsPassing(t *testing.T) {
 		{
 			name: "Errors found, block height high enough.",
 			blockHeightCheck: BlockHeightCheck{
+				logger:           zap.L(),
 				blockHeightError: errors.New("an error"),
 				upstreamConfig:   defaultUpstreamConfig,
 				blockHeight:      3,

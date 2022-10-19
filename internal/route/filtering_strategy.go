@@ -10,6 +10,7 @@ import (
 type FilteringRoutingStrategy struct {
 	NodeFilter      NodeFilter
 	BackingStrategy RoutingStrategy
+	Logger          *zap.Logger
 }
 
 func (s *FilteringRoutingStrategy) RouteNextRequest(
@@ -27,7 +28,7 @@ func (s *FilteringRoutingStrategy) filter(
 	priorityToHealthyUpstreams := make(types.PriorityToUpstreamsMap)
 
 	for priority, upstreamConfigs := range upstreamsByPriority {
-		zap.L().Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamConfigs))
+		s.Logger.Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamConfigs))
 
 		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 

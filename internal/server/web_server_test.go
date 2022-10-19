@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
@@ -31,7 +32,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader("dummy")),
 			}, nil)
 
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
@@ -87,7 +88,7 @@ func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 
 func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{router: router, logger: zap.L()}
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("{\"bad_json\": ")))
 	req.Header.Add("Content-Type", "application/json")
@@ -104,7 +105,7 @@ func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 
 func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{"unknown_field": "value"})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
@@ -130,7 +131,7 @@ func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader("dummy")),
 			}, nil)
 
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
@@ -155,7 +156,7 @@ func TestHandleJSONRPCRequest_JSONRPCDecodeError(t *testing.T) {
 	router.On("Route", mock.Anything, mock.Anything).
 		Return(nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
 
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))

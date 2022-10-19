@@ -14,6 +14,7 @@ type NodeFilter interface {
 }
 
 type AndFilter struct {
+	logger     *zap.Logger
 	filters    []NodeFilter
 	isTopLevel bool
 }
@@ -32,7 +33,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 	}
 
 	if result && a.isTopLevel {
-		zap.L().Debug("Upstream passed all filters for request.",
+		a.logger.Debug("Upstream passed all filters for request.",
 			zap.String("upstreamID", upstreamConfig.ID),
 			zap.Any("RequestMetadata", requestMetadata),
 		)
@@ -43,6 +44,7 @@ func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConf
 
 type HasEnoughPeers struct {
 	healthCheckManager checks.HealthCheckManager
+	logger             *zap.Logger
 	minimumPeerCount   uint64
 }
 
@@ -52,7 +54,7 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 
 	if peerCheck.ShouldRun {
 		if peerCheck.Err != nil {
-			zap.L().Debug("HasEnoughPeers failed: most recent health check did not succeed.", zap.String("upstreamID", upstreamConfig.ID), zap.Error(peerCheck.Err))
+			f.logger.Debug("HasEnoughPeers failed: most recent health check did not succeed.", zap.String("upstreamID", upstreamConfig.ID), zap.Error(peerCheck.Err))
 			return false
 		}
 
@@ -60,7 +62,7 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 			return true
 		}
 
-		zap.L().Debug("HasEnoughPeers failed.",
+		f.logger.Debug("HasEnoughPeers failed.",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Uint64("MinimumPeerCount", f.minimumPeerCount),
 			zap.Uint64("ActualPeerCount", peerCheck.PeerCount),
@@ -74,6 +76,7 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 
 type IsDoneSyncing struct {
 	healthCheckManager checks.HealthCheckManager
+	logger             *zap.Logger
 }
 
 func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
@@ -83,7 +86,7 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 
 	if isSyncingCheck.ShouldRun {
 		if isSyncingCheck.Err != nil {
-			zap.L().Debug(
+			f.logger.Debug(
 				"IsDoneSyncing failed: most recent health check did not succeed.",
 				zap.Error(isSyncingCheck.Err),
 				zap.String("UpstreamID", upstreamConfig.ID),
@@ -96,7 +99,7 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 			return true
 		}
 
-		zap.L().Debug("Upstream is still syncing!", zap.String("UpstreamID", upstreamConfig.ID))
+		f.logger.Debug("Upstream is still syncing!", zap.String("UpstreamID", upstreamConfig.ID))
 
 		return false
 	}
@@ -107,6 +110,7 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 type IsCloseToGlobalMaxHeight struct {
 	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
+	logger             *zap.Logger
 	maxBlocksBehind    uint64
 }
 
@@ -119,7 +123,7 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 
 	checkIsHealthy := check.GetError() == nil
 	if !checkIsHealthy {
-		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
+		f.logger.Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
 			zap.Error(check.GetError()),
 			zap.String("UpstreamID", upstreamConfig.ID),
 		)
@@ -135,7 +139,7 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 		return true
 	}
 
-	zap.L().Debug(
+	f.logger.Debug(
 		"Upstream too far behind global max height!",
 		zap.String("UpstreamID", upstreamConfig.ID),
 		zap.Uint64("UpstreamHeight", upstreamHeight),
@@ -148,6 +152,7 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 type IsAtMaxHeightForGroup struct {
 	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
+	logger             *zap.Logger
 }
 
 func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
@@ -155,7 +160,7 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	check := upstreamStatus.BlockHeightCheck
 
 	if check.GetError() != nil {
-		zap.L().Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
+		f.logger.Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Error(check.GetError()),
 		)
@@ -168,7 +173,7 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 		return true
 	}
 
-	zap.L().Debug(
+	f.logger.Debug(
 		"Upstream not at max height for group!",
 		zap.String("UpstreamID", upstreamConfig.ID),
 		zap.Uint64("UpstreamHeight", check.GetBlockHeight()),
@@ -178,7 +183,9 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	return false
 }
 
-type SimpleIsStateOrTracePresent struct{}
+type SimpleIsStateOrTracePresent struct {
+	logger *zap.Logger
+}
 
 func (f *SimpleIsStateOrTracePresent) Apply(
 	requestMetadata metadata.RequestMetadata,
@@ -189,7 +196,7 @@ func (f *SimpleIsStateOrTracePresent) Apply(
 			return true
 		}
 
-		zap.L().Debug(
+		f.logger.Debug(
 			"Upstream is not an archive node but request requires state or is a trace method!",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Any("RequestMetadata", requestMetadata),
@@ -205,26 +212,29 @@ func CreateNodeFilter(
 	filterNames []NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	logger *zap.Logger,
 	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	var filters = make([]NodeFilter, len(filterNames))
 	for i := range filterNames {
-		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, routingConfig)
+		filters[i] = CreateSingleNodeFilter(filterNames[i], manager, store, logger, routingConfig)
 	}
 
-	return &AndFilter{filters, true}
+	return &AndFilter{logger: logger, filters: filters, isTopLevel: true}
 }
 
 func CreateSingleNodeFilter(
 	filterName NodeFilterType,
 	manager checks.HealthCheckManager,
 	store *metadata.ChainMetadataStore,
+	logger *zap.Logger,
 	routingConfig *config.RoutingConfig,
 ) NodeFilter {
 	switch filterName {
 	case Healthy:
 		hasEnoughPeers := HasEnoughPeers{
 			healthCheckManager: manager,
+			logger:             logger,
 			minimumPeerCount:   checks.MinimumPeerCount,
 		}
 		isDoneSyncing := IsDoneSyncing{healthCheckManager: manager}
@@ -234,6 +244,7 @@ func CreateSingleNodeFilter(
 		return &IsCloseToGlobalMaxHeight{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
+			logger:             logger,
 			maxBlocksBehind:    0,
 		}
 	case NearGlobalMaxHeight:
@@ -245,15 +256,17 @@ func CreateSingleNodeFilter(
 		return &IsCloseToGlobalMaxHeight{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
+			logger:             logger,
 			maxBlocksBehind:    uint64(maxBlocksBehind),
 		}
 	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{
 			healthCheckManager: manager,
 			chainMetadataStore: store,
+			logger:             logger,
 		}
 	case SimpleStateOrTracePresent:
-		return &SimpleIsStateOrTracePresent{}
+		return &SimpleIsStateOrTracePresent{logger: logger}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}

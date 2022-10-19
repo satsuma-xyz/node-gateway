@@ -22,6 +22,7 @@ type BlockHeightCheck struct {
 	upstreamConfig      *conf.UpstreamConfig
 	blockHeightObserver BlockHeightObserver
 	metricsContainer    *metrics.Container
+	logger              *zap.Logger
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
@@ -35,12 +36,14 @@ func NewBlockHeightChecker(
 	clientGetter client.EthClientGetter,
 	blockHeightObserver BlockHeightObserver,
 	metricsContainer *metrics.Container,
+	logger *zap.Logger,
 ) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig:      config,
 		clientGetter:        clientGetter,
 		blockHeightObserver: blockHeightObserver,
 		metricsContainer:    metricsContainer,
+		logger:              logger,
 	}
 
 	c.Initialize()
@@ -49,10 +52,10 @@ func NewBlockHeightChecker(
 }
 
 func (c *BlockHeightCheck) Initialize() {
-	zap.L().Debug("Initializing BlockHeightCheck.", zap.Any("config", c.upstreamConfig))
+	c.logger.Debug("Initializing BlockHeightCheck.", zap.Any("config", c.upstreamConfig))
 
 	if err := c.initializeWebsockets(); err != nil {
-		zap.L().Error("Encountered error when calling SubscribeNewHead over Websockets, falling back to using HTTP polling for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+		c.logger.Error("Encountered error when calling SubscribeNewHead over Websockets, falling back to using HTTP polling for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 	}
 
 	c.initializeHTTP()
@@ -61,14 +64,14 @@ func (c *BlockHeightCheck) Initialize() {
 func (c *BlockHeightCheck) initializeWebsockets() error {
 	if c.upstreamConfig.WSURL != "" &&
 		(c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight == nil || *c.upstreamConfig.HealthCheckConfig.UseWSForBlockHeight) {
-		zap.L().Debug("Subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+		c.logger.Debug("Subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
 		c.useWSForBlockHeight = true
 
 		return c.subscribeNewHead()
 	}
 
-	zap.L().Debug("Not subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID))
+	c.logger.Debug("Not subscribing over Websockets for BlockHeightCheck.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
 	return nil
 }
@@ -93,7 +96,7 @@ func (c *BlockHeightCheck) RunCheck() {
 
 		c.runCheckHTTP()
 	} else {
-		zap.L().Debug("Not running BlockHeightCheck over HTTP, Websockets subscription still active.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+		c.logger.Debug("Not running BlockHeightCheck over HTTP, Websockets subscription still active.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 	}
 }
 
@@ -113,7 +116,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 
 		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
-		zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
+		c.logger.Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 	}
 
 	runCheckWithMetrics(runCheck,
@@ -123,7 +126,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
 	if c.blockHeightError != nil || c.blockHeight < maxBlockHeight {
-		zap.L().Debug("BlockHeightCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("blockHeight", c.blockHeight), zap.Error(c.blockHeightError))
+		c.logger.Debug("BlockHeightCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("blockHeight", c.blockHeight), zap.Error(c.blockHeightError))
 
 		return false
 	}
@@ -156,7 +159,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	}
 
 	onError := func(failure string) {
-		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
+		c.logger.Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
 		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSError).Inc()
 		c.webSocketError = errors.New(failure)

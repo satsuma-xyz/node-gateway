@@ -58,7 +58,7 @@ func main() {
 	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", conf))
 
 	go func() {
-		rpcServer = server.NewRPCServer(conf)
+		rpcServer = server.NewRPCServer(conf, logger)
 
 		if err := rpcServer.Start(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start RPC server.", zap.Error(err))

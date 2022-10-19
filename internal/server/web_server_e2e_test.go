@@ -16,6 +16,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
@@ -256,7 +257,8 @@ func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandl
 }
 
 func startRouterAndHandler(conf config.Config) *RPCHandler {
-	dependencyContainer := wireDependencies(conf)
+	testLogger := zap.L()
+	dependencyContainer := wireDependencies(conf, testLogger)
 	router := dependencyContainer.router
 	router.Start()
 
@@ -266,6 +268,7 @@ func startRouterAndHandler(conf config.Config) *RPCHandler {
 
 	handler := &RPCHandler{
 		router: router,
+		logger: testLogger,
 	}
 
 	return handler

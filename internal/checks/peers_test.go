@@ -9,6 +9,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 )
 
 func TestPeerChecker(t *testing.T) {
@@ -19,7 +20,7 @@ func TestPeerChecker(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
@@ -54,7 +55,7 @@ func TestPeerChecker_MethodNotSupported(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)

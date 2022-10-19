@@ -11,6 +11,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/types"
+	"go.uber.org/zap"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
@@ -34,7 +35,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
 	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(), zap.L())
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
@@ -107,7 +108,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer())
+	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(), zap.L())
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -152,7 +153,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		erigonConfig,
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(), zap.L())
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 

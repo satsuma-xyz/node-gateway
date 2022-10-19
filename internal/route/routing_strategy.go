@@ -21,11 +21,13 @@ type RoutingStrategy interface {
 	) (string, error)
 }
 type PriorityRoundRobinStrategy struct {
+	logger  *zap.Logger
 	counter uint64
 }
 
-func NewPriorityRoundRobinStrategy() *PriorityRoundRobinStrategy {
+func NewPriorityRoundRobinStrategy(logger *zap.Logger) *PriorityRoundRobinStrategy {
 	return &PriorityRoundRobinStrategy{
+		logger:  logger,
 		counter: 0,
 	}
 }
@@ -48,7 +50,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 			return upstreams[int(s.counter)%len(upstreams)].ID, nil
 		}
 
-		zap.L().Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
+		s.logger.Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
 	}
 
 	return "", ErrNoHealthyUpstreams
