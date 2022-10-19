@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,7 +20,7 @@ func TestSyncingChecker(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter)
+	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
 
 	assert.False(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "SyncProgress", 1)
@@ -47,7 +48,7 @@ func TestSyncingChecker_MethodNotSupported(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter)
+	checker := NewSyncingChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "SyncProgress", 1)

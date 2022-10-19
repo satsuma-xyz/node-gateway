@@ -63,18 +63,18 @@ var (
 
 	// Upstream routing metrics
 
-	UpstreamRPCRequestsTotal = promauto.NewCounterVec(
+	upstreamRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
-		// jsonrpc_method is "batch" for batch requests
+		// jsonrpc_method is  "batch" for batch requests
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
-	UpstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
+	upstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -85,7 +85,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
-	UpstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
+	upstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -96,7 +96,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
-	UpstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
+	upstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -108,7 +108,7 @@ var (
 		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
-	UpstreamRPCDuration = promauto.NewHistogramVec(
+	upstreamRPCDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "router",
@@ -122,7 +122,7 @@ var (
 
 	// Health check metrics
 
-	BlockHeight = promauto.NewGaugeVec(
+	blockHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -132,7 +132,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckRequests = promauto.NewCounterVec(
+	blockHeightCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -142,7 +142,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckDuration = promauto.NewHistogramVec(
+	blockHeightCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -153,7 +153,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	BlockHeightCheckErrors = promauto.NewCounterVec(
+	blockHeightCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -163,7 +163,7 @@ var (
 		[]string{"upstream_id", "url", "errorType"},
 	)
 
-	PeerCount = promauto.NewGaugeVec(
+	peerCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -173,7 +173,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckRequests = promauto.NewCounterVec(
+	peerCountCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -183,7 +183,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckDuration = promauto.NewHistogramVec(
+	peerCountCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -194,7 +194,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	PeerCountCheckErrors = promauto.NewCounterVec(
+	peerCountCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -205,7 +205,7 @@ var (
 	)
 
 	// Use 0 or 1
-	SyncStatus = promauto.NewGaugeVec(
+	syncStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -215,7 +215,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckRequests = promauto.NewCounterVec(
+	syncStatusCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -225,7 +225,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckDuration = promauto.NewHistogramVec(
+	syncStatusCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -236,7 +236,7 @@ var (
 		[]string{"upstream_id", "url"},
 	)
 
-	SyncStatusCheckErrors = promauto.NewCounterVec(
+	syncStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -246,6 +246,65 @@ var (
 		[]string{"upstream_id", "url", "errorType"},
 	)
 )
+
+type Container struct {
+	RPCRequestsCounter  *prometheus.CounterVec
+	RPCRequestsDuration prometheus.ObserverVec
+	RPCResponseSizes    prometheus.ObserverVec
+
+	UpstreamRPCRequestsTotal          *prometheus.CounterVec
+	UpstreamJSONRPCRequestsTotal      *prometheus.CounterVec
+	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
+	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
+	UpstreamRPCDuration               prometheus.ObserverVec
+
+	BlockHeight              *prometheus.GaugeVec
+	BlockHeightCheckRequests *prometheus.CounterVec
+	BlockHeightCheckDuration prometheus.ObserverVec
+	BlockHeightCheckErrors   *prometheus.CounterVec
+
+	PeerCount              *prometheus.GaugeVec
+	PeerCountCheckRequests *prometheus.CounterVec
+	PeerCountCheckDuration prometheus.ObserverVec
+	PeerCountCheckErrors   *prometheus.CounterVec
+
+	SyncStatus              *prometheus.GaugeVec
+	SyncStatusCheckRequests *prometheus.CounterVec
+	SyncStatusCheckDuration prometheus.ObserverVec
+	SyncStatusCheckErrors   *prometheus.CounterVec
+}
+
+func NewContainer() *Container {
+	result := new(Container)
+	presetLabels := make(prometheus.Labels)
+
+	result.UpstreamRPCRequestsTotal = upstreamRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestsTotal = upstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
+	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
+
+	result.RPCRequestsCounter = rpcRequestsCounter.MustCurryWith(presetLabels)
+	result.RPCRequestsDuration = rpcRequestsDuration.MustCurryWith(presetLabels)
+	result.RPCResponseSizes = rpcResponseSizes.MustCurryWith(presetLabels)
+
+	result.BlockHeight = blockHeight.MustCurryWith(presetLabels)
+	result.BlockHeightCheckRequests = blockHeightCheckRequests.MustCurryWith(presetLabels)
+	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
+	result.BlockHeightCheckErrors = blockHeightCheckErrors.MustCurryWith(presetLabels)
+
+	result.PeerCount = peerCount.MustCurryWith(presetLabels)
+	result.PeerCountCheckRequests = peerCountCheckRequests.MustCurryWith(presetLabels)
+	result.PeerCountCheckDuration = peerCountCheckDuration.MustCurryWith(presetLabels)
+	result.PeerCountCheckErrors = peerCountCheckErrors.MustCurryWith(presetLabels)
+
+	result.SyncStatus = syncStatus.MustCurryWith(presetLabels)
+	result.SyncStatusCheckRequests = syncStatusCheckRequests.MustCurryWith(presetLabels)
+	result.SyncStatusCheckDuration = syncStatusCheckDuration.MustCurryWith(presetLabels)
+	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
+
+	return result
+}
 
 func NewMetricsServer() *http.Server {
 	mux := http.NewServeMux()
@@ -258,10 +317,10 @@ func NewMetricsServer() *http.Server {
 	}
 }
 
-func InstrumentHandler(handler http.Handler) http.Handler {
-	withRequestsCounter := promhttp.InstrumentHandlerCounter(rpcRequestsCounter, handler)
-	withRequestsDuration := promhttp.InstrumentHandlerDuration(rpcRequestsDuration, withRequestsCounter)
-	withResponseSizes := promhttp.InstrumentHandlerResponseSize(rpcResponseSizes, withRequestsDuration)
+func InstrumentHandler(handler http.Handler, container *Container) http.Handler {
+	withRequestsCounter := promhttp.InstrumentHandlerCounter(container.RPCRequestsCounter, handler)
+	withRequestsDuration := promhttp.InstrumentHandlerDuration(container.RPCRequestsDuration, withRequestsCounter)
+	withResponseSizes := promhttp.InstrumentHandlerResponseSize(container.RPCResponseSizes, withRequestsDuration)
 
 	return withResponseSizes
 }

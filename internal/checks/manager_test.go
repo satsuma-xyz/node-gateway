@@ -6,6 +6,7 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
@@ -38,23 +39,28 @@ func TestHealthCheckManager(t *testing.T) {
 	tickerChan := make(chan time.Time)
 	ticker := &time.Ticker{C: tickerChan}
 
-	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker)
+	metricsContainer := metrics.NewContainer()
+
+	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker, metricsContainer)
 	manager.(*healthCheckManager).newBlockHeightCheck = func(
 		*config.UpstreamConfig,
 		client.EthClientGetter,
 		BlockHeightObserver,
+		*metrics.Container,
 	) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
 	manager.(*healthCheckManager).newPeerCheck = func(
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
 	) types.Checker {
 		return mockPeerChecker
 	}
 	manager.(*healthCheckManager).newSyncingCheck = func(
 		upstreamConfig *config.UpstreamConfig,
 		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
 	) types.Checker {
 		return mockSyncingChecker
 	}

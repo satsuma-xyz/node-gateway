@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/metadata"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -36,7 +37,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore)
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 
@@ -64,7 +65,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
 
-	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore)
+	checker := NewBlockHeightChecker(defaultUpstreamConfig, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
 
 	ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 1)
 	assert.False(t, checker.IsPassing(maxBlockHeight))
@@ -99,7 +100,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 		chainMetadataStore := metadata.NewChainMetadataStore()
 		chainMetadataStore.Start()
 
-		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore)
+		checker := NewBlockHeightChecker(config, mockEthClientGetter, chainMetadataStore, metrics.NewContainer())
 
 		checker.RunCheck()
 		ethClient.AssertNumberOfCalls(t, "SubscribeNewHead", 0)

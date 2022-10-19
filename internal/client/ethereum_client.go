@@ -23,7 +23,7 @@ type NewHeadHandler struct {
 	OnError   func(failure string)
 }
 
-//go:generate mockery --output ../mocks --name EthClient
+//go:generate mockery --output ../mocks --name EthClient --with-expecter
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)

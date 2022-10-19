@@ -256,7 +256,8 @@ func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandl
 }
 
 func startRouterAndHandler(conf config.Config) *RPCHandler {
-	router := wireRouter(conf)
+	dependencyContainer := wireDependencies(conf)
+	router := dependencyContainer.router
 	router.Start()
 
 	for router.IsInitialized() == false {

@@ -38,6 +38,7 @@ type SimpleRouter struct {
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
 	requestExecutor    RequestExecutor
+	metricsContainer   *metrics.Container
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
@@ -50,6 +51,7 @@ func NewRouter(
 	chainMetadataStore *metadata.ChainMetadataStore,
 	healthCheckManager checks.HealthCheckManager,
 	routingStrategy RoutingStrategy,
+	metricsContainer *metrics.Container,
 ) Router {
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
@@ -59,6 +61,7 @@ func NewRouter(
 		routingStrategy:     routingStrategy,
 		requestExecutor:     RequestExecutor{httpClient: &http.Client{}},
 		metadataParser:      metadata.RequestMetadataParser{},
+		metricsContainer:    metricsContainer,
 	}
 
 	return r
@@ -127,7 +130,7 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	metrics.UpstreamRPCRequestsTotal.WithLabelValues(
+	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		id,
 		configToRoute.HTTPURL,
@@ -138,7 +141,7 @@ func (r *SimpleRouter) Route(
 
 	go func() {
 		for _, request := range requestBody.GetSubRequests() {
-			metrics.UpstreamJSONRPCRequestsTotal.WithLabelValues(
+			r.metricsContainer.UpstreamJSONRPCRequestsTotal.WithLabelValues(
 				util.GetClientFromContext(ctx),
 				id,
 				configToRoute.HTTPURL,
@@ -156,7 +159,7 @@ func (r *SimpleRouter) Route(
 	}
 
 	if err != nil {
-		metrics.UpstreamRPCRequestErrorsTotal.WithLabelValues(
+		r.metricsContainer.UpstreamRPCRequestErrorsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			id,
 			configToRoute.HTTPURL,
@@ -180,7 +183,7 @@ func (r *SimpleRouter) Route(
 					zap.Any("request", requestBody), zap.Any("error", resp.Error),
 					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", id))
 
-				metrics.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
+				r.metricsContainer.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
 					util.GetClientFromContext(ctx),
 					id,
 					configToRoute.HTTPURL,
@@ -192,7 +195,7 @@ func (r *SimpleRouter) Route(
 		}
 	}
 
-	metrics.UpstreamRPCDuration.WithLabelValues(
+	r.metricsContainer.UpstreamRPCDuration.WithLabelValues(
 		util.GetClientFromContext(ctx),
 		configToRoute.ID,
 		configToRoute.HTTPURL,

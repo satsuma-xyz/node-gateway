@@ -21,6 +21,7 @@ type BlockHeightCheck struct {
 	clientGetter        client.EthClientGetter
 	upstreamConfig      *conf.UpstreamConfig
 	blockHeightObserver BlockHeightObserver
+	metricsContainer    *metrics.Container
 	blockHeight         uint64
 	useWSForBlockHeight bool
 }
@@ -29,11 +30,17 @@ type BlockHeightObserver interface {
 	ProcessUpdate(update metadata.BlockHeightUpdate)
 }
 
-func NewBlockHeightChecker(config *conf.UpstreamConfig, clientGetter client.EthClientGetter, blockHeightObserver BlockHeightObserver) internalTypes.BlockHeightChecker {
+func NewBlockHeightChecker(
+	config *conf.UpstreamConfig,
+	clientGetter client.EthClientGetter,
+	blockHeightObserver BlockHeightObserver,
+	metricsContainer *metrics.Container,
+) internalTypes.BlockHeightChecker {
 	c := &BlockHeightCheck{
 		upstreamConfig:      config,
 		clientGetter:        clientGetter,
 		blockHeightObserver: blockHeightObserver,
+		metricsContainer:    metricsContainer,
 	}
 
 	c.Initialize()
@@ -69,7 +76,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
-		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
+		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		c.blockHeightError = err
 
 		return
@@ -98,20 +105,20 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	runCheck := func() {
 		header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
 		if c.blockHeightError = err; c.blockHeightError != nil {
-			metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+			c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
 		}
 
 		c.SetBlockHeight(header.Number.Uint64())
 
-		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		zap.L().Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 	}
 
 	runCheckWithMetrics(runCheck,
-		metrics.BlockHeightCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		metrics.BlockHeightCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		c.metricsContainer.BlockHeightCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+		c.metricsContainer.BlockHeightCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
@@ -143,7 +150,7 @@ func (c *BlockHeightCheck) GetError() error {
 func (c *BlockHeightCheck) subscribeNewHead() error {
 	onNewHead := func(header *ethTypes.Header) {
 		c.SetBlockHeight(header.Number.Uint64())
-		metrics.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 		c.webSocketError = nil
 		c.blockHeightError = nil
 	}
@@ -151,7 +158,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	onError := func(failure string) {
 		zap.L().Error("Encountered error in NewHead Websockets subscription.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("WSURL", c.upstreamConfig.WSURL))
 
-		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSError).Inc()
+		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSError).Inc()
 		c.webSocketError = errors.New(failure)
 		c.blockHeightError = c.webSocketError
 	}
@@ -163,7 +170,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 	}
 
 	if err = subscribeNewHeads(wsClient, &newHeadHandler{onNewHead: onNewHead, onError: onError}); err != nil {
-		metrics.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSSubscribe).Inc()
+		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSSubscribe).Inc()
 		c.webSocketError = err
 
 		return err

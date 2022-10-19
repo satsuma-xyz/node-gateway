@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,13 +13,13 @@ import (
 
 func TestPeerChecker(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(6), nil)
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(6), nil)
 
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter)
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
@@ -47,13 +48,13 @@ func TestPeerChecker(t *testing.T) {
 
 func TestPeerChecker_MethodNotSupported(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(0), methodNotSupportedError{})
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(0), methodNotSupportedError{})
 
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter)
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
