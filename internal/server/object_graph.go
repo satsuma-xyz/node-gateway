@@ -57,7 +57,7 @@ func wireDependenciesForAllChains(
 	gatewayConfig config.Config,
 	rootLogger *zap.Logger,
 ) objectGraph {
-	singleChainDependencies := make([]singleChainObjectGraph, len(gatewayConfig.Chains))
+	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 
 	for chainIndex := range gatewayConfig.Chains {
 		currentChainConfig := &gatewayConfig.Chains[chainIndex]
