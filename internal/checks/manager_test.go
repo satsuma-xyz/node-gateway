@@ -40,7 +40,7 @@ func TestHealthCheckManager(t *testing.T) {
 	tickerChan := make(chan time.Time)
 	ticker := &time.Ticker{C: tickerChan}
 
-	metricsContainer := metrics.NewContainer()
+	metricsContainer := metrics.NewContainer("test_net")
 
 	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker, metricsContainer, zap.L())
 	manager.(*healthCheckManager).newBlockHeightCheck = func(

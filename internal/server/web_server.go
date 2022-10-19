@@ -33,15 +33,17 @@ type RPCServer struct {
 }
 
 func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
-	dependencyContainer := wireDependencies(config, rootLogger)
+	childLogger := rootLogger.With(zap.String("chainName", config.ChainName))
+
+	dependencyContainer := wireDependencies(config, childLogger)
 	router := dependencyContainer.router
 	handler := &RPCHandler{
 		router: router,
-		logger: rootLogger,
+		logger: childLogger,
 	}
 	healthCheckHandler := &HealthCheckHandler{
 		router: router,
-		logger: rootLogger,
+		logger: childLogger,
 	}
 
 	port := defaultServerPort
@@ -75,7 +77,7 @@ type DependencyContainer struct {
 }
 
 func wireDependencies(config conf.Config, logger *zap.Logger) *DependencyContainer {
-	metricContainer := metrics.NewContainer()
+	metricContainer := metrics.NewContainer(config.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, config.Upstreams, chainMetadataStore, ticker, metricContainer, logger)

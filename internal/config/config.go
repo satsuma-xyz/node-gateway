@@ -123,6 +123,7 @@ type Config struct {
 	Groups    []GroupConfig
 	Global    GlobalConfig
 	Routing   RoutingConfig
+	ChainName string `yaml:"chainName"`
 }
 
 func LoadConfig(configFilePath string) (Config, error) {
@@ -148,6 +149,8 @@ func parseConfig(configBytes []byte) (Config, error) {
 	for _, upstream := range config.Upstreams {
 		isValid = isValid && upstream.isValid(config.Groups)
 	}
+
+	isValid = isValid && config.ChainName != ""
 
 	if !isValid {
 		err = errors.New("invalid config found")

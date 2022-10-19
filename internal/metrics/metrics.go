@@ -36,7 +36,7 @@ var (
 			Name:      "rpc_requests",
 			Help:      "Count of total RPC requests.",
 		},
-		[]string{"code", "method"},
+		[]string{"chain_name", "code", "method"},
 	)
 
 	rpcRequestsDuration = promauto.NewHistogramVec(
@@ -47,7 +47,7 @@ var (
 			Help:      "Histogram of RPC request latencies.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"code", "method"},
+		[]string{"chain_name", "code", "method"},
 	)
 
 	rpcResponseSizes = promauto.NewHistogramVec(
@@ -58,7 +58,7 @@ var (
 			Help:      "Histogram of RPC response sizes.",
 			Buckets:   []float64{100, 500, 1000, 5000, 10000},
 		},
-		[]string{"code", "method"},
+		[]string{"chain_name", "code", "method"},
 	)
 
 	// Upstream routing metrics
@@ -71,7 +71,7 @@ var (
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
 		// jsonrpc_method is  "batch" for batch requests
-		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
 	upstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
@@ -82,7 +82,7 @@ var (
 			Help: "Count of total JSON RPC requests forwarded to upstreamsm including ones in batches. " +
 				"Batches are deconstructed to single JSON RPC requests for this metric.",
 		},
-		[]string{"client", "upstream_id", "url", "jsonrpc_method"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method"},
 	)
 
 	upstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -93,7 +93,7 @@ var (
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
 	upstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -105,7 +105,7 @@ var (
 				"Batches are deconstructed to single JSON RPC requests for this metric.",
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
 	upstreamRPCDuration = promauto.NewHistogramVec(
@@ -117,7 +117,7 @@ var (
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
 	)
 
 	// Health check metrics
@@ -129,7 +129,7 @@ var (
 			Name:      "block_height",
 			Help:      "Block height of upstream.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	blockHeightCheckRequests = promauto.NewCounterVec(
@@ -139,7 +139,7 @@ var (
 			Name:      "block_height_check",
 			Help:      "Total block height requests made.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	blockHeightCheckDuration = promauto.NewHistogramVec(
@@ -150,7 +150,7 @@ var (
 			Help:      "Latency of block height requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	blockHeightCheckErrors = promauto.NewCounterVec(
@@ -160,7 +160,7 @@ var (
 			Name:      "block_height_check_errors",
 			Help:      "Errors when retrieving block height of upstream.",
 		},
-		[]string{"upstream_id", "url", "errorType"},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
 	peerCount = promauto.NewGaugeVec(
@@ -170,7 +170,7 @@ var (
 			Name:      "peer_count",
 			Help:      "Block height of upstream.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	peerCountCheckRequests = promauto.NewCounterVec(
@@ -180,7 +180,7 @@ var (
 			Name:      "peer_count_check_requests",
 			Help:      "Total peer count requests made.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	peerCountCheckDuration = promauto.NewHistogramVec(
@@ -191,7 +191,7 @@ var (
 			Help:      "Latency of peer count requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	peerCountCheckErrors = promauto.NewCounterVec(
@@ -201,7 +201,7 @@ var (
 			Name:      "peer_count_check_errors",
 			Help:      "Errors when retrieving peer count of upstream.",
 		},
-		[]string{"upstream_id", "url", "errorType"},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
 	// Use 0 or 1
@@ -212,7 +212,7 @@ var (
 			Name:      "sync_status",
 			Help:      "Sync Status of upstream.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	syncStatusCheckRequests = promauto.NewCounterVec(
@@ -222,7 +222,7 @@ var (
 			Name:      "sync_status_check_requests",
 			Help:      "Total sync status requests made.",
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	syncStatusCheckDuration = promauto.NewHistogramVec(
@@ -233,7 +233,7 @@ var (
 			Help:      "Latency of sync status requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url"},
 	)
 
 	syncStatusCheckErrors = promauto.NewCounterVec(
@@ -243,7 +243,7 @@ var (
 			Name:      "sync_status_check_errors",
 			Help:      "Errors when retrieving sync status of upstream.",
 		},
-		[]string{"upstream_id", "url", "errorType"},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 )
 
@@ -274,9 +274,11 @@ type Container struct {
 	SyncStatusCheckErrors   *prometheus.CounterVec
 }
 
-func NewContainer() *Container {
+func NewContainer(chainName string) *Container {
 	result := new(Container)
-	presetLabels := make(prometheus.Labels)
+	presetLabels := prometheus.Labels{
+		"chain_name": chainName,
+	}
 
 	result.UpstreamRPCRequestsTotal = upstreamRPCRequestsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestsTotal = upstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
