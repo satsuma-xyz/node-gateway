@@ -347,15 +347,15 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
 
 	testLogger := zap.L()
 
-	dependencyContainer := wireDependenciesForAllChains(conf, testLogger)
+	dependencyContainer := WireDependenciesForAllChains(conf, testLogger)
 
-	dependencyContainer.routerCollection.Start()
+	dependencyContainer.RouterCollection.Start()
 
-	for dependencyContainer.routerCollection.IsInitialized() == false {
+	for dependencyContainer.RouterCollection.IsInitialized() == false {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	handler := dependencyContainer.handler
+	handler := dependencyContainer.Handler
 
 	return handler
 }

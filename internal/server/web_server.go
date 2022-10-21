@@ -26,9 +26,7 @@ type RPCServer struct {
 	routerCollection route.RouterCollection
 }
 
-func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
-	dependencyContainer := wireDependenciesForAllChains(config, rootLogger)
-
+func NewHTTPServer(config conf.Config, handler *http.ServeMux) *http.Server {
 	port := defaultServerPort
 	if config.Global.Port > 0 {
 		port = config.Global.Port
@@ -36,16 +34,20 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
-		Handler:           dependencyContainer.handler,
+		Handler:           handler,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
+	return httpServer
+}
+
+func NewRPCServer(httpServer *http.Server, routerCollection route.RouterCollection) *RPCServer {
 	rpcServer := &RPCServer{
 		httpServer:       httpServer,
-		routerCollection: dependencyContainer.routerCollection,
+		routerCollection: routerCollection,
 	}
 
-	return *rpcServer
+	return rpcServer
 }
 
 func (s *RPCServer) Start() error {

@@ -13,9 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type objectGraph struct {
-	handler          *http.ServeMux
-	routerCollection route.RouterCollection
+type ObjectGraph struct {
+	Handler          *http.ServeMux
+	RPCServer        *RPCServer
+	RouterCollection route.RouterCollection
 }
 
 type singleChainObjectGraph struct {
@@ -53,10 +54,10 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 	}
 }
 
-func wireDependenciesForAllChains(
+func WireDependenciesForAllChains(
 	gatewayConfig config.Config,
 	rootLogger *zap.Logger,
-) objectGraph {
+) ObjectGraph {
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
 
@@ -79,9 +80,13 @@ func wireDependenciesForAllChains(
 
 	mux := newServeMux(healthCheckHandler, singleChainDependencies, rootLogger)
 
-	return objectGraph{
-		routerCollection: routerCollection,
-		handler:          mux,
+	httpServer := NewHTTPServer(gatewayConfig, mux)
+	rpcServer := NewRPCServer(httpServer, routerCollection)
+
+	return ObjectGraph{
+		RouterCollection: routerCollection,
+		Handler:          mux,
+		RPCServer:        rpcServer,
 	}
 }
 
