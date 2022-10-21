@@ -24,7 +24,6 @@ const (
 type RPCServer struct {
 	httpServer       *http.Server
 	routerCollection route.RouterCollection
-	config           conf.Config
 }
 
 func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
@@ -44,7 +43,6 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 	rpcServer := &RPCServer{
 		httpServer:       httpServer,
 		routerCollection: dependencyContainer.routerCollection,
-		config:           config,
 	}
 
 	return *rpcServer
