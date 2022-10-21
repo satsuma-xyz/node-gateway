@@ -77,6 +77,19 @@ func wireDependenciesForAllChains(
 		logger:           rootLogger,
 	}
 
+	mux := newServeMux(healthCheckHandler, singleChainDependencies, rootLogger)
+
+	return objectGraph{
+		routerCollection: routerCollection,
+		handler:          mux,
+	}
+}
+
+func newServeMux(
+	healthCheckHandler *HealthCheckHandler,
+	singleChainDependencies []singleChainObjectGraph,
+	rootLogger *zap.Logger,
+) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/health", healthCheckHandler)
 
@@ -85,8 +98,5 @@ func wireDependenciesForAllChains(
 		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.handler.path), zap.String("chainName", container.chainName))
 	}
 
-	return objectGraph{
-		routerCollection: routerCollection,
-		handler:          mux,
-	}
+	return mux
 }
