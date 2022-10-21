@@ -1,9 +1,9 @@
 package config
 
 import (
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -139,6 +139,12 @@ func TestParseConfig_ValidConfig(t *testing.T) {
             wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
             group: fallback
             nodeType: archive
+
+      - chainName: polygon
+        upstreams:
+          - id: erigon-polygon-1
+            httpURL: "http://127.0.0.1:4040"
+            nodeType: archive
   `
 	configBytes := []byte(config)
 
@@ -186,11 +192,18 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 					Priority: 1,
 				},
 			},
+		}, {
+			ChainName: "polygon",
+			Upstreams: []UpstreamConfig{{
+				ID:       "erigon-polygon-1",
+				HTTPURL:  "http://127.0.0.1:4040",
+				NodeType: Archive,
+			}},
 		}},
 	}
 
-	if !reflect.DeepEqual(parsedConfig, expectedConfig) {
-		t.Errorf("ParseConfig returned unexpected config: %v.", parsedConfig)
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
 	}
 }
 
