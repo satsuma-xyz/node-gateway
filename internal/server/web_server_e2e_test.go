@@ -319,6 +319,7 @@ func executeRequest(
 	handler *http.ServeMux,
 ) (int, jsonrpc.ResponseBody, http.Header) {
 	t.Helper()
+
 	requestBytes, _ := request.Encode()
 	req := httptest.NewRequest(http.MethodPost, "/"+chainName, bytes.NewReader(requestBytes))
 
@@ -347,13 +348,11 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
 	testLogger := zap.L()
 
 	dependencyContainer := wireDependenciesForAllChains(conf, testLogger)
-	for chainIndex := range dependencyContainer.singleChainGraphs {
-		router := dependencyContainer.singleChainGraphs[chainIndex].router
-		router.Start()
 
-		for router.IsInitialized() == false {
-			time.Sleep(10 * time.Millisecond)
-		}
+	dependencyContainer.routerCollection.Start()
+
+	for dependencyContainer.routerCollection.IsInitialized() == false {
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	handler := dependencyContainer.handler

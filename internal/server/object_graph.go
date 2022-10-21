@@ -14,8 +14,8 @@ import (
 )
 
 type objectGraph struct {
-	handler           *http.ServeMux
-	singleChainGraphs []singleChainObjectGraph
+	handler          *http.ServeMux
+	routerCollection route.RouterCollection
 }
 
 type singleChainObjectGraph struct {
@@ -58,18 +58,23 @@ func wireDependenciesForAllChains(
 	rootLogger *zap.Logger,
 ) objectGraph {
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
+	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
 
 	for chainIndex := range gatewayConfig.Chains {
 		currentChainConfig := &gatewayConfig.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
 		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
+
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
+		routers = append(routers, dependencyContainer.router)
 	}
 
+	routerCollection := route.RouterCollection{Routers: routers}
+
 	healthCheckHandler := &HealthCheckHandler{
-		singleChainDependencies: singleChainDependencies,
-		logger:                  rootLogger,
+		routerCollection: routerCollection,
+		logger:           rootLogger,
 	}
 
 	mux := http.NewServeMux()
@@ -81,7 +86,7 @@ func wireDependenciesForAllChains(
 	}
 
 	return objectGraph{
-		singleChainGraphs: singleChainDependencies,
-		handler:           mux,
+		routerCollection: routerCollection,
+		handler:          mux,
 	}
 }

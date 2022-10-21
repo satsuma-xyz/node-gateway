@@ -22,9 +22,9 @@ const (
 )
 
 type RPCServer struct {
-	httpServer *http.Server
-	routers    []route.Router
-	config     conf.Config
+	httpServer       *http.Server
+	routerCollection route.RouterCollection
+	config           conf.Config
 }
 
 func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
@@ -41,24 +41,17 @@ func NewRPCServer(config conf.Config, rootLogger *zap.Logger) RPCServer {
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
-	routers := make([]route.Router, len(dependencyContainer.singleChainGraphs))
-	for _, dependency := range dependencyContainer.singleChainGraphs {
-		routers = append(routers, dependency.router)
-	}
-
 	rpcServer := &RPCServer{
-		httpServer: httpServer,
-		routers:    routers,
-		config:     config,
+		httpServer:       httpServer,
+		routerCollection: dependencyContainer.routerCollection,
+		config:           config,
 	}
 
 	return *rpcServer
 }
 
 func (s *RPCServer) Start() error {
-	for _, router := range s.routers {
-		router.Start()
-	}
+	s.routerCollection.Start()
 
 	return s.httpServer.ListenAndServe()
 }
@@ -68,26 +61,16 @@ func (s *RPCServer) Shutdown() error {
 }
 
 type HealthCheckHandler struct {
-	logger                  *zap.Logger
-	singleChainDependencies []singleChainObjectGraph
+	logger           *zap.Logger
+	routerCollection route.RouterCollection
 }
 
 func (h *HealthCheckHandler) ServeHTTP(writer http.ResponseWriter, _ *http.Request) {
-	if h.areAllRoutersInitialized() {
+	if h.routerCollection.IsInitialized() {
 		respondRaw(h.logger, writer, []byte("OK"), http.StatusOK)
 	} else {
 		respondRaw(h.logger, writer, []byte("Starting up"), http.StatusServiceUnavailable)
 	}
-}
-
-func (h *HealthCheckHandler) areAllRoutersInitialized() bool {
-	for _, singleChainDependencyContainer := range h.singleChainDependencies {
-		if !singleChainDependencyContainer.router.IsInitialized() {
-			return false
-		}
-	}
-
-	return true
 }
 
 type RPCHandler struct {
