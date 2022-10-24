@@ -51,14 +51,15 @@ func main() {
 		zap.L().Fatal("Failed to load config.", zap.Error(err))
 	}
 
-	var rpcServer server.RPCServer
+	var rpcServer *server.RPCServer
 
 	var metricsServer *http.Server
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", conf))
 
 	go func() {
-		rpcServer = server.NewRPCServer(conf, logger)
+		objectGraph := server.WireDependenciesForAllChains(conf, logger)
+		rpcServer = objectGraph.RPCServer
 
 		if err := rpcServer.Start(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start RPC server.", zap.Error(err))

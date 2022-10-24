@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/mocks"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestPeerChecker(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer("test_net"), zap.L())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(config.TestChainName), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
@@ -55,7 +56,7 @@ func TestPeerChecker_MethodNotSupported(t *testing.T) {
 		return ethClient, nil
 	}
 
-	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer("test_net"), zap.L())
+	checker := NewPeerChecker(defaultUpstreamConfig, mockEthClientGetter, metrics.NewContainer(config.TestChainName), zap.L())
 
 	assert.True(t, checker.IsPassing())
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)

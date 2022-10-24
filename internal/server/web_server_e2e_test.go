@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -19,6 +20,20 @@ import (
 	"go.uber.org/zap"
 )
 
+func TestMain(m *testing.M) {
+	loggingConfig := zap.NewDevelopmentConfig()
+	loggingConfig.Level = zap.NewAtomicLevelAt(zap.WarnLevel)
+
+	logger, err := loggingConfig.Build()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	zap.ReplaceGlobals(logger)
+
+	os.Exit(m.Run())
+}
+
 func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{})
 	defer healthyUpstream.Close()
@@ -27,22 +42,69 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	defer unhealthyUpstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
-		{ID: "healthyNode", HTTPURL: healthyUpstream.URL},
-		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL},
+		{ID: "healthyNode", HTTPURL: healthyUpstream.URL, NodeType: config.Full},
+		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL, NodeType: config.Full},
 	}
 
 	conf := config.Config{
-		Upstreams: upstreamConfigs,
-		Groups:    nil,
-		Global:    config.GlobalConfig{},
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: upstreamConfigs,
+			Groups:    nil,
+		}},
+		Global: config.GlobalConfig{},
 	}
 
-	handler := startRouterAndHandler(conf)
+	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody := executeSingleRequest(t, "eth_blockNumber", handler)
+	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
+	healthyUpstream1 := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{})
+	defer healthyUpstream1.Close()
+
+	healthyUpstream2 := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{})
+	defer healthyUpstream2.Close()
+
+	upstreamConfig1 := config.UpstreamConfig{ID: "healthyNode1", HTTPURL: healthyUpstream1.URL, NodeType: config.Full}
+	upstreamConfig2 := config.UpstreamConfig{ID: "healthyNode2", HTTPURL: healthyUpstream2.URL, NodeType: config.Full}
+
+	conf := config.Config{
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: []config.UpstreamConfig{upstreamConfig1},
+			Groups:    nil,
+		}, {
+			ChainName: "another_test_net",
+			Upstreams: []config.UpstreamConfig{
+				upstreamConfig2,
+			},
+			Groups: nil,
+		}},
+		Global: config.GlobalConfig{},
+	}
+
+	handler := startRouterAndHandler(t, conf)
+
+	{
+		statusCode, responseBody, headers := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.GetSubResponses()[0].Result)
+		assert.Equal(t, upstreamConfig1.ID, headers.Get("X-Upstream-ID"))
+	}
+
+	{
+		statusCode, responseBody, headers := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.GetSubResponses()[0].Result)
+		assert.Equal(t, upstreamConfig2.ID, headers.Get("X-Upstream-ID"))
+	}
 }
 
 func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
@@ -104,19 +166,22 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 		{ID: archiveNodeGroupID, Priority: 1},
 	}
 	conf := config.Config{
-		Upstreams: upstreamConfigs,
-		Groups:    groupConfigs,
-		Global:    config.GlobalConfig{},
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: upstreamConfigs,
+			Groups:    groupConfigs,
+		}},
+		Global: config.GlobalConfig{},
 	}
 
-	handler := startRouterAndHandler(conf)
+	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody := executeSingleRequest(t, statefulMethod, handler)
+	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
 
-	statusCode, responseBody = executeSingleRequest(t, nonStatefulMethod, handler)
+	statusCode, responseBody, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -181,15 +246,18 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 		{ID: archiveNodeGroupID, Priority: 1},
 	}
 	conf := config.Config{
-		Upstreams: upstreamConfigs,
-		Groups:    groupConfigs,
-		Global:    config.GlobalConfig{},
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: upstreamConfigs,
+			Groups:    groupConfigs,
+		}},
+		Global: config.GlobalConfig{},
 	}
 
-	handler := startRouterAndHandler(conf)
+	handler := startRouterAndHandler(t, conf)
 
 	// Batch request where one request in the batch is stateful. This should go to archive.
-	statusCode, responseBody := executeBatchRequest(t, []string{statefulMethod, nonStatefulMethod}, handler)
+	statusCode, responseBody, _ := executeBatchRequest(t, config.TestChainName, []string{statefulMethod, nonStatefulMethod}, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, 2, len(responseBody.GetSubResponses()))
@@ -203,7 +271,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), idsToExpectedResult[1])
 }
 
-func executeSingleRequest(t *testing.T, methodName string, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
+func executeSingleRequest(
+	t *testing.T,
+	chainName string,
+	methodName string,
+	handler *http.ServeMux,
+) (int, jsonrpc.ResponseBody, http.Header) {
 	t.Helper()
 
 	singleRequest := jsonrpc.SingleRequestBody{
@@ -212,10 +285,15 @@ func executeSingleRequest(t *testing.T, methodName string, handler *RPCHandler) 
 		ID:             1,
 	}
 
-	return executeRequest(t, &singleRequest, handler)
+	return executeRequest(t, chainName, &singleRequest, handler)
 }
 
-func executeBatchRequest(t *testing.T, methodNames []string, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
+func executeBatchRequest(
+	t *testing.T,
+	chainName string,
+	methodNames []string,
+	handler *http.ServeMux,
+) (int, jsonrpc.ResponseBody, http.Header) {
 	t.Helper()
 
 	requests := make([]jsonrpc.SingleRequestBody, 0)
@@ -231,15 +309,20 @@ func executeBatchRequest(t *testing.T, methodNames []string, handler *RPCHandler
 
 	batchRequest := jsonrpc.BatchRequestBody{Requests: requests}
 
-	return executeRequest(t, &batchRequest, handler)
+	return executeRequest(t, chainName, &batchRequest, handler)
 }
 
-func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandler) (int, jsonrpc.ResponseBody) {
+func executeRequest(
+	t *testing.T,
+	chainName string,
+	request jsonrpc.RequestBody,
+	handler *http.ServeMux,
+) (int, jsonrpc.ResponseBody, http.Header) {
 	t.Helper()
 
 	requestBytes, _ := request.Encode()
+	req := httptest.NewRequest(http.MethodPost, "/"+chainName, bytes.NewReader(requestBytes))
 
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(requestBytes))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -253,23 +336,26 @@ func executeRequest(t *testing.T, request jsonrpc.RequestBody, handler *RPCHandl
 	assert.NoError(t, err)
 	require.NotNil(t, responseBody)
 
-	return result.StatusCode, responseBody
+	return result.StatusCode, responseBody, recorder.Header()
 }
 
-func startRouterAndHandler(conf config.Config) *RPCHandler {
-	testLogger := zap.L()
-	dependencyContainer := wireDependencies(conf, testLogger)
-	router := dependencyContainer.router
-	router.Start()
+func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
+	t.Helper()
 
-	for router.IsInitialized() == false {
+	err := conf.Validate()
+	require.NoError(t, err)
+
+	testLogger := zap.L()
+
+	dependencyContainer := WireDependenciesForAllChains(conf, testLogger)
+
+	dependencyContainer.RouterCollection.Start()
+
+	for dependencyContainer.RouterCollection.IsInitialized() == false {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	handler := &RPCHandler{
-		router: router,
-		logger: testLogger,
-	}
+	handler := dependencyContainer.Handler
 
 	return handler
 }

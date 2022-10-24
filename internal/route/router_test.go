@@ -35,11 +35,11 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
 	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer("test_net"), zap.L())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L())
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
-	jsonResp, httpResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
+	_, jsonResp, httpResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, jsonResp)
@@ -108,14 +108,15 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer("test_net"), zap.L())
+	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L())
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
+	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
@@ -153,14 +154,15 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		erigonConfig,
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer("test_net"), zap.L())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L())
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
+	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
 	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{

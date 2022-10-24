@@ -26,11 +26,11 @@ import (
 // For now this is pretty simple, but in the future we'll have things like
 // caching, rate limiting, API-based routing and more.
 
-//go:generate mockery --output ../mocks --name Router
+//go:generate mockery --output ../mocks --name Router --with-expecter
 type Router interface {
 	Start()
 	IsInitialized() bool
-	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (jsonrpc.ResponseBody, *http.Response, error)
+	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (string, jsonrpc.ResponseBody, *http.Response, error)
 }
 
 type SimpleRouter struct {
@@ -107,9 +107,9 @@ func (r *SimpleRouter) IsInitialized() bool {
 func (r *SimpleRouter) Route(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
-) (jsonrpc.ResponseBody, *http.Response, error) {
+) (string, jsonrpc.ResponseBody, *http.Response, error) {
 	requestMetadata := r.metadataParser.Parse(requestBody)
-	id, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
+	upstreamID, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
 
 	if err != nil {
 		switch {
@@ -119,34 +119,33 @@ func (r *SimpleRouter) Route(
 				Body:       io.NopCloser(bytes.NewBufferString(err.Error())),
 			}
 
-			return nil, httpResp, nil
+			return "", nil, httpResp, nil
 		default:
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 	}
 
 	var configToRoute config.UpstreamConfig
 
 	for _, upstreamConfig := range r.upstreamConfigs {
-		if upstreamConfig.ID == id {
+		if upstreamConfig.ID == upstreamID {
 			configToRoute = upstreamConfig
 		}
 	}
 
+	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", upstreamID), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
 		util.GetClientFromContext(ctx),
-		id,
+		upstreamID,
 		configToRoute.HTTPURL,
 		requestBody.GetMethod(),
 	).Inc()
-
-	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", id), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 
 	go func() {
 		for _, request := range requestBody.GetSubRequests() {
 			r.metricsContainer.UpstreamJSONRPCRequestsTotal.WithLabelValues(
 				util.GetClientFromContext(ctx),
-				id,
+				upstreamID,
 				configToRoute.HTTPURL,
 				request.Method,
 			).Inc()
@@ -164,7 +163,7 @@ func (r *SimpleRouter) Route(
 	if err != nil {
 		r.metricsContainer.UpstreamRPCRequestErrorsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
-			id,
+			upstreamID,
 			configToRoute.HTTPURL,
 			requestBody.GetMethod(),
 			HTTPReponseCode,
@@ -184,11 +183,11 @@ func (r *SimpleRouter) Route(
 			if resp.Error != nil {
 				zap.L().Warn("Encountered error in upstream JSONRPC response.",
 					zap.Any("request", requestBody), zap.Any("error", resp.Error),
-					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", id))
+					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", upstreamID))
 
 				r.metricsContainer.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
 					util.GetClientFromContext(ctx),
-					id,
+					upstreamID,
 					configToRoute.HTTPURL,
 					reqIDToRequestMap[resp.ID].Method,
 					HTTPReponseCode,
@@ -207,5 +206,5 @@ func (r *SimpleRouter) Route(
 		"",
 	).Observe(time.Since(start).Seconds())
 
-	return body, response, err
+	return upstreamID, body, response, err
 }

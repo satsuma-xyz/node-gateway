@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
@@ -25,17 +26,17 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 		Result:  "results",
 		ID:      2,
 	}
-	router.On("Route", mock.Anything, mock.Anything).
-		Return(expectedRPCResponse,
+	router.EXPECT().Route(mock.Anything, mock.Anything).
+		Return("fakeUpstream", expectedRPCResponse,
 			&http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader("dummy")),
 			}, nil)
 
-	handler := &RPCHandler{router: router, logger: zap.L()}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -53,10 +54,10 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 
 func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
-	req := httptest.NewRequest(http.MethodGet, "/", bytes.NewReader(emptyJSONBody))
+	req := httptest.NewRequest(http.MethodGet, "/"+config.TestChainName, bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -71,9 +72,9 @@ func TestHandleJSONRPCRequest_NonPost(t *testing.T) {
 
 func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router}
 
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("body")))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader([]byte("body")))
 	req.Header.Add("Content-Type", "text/plain")
 
 	recorder := httptest.NewRecorder()
@@ -88,9 +89,9 @@ func TestHandleJSONRPCRequest_NonJSONContentType(t *testing.T) {
 
 func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router, logger: zap.L()}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("{\"bad_json\": ")))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader([]byte("{\"bad_json\": ")))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -105,10 +106,10 @@ func TestHandleJSONRPCRequest_BadJSON(t *testing.T) {
 
 func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 	router := mocks.NewRouter(t)
-	handler := &RPCHandler{router: router, logger: zap.L()}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{"unknown_field": "value"})
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -124,17 +125,17 @@ func TestHandleJSONRPCRequest_UnknownBodyField(t *testing.T) {
 func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
 	router := mocks.NewRouter(t)
 
-	router.On("Route", mock.Anything, mock.Anything).
-		Return(nil,
+	router.EXPECT().Route(mock.Anything, mock.Anything).
+		Return("", nil,
 			&http.Response{
 				StatusCode: http.StatusAccepted,
 				Body:       io.NopCloser(strings.NewReader("dummy")),
 			}, nil)
 
-	handler := &RPCHandler{router: router, logger: zap.L()}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -153,13 +154,13 @@ func TestHandleJSONRPCRequest_JSONRPCDecodeError(t *testing.T) {
 	router := mocks.NewRouter(t)
 	undecodableContent := []byte("content")
 
-	router.On("Route", mock.Anything, mock.Anything).
-		Return(nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
+	router.EXPECT().Route(mock.Anything, mock.Anything).
+		Return("", nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
 
-	handler := &RPCHandler{router: router, logger: zap.L()}
+	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
 	emptyJSONBody, _ := json.Marshal(map[string]any{})
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(emptyJSONBody))
+	req := httptest.NewRequest(http.MethodPost, "/"+config.TestChainName, bytes.NewReader(emptyJSONBody))
 	req.Header.Add("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
