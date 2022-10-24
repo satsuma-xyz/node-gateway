@@ -20,10 +20,10 @@ type ObjectGraph struct {
 }
 
 type singleChainObjectGraph struct {
-	router           route.Router
-	metricsContainer *metrics.Container
-	handler          *RPCHandler
-	chainName        string
+	router    route.Router
+	handler   http.Handler
+	path      string
+	chainName string
 }
 
 func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger) singleChainObjectGraph {
@@ -42,17 +42,19 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 
 	router := route.NewRouter(chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
 
+	path := "/" + chainConfig.ChainName
 	handler := &RPCHandler{
-		path:   "/" + chainConfig.ChainName,
+		path:   path,
 		router: router,
 		logger: logger,
 	}
+	handlerWithMetrics := metrics.InstrumentHandler(handler, metricContainer)
 
 	return singleChainObjectGraph{
-		chainName:        chainConfig.ChainName,
-		router:           router,
-		handler:          handler,
-		metricsContainer: metricContainer,
+		chainName: chainConfig.ChainName,
+		router:    router,
+		handler:   handlerWithMetrics,
+		path:      path,
 	}
 }
 
@@ -101,8 +103,8 @@ func newServeMux(
 	mux.Handle("/health", healthCheckHandler)
 
 	for _, container := range singleChainDependencies {
-		mux.Handle(container.handler.path, metrics.InstrumentHandler(container.handler, container.metricsContainer))
-		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.handler.path), zap.String("chainName", container.chainName))
+		mux.Handle(container.path, container.handler)
+		rootLogger.Info("Registered handler for chain.", zap.String("Path", container.path), zap.String("chainName", container.chainName))
 	}
 
 	return mux
