@@ -1,8 +1,9 @@
 # ⛩ node-gateway
-[![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml) 
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/satsuma-xyz/node-gateway)](https://github.com/satsuma-xyz/node-gateway/releases) 
-[![Docker Image Version (latest by date)](https://img.shields.io/docker/v/satsumaxyz/node-gateway?logo=docker)](https://hub.docker.com/r/satsumaxyz/node-gateway/tags) 
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues) 
+
+[![Test](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml/badge.svg)](https://github.com/satsuma-xyz/node-gateway/actions/workflows/test.yml)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/satsuma-xyz/node-gateway)](https://github.com/satsuma-xyz/node-gateway/releases)
+[![Docker Image Version (latest by date)](https://img.shields.io/docker/v/satsumaxyz/node-gateway?logo=docker)](https://hub.docker.com/r/satsumaxyz/node-gateway/tags)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/satsuma-xyz/node-gateway/issues)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/satsuma-xyz/node-gateway/blob/main/LICENSE)
 
 An L7 load balancer for EVM-based blockchain nodes that provides better
@@ -18,6 +19,7 @@ node-gateway makes it easier to run reliable and accurate node infrastructure
 for dApp developers, traders, and stakers.
 
 ## Example use cases
+
 - Run your own nodes instead of paying for node providers. For very high availability, fall back on node providers in case your own nodes are unavailable. In our benchmarks, a single on-demand im4gn.4xlarge AWS EC2 machine that costs ~$1050 can serve over 1000 requests / second. This is > 10x cheaper than the well known node providers.
 - Use a primary node provider and fall back on another node provider for even higher availability. The well known node providers tout 99.9% uptime (~9 hours of downtime a year) but often have degraded performance even if they're "up".
 
@@ -54,6 +56,8 @@ See the [sample config](/configs/config.sample.yml).
 - Health checks for block height, peer count, and sync status.
 - Automated routing to nodes at max block height for data consistency.
 - Node groups with priority levels (e.g. primary/fallback).
+- Multichain support.
+- Intelligent routing to archive/full nodes based on type of JSON RPC request (state vs nonstate).
 - Support for self-hosted nodes and node providers with basic authentication.
 - Prometheus metrics.
 - And much more!
@@ -62,7 +66,6 @@ See the [sample config](/configs/config.sample.yml).
 
 - Better support for managed node providers (e.g. rate limits/throttling).
 - Automatic retry / fallback.
-- Monitoring (more metrics, UI dashboard).
 - Caching.
 - WebSockets.
 - Additional data consistency measures (broadcasting to multiple nodes, uncled blocks, etc).
