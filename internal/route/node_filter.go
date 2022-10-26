@@ -237,9 +237,15 @@ func CreateSingleNodeFilter(
 			logger:             logger,
 			minimumPeerCount:   checks.MinimumPeerCount,
 		}
-		isDoneSyncing := IsDoneSyncing{healthCheckManager: manager}
+		isDoneSyncing := IsDoneSyncing{
+			healthCheckManager: manager,
+			logger:             logger,
+		}
 
-		return &AndFilter{filters: []NodeFilter{&hasEnoughPeers, &isDoneSyncing}}
+		return &AndFilter{
+			filters: []NodeFilter{&hasEnoughPeers, &isDoneSyncing},
+			logger:  logger,
+		}
 	case GlobalMaxHeight:
 		return &IsCloseToGlobalMaxHeight{
 			healthCheckManager: manager,
