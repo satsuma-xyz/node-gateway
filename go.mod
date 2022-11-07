@@ -3,7 +3,7 @@ module github.com/satsuma-data/node-gateway
 go 1.19
 
 require (
-	github.com/ethereum/go-ethereum v1.10.21
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/google/go-cmp v0.5.8
 	github.com/prometheus/client_golang v1.13.0
 	github.com/stretchr/testify v1.8.0
