@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	conf "github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/route"
@@ -11,6 +12,7 @@ import (
 
 const (
 	defaultServerPort = 8080
+	idleTimeout       = 2 * time.Minute
 )
 
 type RPCServer struct {
@@ -27,6 +29,7 @@ func NewHTTPServer(config conf.Config, handler *http.ServeMux) *http.Server {
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           handler,
+		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
