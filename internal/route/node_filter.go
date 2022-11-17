@@ -183,21 +183,29 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	return false
 }
 
-type SimpleIsStateOrTracePresent struct {
+type IsArchiveNodeMethod struct {
 	logger *zap.Logger
 }
 
-func (f *SimpleIsStateOrTracePresent) Apply(
+func (f *IsArchiveNodeMethod) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
-	if requestMetadata.IsStateRequired || requestMetadata.IsTraceMethod {
+	// Both methods that are require state and trace need to be routed to archive nodes.
+	isStateOrTraceMethod := requestMetadata.IsStateRequired || requestMetadata.IsTraceMethod
+
+	// Methods that request logs should also get routed to archive nodes. While these requests
+	// *can* be served by full nodes, it's much slower than archive nodes.
+	// Note - this behavior has only been tested with Geth/Bor vs. Erigon.
+	isLogMethod := requestMetadata.IsLogMethod
+
+	if isStateOrTraceMethod || isLogMethod {
 		if upstreamConfig.NodeType == config.Archive {
 			return true
 		}
 
 		f.logger.Debug(
-			"Upstream is not an archive node but request requires state or is a trace method!",
+			"Upstream is not an archive node but request requires state, is a trace method, or is a log method!",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Any("RequestMetadata", requestMetadata),
 		)
@@ -271,8 +279,8 @@ func CreateSingleNodeFilter(
 			chainMetadataStore: store,
 			logger:             logger,
 		}
-	case SimpleStateOrTracePresent:
-		return &SimpleIsStateOrTracePresent{logger: logger}
+	case ArchiveNodeMethod:
+		return &IsArchiveNodeMethod{logger: logger}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -281,9 +289,9 @@ func CreateSingleNodeFilter(
 type NodeFilterType string
 
 const (
-	Healthy                   NodeFilterType = "healthy"
-	GlobalMaxHeight           NodeFilterType = "globalMaxHeight"
-	NearGlobalMaxHeight       NodeFilterType = "nearGlobalMaxHeight"
-	MaxHeightForGroup         NodeFilterType = "maxHeightForGroup"
-	SimpleStateOrTracePresent NodeFilterType = "simpleStatePresent"
+	Healthy             NodeFilterType = "healthy"
+	GlobalMaxHeight     NodeFilterType = "globalMaxHeight"
+	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
+	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
+	ArchiveNodeMethod   NodeFilterType = "archiveNodeMethod"
 )
