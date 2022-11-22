@@ -12,11 +12,13 @@ func (p *RequestMetadataParser) Parse(requestBody jsonrpc.RequestBody) RequestMe
 		return RequestMetadata{
 			IsStateRequired: isStateRequiredForMethod(requestBody.GetMethod()),
 			IsTraceMethod:   isTraceMethod(requestBody.GetMethod()),
+			IsLogMethod:     isLogMethod(requestBody.GetMethod()),
 		}
 	case *jsonrpc.BatchRequestBody:
 		result := RequestMetadata{
 			IsStateRequired: false,
 			IsTraceMethod:   false,
+			IsLogMethod:     false,
 		}
 
 		for _, requestBody := range requestBody.GetSubRequests() {
@@ -28,7 +30,11 @@ func (p *RequestMetadataParser) Parse(requestBody jsonrpc.RequestBody) RequestMe
 				result.IsTraceMethod = true
 			}
 
-			if result.IsStateRequired && result.IsTraceMethod {
+			if isLogMethod(requestBody.Method) {
+				result.IsLogMethod = true
+			}
+
+			if result.IsStateRequired && result.IsTraceMethod && result.IsLogMethod {
 				break
 			}
 		}
@@ -54,6 +60,16 @@ func isTraceMethod(method string) bool {
 	case "trace_filter", "trace_block", "trace_get", "trace_transaction", "trace_call", "trace_callMany",
 		"trace_rawTransaction", "trace_replayBlockTransactions", "trace_replayTransaction":
 		// List of trace methods: https://openethereum.github.io/JSONRPC-trace-module
+		return true
+	default:
+		return false
+	}
+}
+
+func isLogMethod(method string) bool {
+	switch method {
+	case "eth_getLogs":
+		// There are several log methods, but right now we only care about `eth_getLogs`.
 		return true
 	default:
 		return false
