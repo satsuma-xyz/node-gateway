@@ -153,7 +153,10 @@ func (c *BlockHeightCheck) GetError() error {
 func (c *BlockHeightCheck) subscribeNewHead() error {
 	onNewHead := func(header *ethTypes.Header) {
 		c.SetBlockHeight(header.Number.Uint64())
+
+		c.logger.Debug("Received blockheight over Websockets.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+
 		c.webSocketError = nil
 		c.blockHeightError = nil
 	}
