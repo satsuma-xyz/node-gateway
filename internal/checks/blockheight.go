@@ -106,7 +106,11 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 	}
 
 	runCheck := func() {
-		header, err := c.httpClient.HeaderByNumber(context.Background(), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
+		defer cancel()
+
+		header, err := c.httpClient.HeaderByNumber(ctx, nil)
+
 		if c.blockHeightError = err; c.blockHeightError != nil {
 			c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return
@@ -188,8 +192,12 @@ type newHeadHandler struct {
 }
 
 func subscribeNewHeads(wsClient client.EthClient, handler *newHeadHandler) error {
+	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
+	defer cancel()
+
 	ch := make(chan *ethTypes.Header)
-	subscription, err := wsClient.SubscribeNewHead(context.Background(), ch)
+
+	subscription, err := wsClient.SubscribeNewHead(ctx, ch)
 
 	if err != nil {
 		return err
