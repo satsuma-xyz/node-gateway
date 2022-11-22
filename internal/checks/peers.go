@@ -84,7 +84,10 @@ func (c *PeerCheck) runCheck() {
 	}
 
 	runCheck := func() {
-		peerCount, err := c.client.PeerCount(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
+		defer cancel()
+
+		peerCount, err := c.client.PeerCount(ctx)
 		if c.Err = err; c.Err != nil {
 			c.metricsContainer.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return

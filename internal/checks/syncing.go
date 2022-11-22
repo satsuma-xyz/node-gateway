@@ -82,7 +82,10 @@ func (c *SyncingCheck) runCheck() {
 	}
 
 	runCheck := func() {
-		result, err := c.client.SyncProgress(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
+		defer cancel()
+
+		result, err := c.client.SyncProgress(ctx)
 		if c.Err = err; err != nil {
 			c.metricsContainer.SyncStatusCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 			return

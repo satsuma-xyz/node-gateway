@@ -11,6 +11,7 @@ import (
 const (
 	JSONRPCErrCodeMethodNotFound = -32601
 	MinimumPeerCount             = 5
+	RPCRequestTimeout            = 10 * time.Second
 )
 
 func isMethodNotSupportedErr(err error) bool {
