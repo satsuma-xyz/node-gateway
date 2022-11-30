@@ -201,6 +201,7 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 		if r.ID != nil {
 			response.ID = *r.ID
 		}
+
 		return response
 	case *BatchRequestBody:
 		subRequests := r.GetSubRequests()
