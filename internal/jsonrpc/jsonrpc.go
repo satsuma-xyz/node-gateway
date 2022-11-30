@@ -19,10 +19,10 @@ type RequestBody interface {
 
 // See: https://www.jsonrpc.org/specification#request_object
 type SingleRequestBody struct {
+	ID             *int64 `json:"id,omitempty"`
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	Method         string `json:"method,omitempty"`
 	Params         []any  `json:"params,omitempty"`
-	ID             *int64 `json:"id,omitempty"`
 }
 
 func (b *SingleRequestBody) Encode() ([]byte, error) {
