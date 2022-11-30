@@ -22,7 +22,7 @@ type SingleRequestBody struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	Method         string `json:"method,omitempty"`
 	Params         []any  `json:"params,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             *int64 `json:"id,omitempty"`
 }
 
 func (b *SingleRequestBody) Encode() ([]byte, error) {
@@ -63,7 +63,7 @@ type SingleResponseBody struct {
 	Result  any    `json:"result,omitempty"`
 	Error   *Error `json:"error,omitempty"`
 	JSONRPC string `json:"jsonrpc"`
-	ID      int    `json:"id"`
+	ID      int64  `json:"id"`
 }
 
 func (b *SingleResponseBody) Encode() ([]byte, error) {
@@ -198,7 +198,7 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 	switch r := request.(type) {
 	case *SingleRequestBody:
 		response := CreateErrorJSONRPCResponseBody(message, jsonRPCStatusCode)
-		response.ID = int(r.ID)
+		response.ID = *r.ID
 
 		return response
 	case *BatchRequestBody:
@@ -212,7 +212,7 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 					Code:    jsonRPCStatusCode,
 					Message: message,
 				},
-				ID: int(subReq.ID),
+				ID: *subReq.ID,
 			}
 			responses = append(responses, response)
 		}

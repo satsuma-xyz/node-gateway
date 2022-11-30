@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/types"
@@ -112,7 +113,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{ID: lo.ToPtr[int64](1)})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
@@ -158,7 +159,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{ID: lo.ToPtr[int64](1)})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)

@@ -174,9 +174,9 @@ func (r *SimpleRouter) Route(
 	if body != nil {
 		// To help correlate request IDs to responses.
 		// It's the responsibility of the client to provide unique IDs.
-		reqIDToRequestMap := make(map[int]jsonrpc.SingleRequestBody)
+		reqIDToRequestMap := make(map[int64]jsonrpc.SingleRequestBody)
 		for _, req := range requestBody.GetSubRequests() {
-			reqIDToRequestMap[int(req.ID)] = req
+			reqIDToRequestMap[*req.ID] = req
 		}
 
 		for _, resp := range body.GetSubResponses() {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +23,7 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 				JSONRPCVersion: "2.0",
 				Method:         "web3_clientVersion",
 				Params:         []any{"hi"},
-				ID:             67,
+				ID:             lo.ToPtr[int64](67),
 			},
 		},
 		{
@@ -34,7 +35,7 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 						JSONRPCVersion: "2.0",
 						Method:         "web3_clientVersion",
 						Params:         []any{"hi"},
-						ID:             67,
+						ID:             lo.ToPtr[int64](67),
 					},
 				},
 			},
@@ -52,19 +53,19 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 						JSONRPCVersion: "2.0",
 						Method:         "web3_clientVersion",
 						Params:         []any{"hi"},
-						ID:             67,
+						ID:             lo.ToPtr[int64](67),
 					},
 					{
 						JSONRPCVersion: "2.0",
 						Method:         "web3_weee",
 						Params:         []any{"hi"},
-						ID:             68,
+						ID:             lo.ToPtr[int64](68),
 					},
 					{
 						JSONRPCVersion: "2.0",
 						Method:         "web3_something_else",
 						Params:         []any{"hello"},
-						ID:             69,
+						ID:             lo.ToPtr[int64](69),
 					},
 				},
 			},
