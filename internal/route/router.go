@@ -176,6 +176,11 @@ func (r *SimpleRouter) Route(
 		// It's the responsibility of the client to provide unique IDs.
 		reqIDToRequestMap := make(map[int64]jsonrpc.SingleRequestBody)
 		for _, req := range requestBody.GetSubRequests() {
+			// JSONRPC requests without ID should not have a response.
+			// Defensively checking here to avoid dereferencing nil pointer.
+			if req.ID == nil {
+				continue
+			}
 			reqIDToRequestMap[*req.ID] = req
 		}
 
@@ -184,6 +189,11 @@ func (r *SimpleRouter) Route(
 				zap.L().Warn("Encountered error in upstream JSONRPC response.",
 					zap.Any("request", requestBody), zap.Any("error", resp.Error),
 					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", upstreamID))
+
+				// In the rare case that the response has an ID that does not have a corresponding request.
+				if _, ok := reqIDToRequestMap[resp.ID]; !ok {
+					continue
+				}
 
 				r.metricsContainer.UpstreamJSONRPCRequestErrorsTotal.WithLabelValues(
 					util.GetClientFromContext(ctx),

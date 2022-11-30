@@ -17,6 +17,25 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 		body            string
 	}{
 		{
+			testName: "no ID",
+			body:     "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			expectedRequest: &SingleRequestBody{
+				JSONRPCVersion: "2.0",
+				Method:         "web3_clientVersion",
+				Params:         []any{"hi"},
+			},
+		},
+		{
+			testName: "ID zero",
+			body:     "{\"id\":0,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			expectedRequest: &SingleRequestBody{
+				JSONRPCVersion: "2.0",
+				Method:         "web3_clientVersion",
+				Params:         []any{"hi"},
+				ID:             lo.ToPtr[int64](0),
+			},
+		},
+		{
 			testName: "single request",
 			body:     "{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{

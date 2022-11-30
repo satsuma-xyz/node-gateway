@@ -198,8 +198,9 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 	switch r := request.(type) {
 	case *SingleRequestBody:
 		response := CreateErrorJSONRPCResponseBody(message, jsonRPCStatusCode)
-		response.ID = *r.ID
-
+		if r.ID != nil {
+			response.ID = *r.ID
+		}
 		return response
 	case *BatchRequestBody:
 		subRequests := r.GetSubRequests()
