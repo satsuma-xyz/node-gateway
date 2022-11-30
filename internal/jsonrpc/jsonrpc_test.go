@@ -18,7 +18,7 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 	}{
 		{
 			testName: "single request",
-			body:     "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}",
+			body:     "{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{
 				JSONRPCVersion: "2.0",
 				Method:         "web3_clientVersion",
@@ -28,7 +28,7 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 		},
 		{
 			testName: "single request in batch",
-			body:     "[{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}]",
+			body:     "[{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}]",
 			expectedRequest: &BatchRequestBody{
 				Requests: []SingleRequestBody{
 					{
@@ -43,9 +43,9 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 		{
 			testName: "batch requests",
 			body: "[" +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}," +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_weee\",\"params\":[\"hi\"],\"id\":68}," +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_something_else\",\"params\":[\"hello\"],\"id\":69}" +
+				"{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}," +
+				"{\"id\":68,\"jsonrpc\":\"2.0\",\"method\":\"web3_weee\",\"params\":[\"hi\"]}," +
+				"{\"id\":69,\"jsonrpc\":\"2.0\",\"method\":\"web3_something_else\",\"params\":[\"hello\"]}" +
 				"]",
 			expectedRequest: &BatchRequestBody{
 				Requests: []SingleRequestBody{
