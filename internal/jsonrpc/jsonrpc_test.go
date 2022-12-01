@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,25 +17,44 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 		body            string
 	}{
 		{
-			testName: "single request",
-			body:     "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}",
+			testName: "no ID",
+			body:     "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{
 				JSONRPCVersion: "2.0",
 				Method:         "web3_clientVersion",
 				Params:         []any{"hi"},
-				ID:             67,
+			},
+		},
+		{
+			testName: "ID zero",
+			body:     "{\"id\":0,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			expectedRequest: &SingleRequestBody{
+				JSONRPCVersion: "2.0",
+				Method:         "web3_clientVersion",
+				Params:         []any{"hi"},
+				ID:             lo.ToPtr[int64](0),
+			},
+		},
+		{
+			testName: "single request",
+			body:     "{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			expectedRequest: &SingleRequestBody{
+				JSONRPCVersion: "2.0",
+				Method:         "web3_clientVersion",
+				Params:         []any{"hi"},
+				ID:             lo.ToPtr[int64](67),
 			},
 		},
 		{
 			testName: "single request in batch",
-			body:     "[{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}]",
+			body:     "[{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}]",
 			expectedRequest: &BatchRequestBody{
 				Requests: []SingleRequestBody{
 					{
 						JSONRPCVersion: "2.0",
 						Method:         "web3_clientVersion",
 						Params:         []any{"hi"},
-						ID:             67,
+						ID:             lo.ToPtr[int64](67),
 					},
 				},
 			},
@@ -42,9 +62,9 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 		{
 			testName: "batch requests",
 			body: "[" +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"],\"id\":67}," +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_weee\",\"params\":[\"hi\"],\"id\":68}," +
-				"{\"jsonrpc\":\"2.0\",\"method\":\"web3_something_else\",\"params\":[\"hello\"],\"id\":69}" +
+				"{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}," +
+				"{\"id\":68,\"jsonrpc\":\"2.0\",\"method\":\"web3_weee\",\"params\":[\"hi\"]}," +
+				"{\"id\":69,\"jsonrpc\":\"2.0\",\"method\":\"web3_something_else\",\"params\":[\"hello\"]}" +
 				"]",
 			expectedRequest: &BatchRequestBody{
 				Requests: []SingleRequestBody{
@@ -52,19 +72,19 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 						JSONRPCVersion: "2.0",
 						Method:         "web3_clientVersion",
 						Params:         []any{"hi"},
-						ID:             67,
+						ID:             lo.ToPtr[int64](67),
 					},
 					{
 						JSONRPCVersion: "2.0",
 						Method:         "web3_weee",
 						Params:         []any{"hi"},
-						ID:             68,
+						ID:             lo.ToPtr[int64](68),
 					},
 					{
 						JSONRPCVersion: "2.0",
 						Method:         "web3_something_else",
 						Params:         []any{"hello"},
-						ID:             69,
+						ID:             lo.ToPtr[int64](69),
 					},
 				},
 			},

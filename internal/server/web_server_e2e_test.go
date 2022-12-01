@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
@@ -127,7 +128,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 			return jsonrpc.SingleResponseBody{
 				Result: hexutil.Uint64(expectedBlockTxCount),
-				ID:     int(request.ID),
+				ID:     *request.ID,
 			}
 		},
 	})
@@ -140,7 +141,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 			return jsonrpc.SingleResponseBody{
 				Result: hexutil.Uint64(expectedTransactionCount),
-				ID:     int(request.ID),
+				ID:     *request.ID,
 			}
 		},
 		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
@@ -217,7 +218,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 
 			return jsonrpc.SingleResponseBody{
 				Result: hexutil.Uint64(expectedTransactionCount),
-				ID:     int(request.ID),
+				ID:     *request.ID,
 			}
 		},
 		nonStatefulMethod: func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
@@ -226,7 +227,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 
 			return jsonrpc.SingleResponseBody{
 				Result: hexutil.Uint64(expectedBlockTxCount),
-				ID:     int(request.ID),
+				ID:     *request.ID,
 			}
 		},
 	})
@@ -262,7 +263,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, 2, len(responseBody.GetSubResponses()))
 
-	idsToExpectedResult := make(map[int]any)
+	idsToExpectedResult := make(map[int64]any)
 	for _, response := range responseBody.GetSubResponses() {
 		idsToExpectedResult[response.ID] = response.Result
 	}
@@ -282,7 +283,7 @@ func executeSingleRequest(
 	singleRequest := jsonrpc.SingleRequestBody{
 		JSONRPCVersion: "2.0",
 		Method:         methodName,
-		ID:             1,
+		ID:             lo.ToPtr[int64](1),
 	}
 
 	return executeRequest(t, chainName, &singleRequest, handler)
@@ -302,7 +303,7 @@ func executeBatchRequest(
 		singleRequest := jsonrpc.SingleRequestBody{
 			JSONRPCVersion: "2.0",
 			Method:         methodName,
-			ID:             int64(i),
+			ID:             lo.ToPtr(int64(i)),
 		}
 		requests = append(requests, singleRequest)
 	}
