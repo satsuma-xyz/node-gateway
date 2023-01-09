@@ -44,8 +44,10 @@ func (r *RequestExecutor) routeToConfig(
 
 	httpReq.Header.Set("content-type", "application/json")
 
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
-	httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
+	if configToRoute.BasicAuthConfig.Username != "" && configToRoute.BasicAuthConfig.Password != "" {
+		encodedCredentials := base64.StdEncoding.EncodeToString([]byte(configToRoute.BasicAuthConfig.Username + ":" + configToRoute.BasicAuthConfig.Password))
+		httpReq.Header.Set("Authorization", "Basic "+encodedCredentials)
+	}
 
 	resp, err := r.httpClient.Do(httpReq)
 
