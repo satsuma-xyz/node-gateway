@@ -39,7 +39,7 @@ type BasicAuthCredentials struct {
 type EthClientGetter func(url string, credentials *BasicAuthCredentials) (EthClient, error)
 
 func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, error) {
-	if credentials == nil {
+	if credentials == nil || (credentials.Username == "" && credentials.Password == "") {
 		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
 		defer cancel()
 
