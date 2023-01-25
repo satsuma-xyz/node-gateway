@@ -136,7 +136,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
             nodeType: full
             methods:
               enabled: eth_getStorageAt
-              disabled: eth_getBalance
+              disabled: eth_getBalance,getLogs
           - id: ankr-polygon
             httpURL: "https://rpc.ankr.com/polygon"
             wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
@@ -174,7 +174,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 					NodeType: Full,
 					Methods: MethodsConfig{
 						Enabled:  map[string]bool{"eth_getStorageAt": true},
-						Disabled: map[string]bool{"eth_getBalance": true},
+						Disabled: map[string]bool{"eth_getBalance": true, "getLogs": true},
 					},
 				},
 				{

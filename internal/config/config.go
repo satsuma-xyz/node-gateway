@@ -82,8 +82,8 @@ type BasicAuthConfig struct {
 }
 
 type MethodsConfig struct {
-	Enabled  map[string]bool // Emulating `Set` data structure
-	Disabled map[string]bool // Emulating `Set` data structure
+	Enabled  map[string]bool `yaml:"enabled"`  // Emulating `Set` data structure
+	Disabled map[string]bool `yaml:"disabled"` // Emulating `Set` data structure
 }
 
 func (m *MethodsConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
