@@ -127,9 +127,9 @@ func (r *SimpleRouter) Route(
 
 	var configToRoute config.UpstreamConfig
 
-	for _, upstreamConfig := range r.upstreamConfigs {
-		if upstreamConfig.ID == upstreamID {
-			configToRoute = upstreamConfig
+	for idx := range r.upstreamConfigs {
+		if r.upstreamConfigs[idx].ID == upstreamID {
+			configToRoute = r.upstreamConfigs[idx]
 		}
 	}
 

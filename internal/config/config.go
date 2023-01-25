@@ -17,14 +17,14 @@ const (
 )
 
 type UpstreamConfig struct {
-	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
+	Methods           MethodsConfig     `yaml:"methods"`
 	HealthCheckConfig HealthCheckConfig `yaml:"healthCheck"`
+	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
 	ID                string            `yaml:"id"`
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
 	GroupID           string            `yaml:"group"`
 	NodeType          NodeType          `yaml:"nodeType"`
-	Methods           MethodsConfig     `yaml:"methods"`
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -162,8 +162,8 @@ func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := true
 	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
 
-	for _, upstream := range c.Upstreams {
-		isChainConfigValid = isChainConfigValid && upstream.isValid(c.Groups)
+	for idx := range c.Upstreams {
+		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
 	}
 
 	if c.ChainName == "" {

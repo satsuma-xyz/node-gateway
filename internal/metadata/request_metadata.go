@@ -1,5 +1,5 @@
 package metadata
 
 type RequestMetadata struct {
-	Methods         []string
+	Methods []string
 }
