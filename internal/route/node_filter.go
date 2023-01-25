@@ -191,6 +191,9 @@ func isArchiveNodeMethod(method string) bool {
 	case "trace_filter", "trace_block", "trace_get", "trace_transaction", "trace_call", "trace_callMany",
 		"trace_rawTransaction", "trace_replayBlockTransactions", "trace_replayTransaction":
 		return true
+	case "eth_getLogs":
+		// Jan 25 2022 - Hack until we update configs to use the new `Methods` block.
+		return true
 	default:
 		return false
 	}
