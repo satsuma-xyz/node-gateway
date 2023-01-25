@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -23,6 +24,7 @@ type UpstreamConfig struct {
 	WSURL             string            `yaml:"wsURL"`
 	GroupID           string            `yaml:"group"`
 	NodeType          NodeType          `yaml:"nodeType"`
+	Methods           MethodsConfig     `yaml:"methods"`
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -77,6 +79,37 @@ type HealthCheckConfig struct {
 type BasicAuthConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+type MethodsConfig struct {
+	Enabled  map[string]bool // Emulating `Set` data structure
+	Disabled map[string]bool // Emulating `Set` data structure
+}
+
+func (m *MethodsConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type MethodsConfigString struct {
+		Enabled  string
+		Disabled string
+	}
+
+	var methodsConfigString MethodsConfigString
+	err := unmarshal(&methodsConfigString)
+
+	if err != nil {
+		return err
+	}
+
+	m.Enabled = make(map[string]bool)
+	for _, method := range strings.Split(methodsConfigString.Enabled, ",") {
+		m.Enabled[method] = true
+	}
+
+	m.Disabled = make(map[string]bool)
+	for _, method := range strings.Split(methodsConfigString.Disabled, ",") {
+		m.Disabled[method] = true
+	}
+
+	return nil
 }
 
 type GroupConfig struct {

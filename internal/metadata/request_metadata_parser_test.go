@@ -18,7 +18,7 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 		want RequestMetadata
 	}
 
-	testForSingleRequest := func(methodName string, isStateRequired, isTraceMethod, isLogMethod bool) testArgs {
+	testForSingleRequest := func(methodName string) testArgs {
 		return testArgs{
 			args{
 				requestBody: &jsonrpc.SingleRequestBody{
@@ -27,14 +27,12 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 			},
 			methodName,
 			RequestMetadata{
-				IsStateRequired: isStateRequired,
-				IsTraceMethod:   isTraceMethod,
-				IsLogMethod:     isLogMethod,
+				Methods: []string{methodName},
 			},
 		}
 	}
 
-	testForBatchRequest := func(testName string, methodNames []string, isStateRequired bool, isTraceMethod, isLogMethod bool) testArgs {
+	testForBatchRequest := func(testName string, methodNames []string) testArgs {
 		requests := make([]jsonrpc.SingleRequestBody, 0)
 		for _, methodName := range methodNames {
 			requests = append(requests, jsonrpc.SingleRequestBody{
@@ -50,28 +48,15 @@ func TestRequestMetadataParser_Parse(t *testing.T) {
 			},
 			testName,
 			RequestMetadata{
-				IsStateRequired: isStateRequired,
-				IsTraceMethod:   isTraceMethod,
-				IsLogMethod:     isLogMethod,
+				Methods: methodNames,
 			},
 		}
 	}
 
 	tests := []testArgs{
-		testForSingleRequest("eth_call", true, false, false),
-		testForSingleRequest("eth_getBalance", true, false, false),
-		testForSingleRequest("eth_getBlockByNumber", false, false, false),
-		testForSingleRequest("eth_getTransactionReceipt", false, false, false),
-		testForSingleRequest("trace_filter", false, true, false),
-		testForSingleRequest("trace_replayBlockTransactions", false, true, false),
-		testForSingleRequest("eth_getLogs", false, false, true),
-		testForBatchRequest("batch eth_call", []string{"eth_call"}, true, false, false),
-		testForBatchRequest("batch eth_call w/ eth_getTransactionReceipt",
-			[]string{"eth_call", "eth_getTransactionReceipt"}, true, false, false),
-		testForBatchRequest("batch trace w/ eth_getTransactionReceipt",
-			[]string{"trace_filter", "eth_getTransactionReceipt"}, false, true, false),
+		testForSingleRequest("eth_call"),
 		testForBatchRequest("batch eth_call w/ eth_getTransactionReceipt, trace, and eth_getLogs",
-			[]string{"eth_call", "eth_getTransactionReceipt", "trace_filter", "eth_getLogs"}, true, true, true),
+			[]string{"eth_call", "eth_getTransactionReceipt", "trace_filter", "eth_getLogs"}),
 	}
 
 	for _, tt := range tests {

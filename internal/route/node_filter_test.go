@@ -93,12 +93,38 @@ func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
 	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 }
 
-func TestArchiveNodeMethodFilter_Apply(t *testing.T) {
+func TestMethodsAllowedFilter_Apply(t *testing.T) {
 	fullNodeConfig := config.UpstreamConfig{NodeType: config.Full}
+	fullNodeConfigWithArchiveMethodEnabled := config.UpstreamConfig{
+		NodeType: config.Full,
+		Methods: config.MethodsConfig{
+			Enabled: map[string]bool{
+				"eth_getBalance": true,
+			},
+		},
+	}
+	fullNodeConfigWithFullMethodDisabled := config.UpstreamConfig{
+		NodeType: config.Full,
+		Methods: config.MethodsConfig{
+			Disabled: map[string]bool{
+				"eth_getBlockByNumber": true,
+			},
+		},
+	}
 	archiveNodeConfig := config.UpstreamConfig{NodeType: config.Archive}
+	archiveNodeConfigWithMethodDisabled := config.UpstreamConfig{
+		NodeType: config.Archive,
+		Methods: config.MethodsConfig{
+			Disabled: map[string]bool{
+				"eth_getBalance": true,
+			},
+		},
+	}
 
-	stateMethodMetadata := metadata.RequestMetadata{IsStateRequired: true}
-	nonStateMethodMetadata := metadata.RequestMetadata{IsStateRequired: false}
+	stateMethodMetadata := metadata.RequestMetadata{Methods: []string{"eth_getBalance"}}
+	nonStateMethodMetadata := metadata.RequestMetadata{Methods: []string{"eth_getBlockByNumber"}}
+	// Batch requests
+	stateMethodsMetadata := metadata.RequestMetadata{Methods: []string{"eth_getBalance", "eth_getBlockNumber"}}
 
 	type args struct { //nolint:govet // field alignment doesn't matter in tests
 		requestMetadata metadata.RequestMetadata
@@ -111,14 +137,26 @@ func TestArchiveNodeMethodFilter_Apply(t *testing.T) {
 		want bool
 	}{
 		{"stateMethodFullNode", args{stateMethodMetadata, &fullNodeConfig}, false},
+		{"stateMethodFullNodeWithArchiveMethodEnabled",
+			args{stateMethodMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
 		{"stateMethodArchiveNode", args{stateMethodMetadata, &archiveNodeConfig}, true},
+		{"stateMethodArchiveNodeWithMethodDisabled",
+			args{stateMethodMetadata, &archiveNodeConfigWithMethodDisabled}, false},
 		{"nonStateMethodFullNode", args{nonStateMethodMetadata, &fullNodeConfig}, true},
+		{"nonStateMethodFullNodeWithMethodDisabled",
+			args{nonStateMethodMetadata, &fullNodeConfigWithFullMethodDisabled}, false},
 		{"nonStateMethodArchiveNode", args{nonStateMethodMetadata, &archiveNodeConfig}, true},
+		{"batchRequestsStateMethodsFullNode", args{stateMethodsMetadata, &fullNodeConfig}, false},
+		{"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
+			args{stateMethodsMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
+		{"batchRequestsStateMethodsArchiveNode", args{stateMethodsMetadata, &archiveNodeConfig}, true},
+		{"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
+			args{stateMethodsMetadata, &archiveNodeConfigWithMethodDisabled}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &IsArchiveNodeMethod{logger: zap.L()}
+			f := &AreMethodsAllowed{logger: zap.L()}
 			ok := f.Apply(tt.args.requestMetadata, tt.args.upstreamConfig)
 			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
