@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -16,8 +17,9 @@ const (
 )
 
 type UpstreamConfig struct {
-	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
+	Methods           MethodsConfig     `yaml:"methods"`
 	HealthCheckConfig HealthCheckConfig `yaml:"healthCheck"`
+	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
 	ID                string            `yaml:"id"`
 	HTTPURL           string            `yaml:"httpURL"`
 	WSURL             string            `yaml:"wsURL"`
@@ -79,6 +81,37 @@ type BasicAuthConfig struct {
 	Password string `yaml:"password"`
 }
 
+type MethodsConfig struct {
+	Enabled  map[string]bool `yaml:"enabled"`  // Emulating `Set` data structure
+	Disabled map[string]bool `yaml:"disabled"` // Emulating `Set` data structure
+}
+
+func (m *MethodsConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type MethodsConfigString struct {
+		Enabled  string
+		Disabled string
+	}
+
+	var methodsConfigString MethodsConfigString
+	err := unmarshal(&methodsConfigString)
+
+	if err != nil {
+		return err
+	}
+
+	m.Enabled = make(map[string]bool)
+	for _, method := range strings.Split(methodsConfigString.Enabled, ",") {
+		m.Enabled[method] = true
+	}
+
+	m.Disabled = make(map[string]bool)
+	for _, method := range strings.Split(methodsConfigString.Disabled, ",") {
+		m.Disabled[method] = true
+	}
+
+	return nil
+}
+
 type GroupConfig struct {
 	ID       string `yaml:"id"`
 	Priority int    `yaml:"priority"`
@@ -129,8 +162,8 @@ func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := true
 	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
 
-	for _, upstream := range c.Upstreams {
-		isChainConfigValid = isChainConfigValid && upstream.isValid(c.Groups)
+	for idx := range c.Upstreams {
+		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
 	}
 
 	if c.ChainName == "" {

@@ -183,34 +183,54 @@ func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig
 	return false
 }
 
-type IsArchiveNodeMethod struct {
+func isArchiveNodeMethod(method string) bool {
+	switch method {
+	case "eth_getBalance", "eth_getStorageAt", "eth_getTransactionCount", "eth_getCode", "eth_call", "eth_estimateGas":
+		// List of state methods: https://ethereum.org/en/developers/docs/apis/json-rpc/#state_methods
+		return true
+	case "trace_filter", "trace_block", "trace_get", "trace_transaction", "trace_call", "trace_callMany",
+		"trace_rawTransaction", "trace_replayBlockTransactions", "trace_replayTransaction":
+		return true
+	case "eth_getLogs":
+		// Jan 25 2022 - Hack until we update configs to use the new `Methods` block.
+		return true
+	default:
+		return false
+	}
+}
+
+type AreMethodsAllowed struct {
 	logger *zap.Logger
 }
 
-func (f *IsArchiveNodeMethod) Apply(
+func (f *AreMethodsAllowed) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
-	// Both methods that are require state and trace need to be routed to archive nodes.
-	isStateOrTraceMethod := requestMetadata.IsStateRequired || requestMetadata.IsTraceMethod
+	for _, method := range requestMetadata.Methods {
+		// Check methods that are have been disabled on the upstream.
+		if ok := upstreamConfig.Methods.Disabled[method]; ok {
+			f.logger.Debug(
+				"Upstream method is disabled! Skipping upstream.",
+				zap.String("UpstreamID", upstreamConfig.ID),
+				zap.Any("RequestMetadata", requestMetadata),
+			)
 
-	// Methods that request logs should also get routed to archive nodes. While these requests
-	// *can* be served by full nodes, it's much slower than archive nodes.
-	// Note - this behavior has only been tested with Geth/Bor vs. Erigon.
-	isLogMethod := requestMetadata.IsLogMethod
-
-	if isStateOrTraceMethod || isLogMethod {
-		if upstreamConfig.NodeType == config.Archive {
-			return true
+			return false
 		}
 
-		f.logger.Debug(
-			"Upstream is not an archive node but request requires state, is a trace method, or is a log method!",
-			zap.String("UpstreamID", upstreamConfig.ID),
-			zap.Any("RequestMetadata", requestMetadata),
-		)
+		if isArchiveNodeMethod(method) && upstreamConfig.NodeType == config.Full {
+			// Check if method has been explicitly enabled on the upstream.
+			if ok := upstreamConfig.Methods.Enabled[method]; !ok {
+				f.logger.Debug(
+					"Upstream method is archive, nodeType is not archive, and method has not been enabled! Skipping upstream.",
+					zap.String("UpstreamID", upstreamConfig.ID),
+					zap.Any("RequestMetadata", requestMetadata),
+				)
 
-		return false
+				return false
+			}
+		}
 	}
 
 	return true
@@ -279,8 +299,8 @@ func CreateSingleNodeFilter(
 			chainMetadataStore: store,
 			logger:             logger,
 		}
-	case ArchiveNodeMethod:
-		return &IsArchiveNodeMethod{logger: logger}
+	case MethodsAllowed:
+		return &AreMethodsAllowed{logger: logger}
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -293,5 +313,5 @@ const (
 	GlobalMaxHeight     NodeFilterType = "globalMaxHeight"
 	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
 	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
-	ArchiveNodeMethod   NodeFilterType = "archiveNodeMethod"
+	MethodsAllowed      NodeFilterType = "methodsAllowed"
 )

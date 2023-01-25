@@ -32,7 +32,7 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
 	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, chainConfig.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
 
-	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.ArchiveNodeMethod, route.NearGlobalMaxHeight}
+	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.MethodsAllowed, route.NearGlobalMaxHeight}
 	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &chainConfig.Routing)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,

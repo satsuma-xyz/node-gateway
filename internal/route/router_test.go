@@ -112,7 +112,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
@@ -123,7 +123,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 		0: {&gethConfig},
 		1: {&erigonConfig},
 		2: {&openEthConfig, &somethingElseConfig},
-	}, metadata.RequestMetadata{})
+	}, metadata.RequestMetadata{Methods: []string{"my_method"}})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }
 
@@ -158,7 +158,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{})
+	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 	defer httpResp.Body.Close()
 
 	assert.Nil(t, err)
@@ -167,6 +167,6 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig, &erigonConfig},
-	}, metadata.RequestMetadata{IsStateRequired: false})
+	}, metadata.RequestMetadata{Methods: []string{"my_method"}})
 	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
 }

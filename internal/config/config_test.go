@@ -134,6 +134,9 @@ func TestParseConfig_ValidConfig(t *testing.T) {
               useWsForBlockHeight: true
             group: primary
             nodeType: full
+            methods:
+              enabled: eth_getStorageAt
+              disabled: eth_getBalance,getLogs
           - id: ankr-polygon
             httpURL: "https://rpc.ankr.com/polygon"
             wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
@@ -169,6 +172,10 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 					},
 					GroupID:  "primary",
 					NodeType: Full,
+					Methods: MethodsConfig{
+						Enabled:  map[string]bool{"eth_getStorageAt": true},
+						Disabled: map[string]bool{"eth_getBalance": true, "getLogs": true},
+					},
 				},
 				{
 					ID:      "ankr-polygon",
