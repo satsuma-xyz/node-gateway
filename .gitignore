@@ -19,3 +19,4 @@ build/
 
 # Editor stuff
 .vscode
+.idea
