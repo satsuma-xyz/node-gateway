@@ -1,0 +1,17 @@
+name: Lint PR Title
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  lint-commit-message:
+    name: Lint PR Title
+    timeout-minutes: 1
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - run: ./scripts/lint_commit_message.sh "${{ github.event.pull_request.title }}"
+      shell: bash
