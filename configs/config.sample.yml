@@ -42,6 +42,8 @@ chains:
       #     it quickly updates the gateway with the latest block height. If this
       #     setting is undefined, the gateway will attempt to subscribe to new
       #     heads if the upstream supports it.
+      #   skipPeerCountCheck - whether or not to skip the peer count check. Some chains,
+      #     like Optimism, always report a peer count of 0, so peer count can be ignored.
       # nodeType - full or archive
       - id: my-node
         httpURL: "http://12.57.207.168:8545"

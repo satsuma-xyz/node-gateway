@@ -74,6 +74,7 @@ func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 type HealthCheckConfig struct {
 	// If not set - method to identify block height is auto-detected. Use websockets is its URL is set, else fall back to use HTTP polling.
 	UseWSForBlockHeight *bool `yaml:"useWsForBlockHeight"`
+	SkipPeerCountCheck  *bool `yaml:"skipPeerCountCheck"`
 }
 
 type BasicAuthConfig struct {

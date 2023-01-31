@@ -64,3 +64,29 @@ func TestPeerChecker_MethodNotSupported(t *testing.T) {
 	checker.RunCheck()
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
 }
+
+func TestPeerChecker_SkipPeerCountCheck(t *testing.T) {
+	ethClient := mocks.NewEthClient(t)
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(0), nil)
+
+	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
+		return ethClient, nil
+	}
+
+	skipPeerCountCheck := true
+	upstreamConfig := &config.UpstreamConfig{
+		ID:      "eth_mainnet",
+		HTTPURL: "http://alchemy",
+		WSURL:   "wss://alchemy",
+		HealthCheckConfig: config.HealthCheckConfig{
+			SkipPeerCountCheck: &skipPeerCountCheck,
+		},
+	}
+	checker := NewPeerChecker(upstreamConfig, mockEthClientGetter, metrics.NewContainer(config.TestChainName), zap.L())
+
+	assert.True(t, checker.IsPassing())
+	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
+
+	checker.RunCheck()
+	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
+}
