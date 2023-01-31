@@ -32,8 +32,9 @@ func NewPeerChecker(
 		clientGetter:     clientGetter,
 		metricsContainer: metricsContainer,
 		logger:           logger,
-		// Set `ShouldRun:true` until we verify `peerCount` is a supported method of the Upstream.
-		ShouldRun: true,
+		// When we verify `peerCount` is a supported method of the Upstream, this may be set
+		// to false if it's not supported.
+		ShouldRun: upstreamConfig.HealthCheckConfig.SkipPeerCountCheck == nil || !*upstreamConfig.HealthCheckConfig.SkipPeerCountCheck,
 	}
 
 	if err := c.Initialize(); err != nil {
