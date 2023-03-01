@@ -50,6 +50,8 @@ chains:
         wsURL: "wss://12.57.207.168:8546"
         group: primary
         nodeType: full
+        methods:
+          disabled: eth_getLogs
       - id: infura-eth
         httpURL: "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
         wsURL: "wss://mainnet.infura.io/ws/v3/${INFURA_API_KEY}"

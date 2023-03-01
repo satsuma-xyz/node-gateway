@@ -53,11 +53,12 @@ See the [sample config](/configs/config.sample.yml).
 ## Features
 
 - Round-robin load balancing for EVM-based JSON RPCs.
-- Health checks for block height, peer count, and sync status.
+- Health checks for block height and peer count.
 - Automated routing to nodes at max block height for data consistency.
 - Node groups with priority levels (e.g. primary/fallback).
 - Multichain support.
 - Intelligent routing to archive/full nodes based on type of JSON RPC request (state vs nonstate).
+- Method based routing.
 - Support for self-hosted nodes and node providers with basic authentication.
 - Prometheus metrics.
 - And much more!
