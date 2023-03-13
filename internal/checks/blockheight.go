@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/satsuma-data/node-gateway/internal/metadata"
 	internalTypes "github.com/satsuma-data/node-gateway/internal/types"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -28,7 +27,8 @@ type BlockHeightCheck struct {
 }
 
 type BlockHeightObserver interface {
-	ProcessUpdate(update metadata.BlockHeightUpdate)
+	ProcessBlockHeightUpdate(groupID string, upstreamID string, blockHeight uint64)
+	ProcessErrorUpdate(groupID string, upstreamID string, err error)
 }
 
 func NewBlockHeightChecker(
@@ -80,7 +80,7 @@ func (c *BlockHeightCheck) initializeHTTP() {
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
 	if err != nil {
 		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
-		c.blockHeightError = err
+		c.setError(err)
 
 		return
 	}
@@ -144,14 +144,16 @@ func (c *BlockHeightCheck) GetBlockHeight() uint64 {
 
 func (c *BlockHeightCheck) SetBlockHeight(blockHeight uint64) {
 	c.blockHeight = blockHeight
-	c.blockHeightObserver.ProcessUpdate(metadata.BlockHeightUpdate{
-		GroupID:     c.upstreamConfig.GroupID,
-		BlockHeight: blockHeight,
-	})
+	c.blockHeightObserver.ProcessBlockHeightUpdate(c.upstreamConfig.GroupID, c.upstreamConfig.ID, blockHeight)
 }
 
 func (c *BlockHeightCheck) GetError() error {
 	return c.blockHeightError
+}
+
+func (c *BlockHeightCheck) setError(err error) {
+	c.blockHeightError = err
+	c.blockHeightObserver.ProcessErrorUpdate(c.upstreamConfig.GroupID, c.upstreamConfig.ID, err)
 }
 
 func (c *BlockHeightCheck) subscribeNewHead() error {
@@ -162,7 +164,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		c.webSocketError = nil
-		c.blockHeightError = nil
+		c.setError(nil)
 	}
 
 	onError := func(failure string) {
@@ -170,7 +172,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 
 		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.WSError).Inc()
 		c.webSocketError = errors.New(failure)
-		c.blockHeightError = c.webSocketError
+		c.setError(c.webSocketError)
 	}
 
 	wsClient, err := c.clientGetter(c.upstreamConfig.WSURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
