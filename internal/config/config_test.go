@@ -138,14 +138,41 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                     priority: 0
             `,
 		},
+		{
+			name: "Duplicate upstream names across groups of the same chain.",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: primary
+                    nodeType: full
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: fallback
+                    nodeType: full
+
+                groups:
+                  - id: primary
+                    priority: 0
+                  - id: fallback
+                    priority: 1
+            `,
+		},
 	} {
 		configBytes := []byte(testCase.config)
 		_, err := parseConfig(configBytes)
 		assert.NotNil(t, err)
 
 		// To prevent catching formatting errors, that's not what we're checking for in this test.
-		assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
-		assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
+		if err != nil {
+			assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
+			assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
+		}
 	}
 }
 

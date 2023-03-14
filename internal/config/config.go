@@ -75,7 +75,7 @@ func IsUpstreamsValid(upstreams []UpstreamConfig) bool {
 	var uniqueIDs = make(map[string]bool)
 	for idx := range upstreams {
 		if _, ok := uniqueIDs[upstreams[idx].ID]; ok {
-			zap.L().Error("Upstream IDs should be unique within the same group.", zap.Any("group", upstreams[idx].GroupID), zap.Any("upstream", upstreams[idx].ID))
+			zap.L().Error("Upstream IDs should be unique across groups of the same chain.", zap.Any("group", upstreams[idx].GroupID), zap.Any("upstream", upstreams[idx].ID))
 
 			return false
 		}

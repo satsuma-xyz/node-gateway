@@ -23,7 +23,7 @@ func TestChainMetadataStore_GetBlockHeightStatus(t *testing.T) {
 	assert.Equal(t, uint64(102), status.GroupMaxBlockHeight)
 	assert.Equal(t, uint64(102), status.GlobalMaxBlockHeight)
 
-	emitBlockHeight(store, "group2", "upstream1", 201)
+	emitBlockHeight(store, "group2", "upstream3", 201)
 	status = store.GetBlockHeightStatus("group1", "upstream1")
 	assert.Equal(t, uint64(101), status.BlockHeight)
 	assert.Equal(t, uint64(102), status.GroupMaxBlockHeight)

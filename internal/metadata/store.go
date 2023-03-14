@@ -40,22 +40,22 @@ func (c *ChainMetadataStore) updateHeightForGroup(groupID string, currentBlockHe
 	c.maxHeightByGroupID[groupID] = lo.Max([]uint64{c.maxHeightByGroupID[groupID], currentBlockHeight})
 }
 
-func (c *ChainMetadataStore) updateHeightForUpstream(groupID, upstreamID string, blockHeight uint64) {
-	c.heightByUpstreamID[groupID+upstreamID] = blockHeight
+func (c *ChainMetadataStore) updateHeightForUpstream(upstreamID string, blockHeight uint64) {
+	c.heightByUpstreamID[upstreamID] = blockHeight
 }
 
-func (c *ChainMetadataStore) updateErrorForUpstream(groupID, upstreamID string, err error) {
-	c.errorByUpstreamID[groupID+upstreamID] = err
+func (c *ChainMetadataStore) updateErrorForUpstream(upstreamID string, err error) {
+	c.errorByUpstreamID[upstreamID] = err
 }
 
 func (c *ChainMetadataStore) GetBlockHeightStatus(groupID, upstreamID string) BlockHeightStatus {
 	returnChannel := make(chan BlockHeightStatus)
 	c.opChannel <- func() {
 		blockHeightStatus := BlockHeightStatus{
-			Error:                c.errorByUpstreamID[groupID+upstreamID],
+			Error:                c.errorByUpstreamID[upstreamID],
 			GroupID:              groupID,
 			UpstreamID:           upstreamID,
-			BlockHeight:          c.heightByUpstreamID[groupID+upstreamID],
+			BlockHeight:          c.heightByUpstreamID[upstreamID],
 			GroupMaxBlockHeight:  c.maxHeightByGroupID[groupID],
 			GlobalMaxBlockHeight: c.globalMaxHeight,
 		}
@@ -70,13 +70,13 @@ func (c *ChainMetadataStore) ProcessBlockHeightUpdate(groupID, upstreamID string
 	c.opChannel <- func() {
 		c.globalMaxHeight = lo.Max([]uint64{c.globalMaxHeight, blockHeight})
 		c.updateHeightForGroup(groupID, blockHeight)
-		c.updateHeightForUpstream(groupID, upstreamID, blockHeight)
-		c.updateErrorForUpstream(groupID, upstreamID, nil)
+		c.updateHeightForUpstream(upstreamID, blockHeight)
+		c.updateErrorForUpstream(upstreamID, nil)
 	}
 }
 
 func (c *ChainMetadataStore) ProcessErrorUpdate(groupID, upstreamID string, err error) {
 	c.opChannel <- func() {
-		c.updateErrorForUpstream(groupID, upstreamID, err)
+		c.updateErrorForUpstream(upstreamID, err)
 	}
 }

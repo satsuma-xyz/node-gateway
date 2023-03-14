@@ -20,13 +20,13 @@ func (_m *HealthCheckManager) EXPECT() *HealthCheckManager_Expecter {
 	return &HealthCheckManager_Expecter{mock: &_m.Mock}
 }
 
-// GetUpstreamStatus provides a mock function with given fields: groupID, upstreamID
-func (_m *HealthCheckManager) GetUpstreamStatus(groupID string, upstreamID string) *types.UpstreamStatus {
-	ret := _m.Called(groupID, upstreamID)
+// GetUpstreamStatus provides a mock function with given fields: upstreamID
+func (_m *HealthCheckManager) GetUpstreamStatus(upstreamID string) *types.UpstreamStatus {
+	ret := _m.Called(upstreamID)
 
 	var r0 *types.UpstreamStatus
-	if rf, ok := ret.Get(0).(func(string, string) *types.UpstreamStatus); ok {
-		r0 = rf(groupID, upstreamID)
+	if rf, ok := ret.Get(0).(func(string) *types.UpstreamStatus); ok {
+		r0 = rf(upstreamID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.UpstreamStatus)
@@ -42,15 +42,14 @@ type HealthCheckManager_GetUpstreamStatus_Call struct {
 }
 
 // GetUpstreamStatus is a helper method to define mock.On call
-//   - groupID string
 //   - upstreamID string
-func (_e *HealthCheckManager_Expecter) GetUpstreamStatus(groupID interface{}, upstreamID interface{}) *HealthCheckManager_GetUpstreamStatus_Call {
-	return &HealthCheckManager_GetUpstreamStatus_Call{Call: _e.mock.On("GetUpstreamStatus", groupID, upstreamID)}
+func (_e *HealthCheckManager_Expecter) GetUpstreamStatus(upstreamID interface{}) *HealthCheckManager_GetUpstreamStatus_Call {
+	return &HealthCheckManager_GetUpstreamStatus_Call{Call: _e.mock.On("GetUpstreamStatus", upstreamID)}
 }
 
-func (_c *HealthCheckManager_GetUpstreamStatus_Call) Run(run func(groupID string, upstreamID string)) *HealthCheckManager_GetUpstreamStatus_Call {
+func (_c *HealthCheckManager_GetUpstreamStatus_Call) Run(run func(upstreamID string)) *HealthCheckManager_GetUpstreamStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(string))
 	})
 	return _c
 }
@@ -60,7 +59,7 @@ func (_c *HealthCheckManager_GetUpstreamStatus_Call) Return(_a0 *types.UpstreamS
 	return _c
 }
 
-func (_c *HealthCheckManager_GetUpstreamStatus_Call) RunAndReturn(run func(string, string) *types.UpstreamStatus) *HealthCheckManager_GetUpstreamStatus_Call {
+func (_c *HealthCheckManager_GetUpstreamStatus_Call) RunAndReturn(run func(string) *types.UpstreamStatus) *HealthCheckManager_GetUpstreamStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

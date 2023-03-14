@@ -30,7 +30,7 @@ type NewBlockHeightCheck func(
 type HealthCheckManager interface {
 	StartHealthChecks()
 	IsInitialized() bool
-	GetUpstreamStatus(groupID, upstreamID string) *types.UpstreamStatus
+	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
 }
 
 type healthCheckManager struct {
@@ -78,8 +78,8 @@ func (h *healthCheckManager) StartHealthChecks() {
 	}()
 }
 
-func (h *healthCheckManager) GetUpstreamStatus(groupID, upstreamID string) *types.UpstreamStatus {
-	if status, ok := h.upstreamIDToStatus[groupID+upstreamID]; ok {
+func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.UpstreamStatus {
+	if status, ok := h.upstreamIDToStatus[upstreamID]; ok {
 		return status
 	}
 
@@ -87,8 +87,8 @@ func (h *healthCheckManager) GetUpstreamStatus(groupID, upstreamID string) *type
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
 }
 
-func (h *healthCheckManager) setUpstreamStatus(groupID, upstreamID string, status *types.UpstreamStatus) {
-	h.upstreamIDToStatus[groupID+upstreamID] = status
+func (h *healthCheckManager) setUpstreamStatus(upstreamID string, status *types.UpstreamStatus) {
+	h.upstreamIDToStatus[upstreamID] = status
 }
 
 func (h *healthCheckManager) initializeChecks() {
@@ -140,7 +140,7 @@ func (h *healthCheckManager) initializeChecks() {
 			innerWG.Wait()
 
 			mutex.Lock()
-			h.setUpstreamStatus(config.GroupID, config.ID, &types.UpstreamStatus{
+			h.setUpstreamStatus(config.ID, &types.UpstreamStatus{
 				ID:               config.ID,
 				GroupID:          config.GroupID,
 				BlockHeightCheck: blockHeightCheck,
@@ -174,21 +174,21 @@ func (h *healthCheckManager) runChecksOnce() {
 		go func(c types.BlockHeightChecker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.GetUpstreamStatus(config.GroupID, config.ID).BlockHeightCheck)
+		}(h.GetUpstreamStatus(config.ID).BlockHeightCheck)
 
 		wg.Add(1)
 
 		go func(c types.Checker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.GetUpstreamStatus(config.GroupID, config.ID).PeerCheck)
+		}(h.GetUpstreamStatus(config.ID).PeerCheck)
 
 		wg.Add(1)
 
 		go func(c types.Checker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.GetUpstreamStatus(config.GroupID, config.ID).SyncingCheck)
+		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
 	}
 
 	wg.Wait()

@@ -49,7 +49,7 @@ type HasEnoughPeers struct {
 }
 
 func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.GroupID, upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	peerCheck, _ := upstreamStatus.PeerCheck.(*checks.PeerCheck)
 
 	if peerCheck.ShouldRun {
@@ -80,7 +80,7 @@ type IsDoneSyncing struct {
 }
 
 func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.GroupID, upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
 
