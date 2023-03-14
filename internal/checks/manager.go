@@ -87,6 +87,10 @@ func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.Upstrea
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
 }
 
+func (h *healthCheckManager) setUpstreamStatus(upstreamID string, status *types.UpstreamStatus) {
+	h.upstreamIDToStatus[upstreamID] = status
+}
+
 func (h *healthCheckManager) initializeChecks() {
 	var mutex sync.RWMutex
 
@@ -136,13 +140,13 @@ func (h *healthCheckManager) initializeChecks() {
 			innerWG.Wait()
 
 			mutex.Lock()
-			h.upstreamIDToStatus[config.ID] = &types.UpstreamStatus{
+			h.setUpstreamStatus(config.ID, &types.UpstreamStatus{
 				ID:               config.ID,
 				GroupID:          config.GroupID,
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
 				SyncingCheck:     syncingCheck,
-			}
+			})
 			mutex.Unlock()
 		}()
 	}
@@ -170,21 +174,21 @@ func (h *healthCheckManager) runChecksOnce() {
 		go func(c types.BlockHeightChecker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.upstreamIDToStatus[config.ID].BlockHeightCheck)
+		}(h.GetUpstreamStatus(config.ID).BlockHeightCheck)
 
 		wg.Add(1)
 
 		go func(c types.Checker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.upstreamIDToStatus[config.ID].PeerCheck)
+		}(h.GetUpstreamStatus(config.ID).PeerCheck)
 
 		wg.Add(1)
 
 		go func(c types.Checker) {
 			defer wg.Done()
 			c.RunCheck()
-		}(h.upstreamIDToStatus[config.ID].SyncingCheck)
+		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
 	}
 
 	wg.Wait()

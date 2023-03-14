@@ -5,8 +5,6 @@ import (
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
-	"github.com/satsuma-data/node-gateway/internal/mocks"
-	"github.com/satsuma-data/node-gateway/internal/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -59,38 +57,62 @@ func TestAndFilter_Apply(t *testing.T) {
 }
 
 func TestIsCloseToGlobalMaxHeight_Apply(t *testing.T) {
-	upstreamConfig := &config.UpstreamConfig{ID: "upstream1"}
-
-	healthCheckManager := mocks.NewHealthCheckManager(t)
-
-	blockHeightCheck := mocks.NewBlockHeightChecker(t)
-	upstreamStatus := types.UpstreamStatus{BlockHeightCheck: blockHeightCheck}
-	healthCheckManager.EXPECT().GetUpstreamStatus(upstreamConfig.ID).Return(&upstreamStatus)
+	groupID1 := "group1"
+	groupID2 := "group2"
+	upstreamID1 := "upstream1"
+	upstreamID2 := "upstream2"
+	upstreamConfig := &config.UpstreamConfig{GroupID: groupID1, ID: upstreamID1}
 
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	chainMetadataStore.Start()
-	chainMetadataStore.ProcessUpdate(metadata.BlockHeightUpdate{
-		GroupID:     "group1",
-		BlockHeight: 100,
-	})
 
 	filter := IsCloseToGlobalMaxHeight{
-		healthCheckManager: healthCheckManager,
 		chainMetadataStore: chainMetadataStore,
 		logger:             zap.L(),
 		maxBlocksBehind:    10,
 	}
 
-	blockHeightCheck.EXPECT().GetError().Return(nil)
+	emitBlockHeight(chainMetadataStore, groupID1, upstreamID1, 100)
+	emitBlockHeight(chainMetadataStore, groupID2, upstreamID2, 75)
 
-	blockHeightCheck.EXPECT().GetBlockHeight().Return(85).Once()
+	emitBlockHeight(chainMetadataStore, groupID1, upstreamID1, 85)
 	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 
-	blockHeightCheck.EXPECT().GetBlockHeight().Return(91).Once()
+	emitBlockHeight(chainMetadataStore, groupID1, upstreamID1, 90)
 	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 
-	blockHeightCheck.EXPECT().GetBlockHeight().Return(99).Once()
+	emitBlockHeight(chainMetadataStore, groupID1, upstreamID1, 99)
 	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+
+	emitError(chainMetadataStore, groupID1, upstreamID1, assert.AnError)
+	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+}
+
+func TestIsAtMaxHeightForGroup_Apply(t *testing.T) {
+	groupID := "group1"
+	upstreamID1 := "upstream1"
+	upstreamID2 := "upstream2"
+	upstreamConfig := &config.UpstreamConfig{GroupID: groupID, ID: upstreamID1}
+
+	chainMetadataStore := metadata.NewChainMetadataStore()
+	chainMetadataStore.Start()
+
+	filter := IsAtMaxHeightForGroup{
+		chainMetadataStore: chainMetadataStore,
+		logger:             zap.L(),
+	}
+
+	// Set global max height to 100
+	emitBlockHeight(chainMetadataStore, groupID, upstreamID2, 100)
+
+	emitBlockHeight(chainMetadataStore, groupID, upstreamID1, 85)
+	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+
+	emitBlockHeight(chainMetadataStore, groupID, upstreamID1, 101)
+	assert.True(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
+
+	emitError(chainMetadataStore, groupID, upstreamID1, assert.AnError)
+	assert.False(t, filter.Apply(metadata.RequestMetadata{}, upstreamConfig))
 }
 
 func TestMethodsAllowedFilter_Apply(t *testing.T) {
@@ -161,4 +183,12 @@ func TestMethodsAllowedFilter_Apply(t *testing.T) {
 			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
+}
+
+func emitBlockHeight(store *metadata.ChainMetadataStore, groupID, upstreamID string, blockHeight uint64) {
+	store.ProcessBlockHeightUpdate(groupID, upstreamID, blockHeight)
+}
+
+func emitError(store *metadata.ChainMetadataStore, groupID, upstreamID string, err error) {
+	store.ProcessErrorUpdate(groupID, upstreamID, err)
 }

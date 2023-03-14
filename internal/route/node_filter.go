@@ -108,7 +108,6 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 }
 
 type IsCloseToGlobalMaxHeight struct {
-	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
 	logger             *zap.Logger
 	maxBlocksBehind    uint64
@@ -118,23 +117,18 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 	_ metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
 ) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	check := upstreamStatus.BlockHeightCheck
+	status := f.chainMetadataStore.GetBlockHeightStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
-	checkIsHealthy := check.GetError() == nil
-	if !checkIsHealthy {
+	if status.Error != nil {
 		f.logger.Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
-			zap.Error(check.GetError()),
+			zap.Error(status.Error),
 			zap.String("UpstreamID", upstreamConfig.ID),
 		)
 
 		return false
 	}
 
-	maxHeight := f.chainMetadataStore.GetGlobalMaxHeight()
-	upstreamHeight := check.GetBlockHeight()
-	isClose := upstreamHeight+f.maxBlocksBehind >= maxHeight
-
+	isClose := status.BlockHeight+f.maxBlocksBehind >= status.GlobalMaxBlockHeight
 	if isClose {
 		return true
 	}
@@ -142,42 +136,39 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 	f.logger.Debug(
 		"Upstream too far behind global max height!",
 		zap.String("UpstreamID", upstreamConfig.ID),
-		zap.Uint64("UpstreamHeight", upstreamHeight),
-		zap.Uint64("MaxHeight", maxHeight),
+		zap.Uint64("UpstreamHeight", status.BlockHeight),
+		zap.Uint64("MaxHeight", status.GlobalMaxBlockHeight),
 	)
 
 	return false
 }
 
 type IsAtMaxHeightForGroup struct {
-	healthCheckManager checks.HealthCheckManager
 	chainMetadataStore *metadata.ChainMetadataStore
 	logger             *zap.Logger
 }
 
 func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	check := upstreamStatus.BlockHeightCheck
+	status := f.chainMetadataStore.GetBlockHeightStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
-	if check.GetError() != nil {
+	if status.Error != nil {
 		f.logger.Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
 			zap.String("UpstreamID", upstreamConfig.ID),
-			zap.Error(check.GetError()),
+			zap.Error(status.Error),
 		)
 
 		return false
 	}
 
-	maxHeightForGroup := f.chainMetadataStore.GetMaxHeightForGroup(upstreamConfig.GroupID)
-	if check.GetBlockHeight() >= maxHeightForGroup {
+	if status.BlockHeight >= status.GroupMaxBlockHeight {
 		return true
 	}
 
 	f.logger.Debug(
 		"Upstream not at max height for group!",
 		zap.String("UpstreamID", upstreamConfig.ID),
-		zap.Uint64("UpstreamHeight", check.GetBlockHeight()),
-		zap.Uint64("MaxHeightForGroup", maxHeightForGroup),
+		zap.Uint64("UpstreamHeight", status.BlockHeight),
+		zap.Uint64("MaxHeightForGroup", status.GroupMaxBlockHeight),
 	)
 
 	return false
@@ -269,7 +260,6 @@ func CreateSingleNodeFilter(
 		}
 	case GlobalMaxHeight:
 		return &IsCloseToGlobalMaxHeight{
-			healthCheckManager: manager,
 			chainMetadataStore: store,
 			logger:             logger,
 			maxBlocksBehind:    0,
@@ -281,14 +271,12 @@ func CreateSingleNodeFilter(
 		}
 
 		return &IsCloseToGlobalMaxHeight{
-			healthCheckManager: manager,
 			chainMetadataStore: store,
 			logger:             logger,
 			maxBlocksBehind:    uint64(maxBlocksBehind),
 		}
 	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{
-			healthCheckManager: manager,
 			chainMetadataStore: store,
 			logger:             logger,
 		}

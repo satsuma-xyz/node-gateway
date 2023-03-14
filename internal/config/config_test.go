@@ -25,6 +25,20 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                     wsURL: "wss://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
                     healthCheck:
                       useWsForBlockHeight: true
+                    nodeType: full
+            `,
+		},
+		{
+			name: "Upstream config without nodeType.",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
             `,
 		},
 		{
@@ -40,6 +54,7 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
                     healthCheck:
                       useWsForBlockHeight: true
+                    nodeType: full
             `,
 		},
 		{
@@ -54,6 +69,7 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                   - id: alchemy-eth
                     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
                     group: primary
+                    nodeType: full
                 
                 groups:
                   - id: primary
@@ -73,6 +89,7 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                 upstreams:
                   - id: alchemy-eth
                     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    nodeType: full
                 
                 groups:
                   - id: primary
@@ -91,10 +108,59 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
                   - id: alchemy-eth
                     httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
                     group: something-that-doesnt-exist
+                    nodeType: full
                 
                 groups:
                   - id: primary
                     priority: 0
+            `,
+		},
+		{
+			name: "Group with duplicate upstream names.",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: primary
+                    nodeType: full
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: primary
+                    nodeType: full
+                
+                groups:
+                  - id: primary
+                    priority: 0
+            `,
+		},
+		{
+			name: "Duplicate upstream names across groups of the same chain.",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: primary
+                    nodeType: full
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    group: fallback
+                    nodeType: full
+
+                groups:
+                  - id: primary
+                    priority: 0
+                  - id: fallback
+                    priority: 1
             `,
 		},
 	} {
@@ -103,8 +169,10 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 		assert.NotNil(t, err)
 
 		// To prevent catching formatting errors, that's not what we're checking for in this test.
-		assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
-		assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
+		if err != nil {
+			assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
+			assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
+		}
 	}
 }
 
