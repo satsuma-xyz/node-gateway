@@ -49,7 +49,7 @@ type HasEnoughPeers struct {
 }
 
 func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 	peerCheck, _ := upstreamStatus.PeerCheck.(*checks.PeerCheck)
 
 	if peerCheck.ShouldRun {
@@ -80,7 +80,7 @@ type IsDoneSyncing struct {
 }
 
 func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
 	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
 
@@ -128,7 +128,8 @@ func (f *IsCloseToGlobalMaxHeight) Apply(
 		return false
 	}
 
-	if status.BlockHeight+f.maxBlocksBehind >= status.GlobalMaxBlockHeight {
+	isClose := status.BlockHeight+f.maxBlocksBehind >= status.GlobalMaxBlockHeight
+	if isClose {
 		return true
 	}
 

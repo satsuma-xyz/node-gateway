@@ -66,17 +66,17 @@ func (c *ChainMetadataStore) GetBlockHeightStatus(groupID, upstreamID string) Bl
 	return <-returnChannel
 }
 
-func (c *ChainMetadataStore) ProcessBlockHeightUpdate(groupID, updateID string, blockHeight uint64) {
+func (c *ChainMetadataStore) ProcessBlockHeightUpdate(groupID, upstreamID string, blockHeight uint64) {
 	c.opChannel <- func() {
 		c.globalMaxHeight = lo.Max([]uint64{c.globalMaxHeight, blockHeight})
 		c.updateHeightForGroup(groupID, blockHeight)
-		c.updateHeightForUpstream(groupID, updateID, blockHeight)
-		c.updateErrorForUpstream(groupID, updateID, nil)
+		c.updateHeightForUpstream(groupID, upstreamID, blockHeight)
+		c.updateErrorForUpstream(groupID, upstreamID, nil)
 	}
 }
 
-func (c *ChainMetadataStore) ProcessErrorUpdate(groupID, updateID string, err error) {
+func (c *ChainMetadataStore) ProcessErrorUpdate(groupID, upstreamID string, err error) {
 	c.opChannel <- func() {
-		c.updateErrorForUpstream(groupID, updateID, err)
+		c.updateErrorForUpstream(groupID, upstreamID, err)
 	}
 }

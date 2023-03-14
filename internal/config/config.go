@@ -71,6 +71,21 @@ func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 	return isValid
 }
 
+func IsUpstreamsValid(upstreams []UpstreamConfig) bool {
+	var uniqueIDs = make(map[string]bool)
+	for idx := range upstreams {
+		if _, ok := uniqueIDs[upstreams[idx].ID]; ok {
+			zap.L().Error("Upstream IDs should be unique within the same group.", zap.Any("group", upstreams[idx].GroupID), zap.Any("upstream", upstreams[idx].ID))
+
+			return false
+		}
+
+		uniqueIDs[upstreams[idx].ID] = true
+	}
+
+	return true
+}
+
 type HealthCheckConfig struct {
 	// If not set - method to identify block height is auto-detected. Use websockets is its URL is set, else fall back to use HTTP polling.
 	UseWSForBlockHeight *bool `yaml:"useWsForBlockHeight"`
@@ -162,6 +177,7 @@ type SingleChainConfig struct {
 func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := true
 	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
+	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
