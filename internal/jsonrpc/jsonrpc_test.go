@@ -113,20 +113,29 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 	}{
 		{
 			testName: "single response",
-			body:     "{\"result\":\"haha\",\"jsonrpc\":\"2.0\",\"id\":67}",
+			body:     `{"result":"haha","jsonrpc":"2.0","id":67}`,
 			expectedResponse: &SingleResponseBody{
-				Result:  "haha",
+				Result:  []byte(`"haha"`),
 				JSONRPC: "2.0",
 				ID:      67,
 			},
 		},
 		{
+			testName: "null result",
+			body:     `{"result":null,"jsonrpc":"2.0","id":1}`,
+			expectedResponse: &SingleResponseBody{
+				Result:  []byte("null"),
+				JSONRPC: "2.0",
+				ID:      1,
+			},
+		},
+		{
 			testName: "single response in batch",
-			body:     "[{\"result\":\"haha\",\"jsonrpc\":\"2.0\",\"id\":67}]",
+			body:     `[{"result":"haha","jsonrpc":"2.0","id":67}]`,
 			expectedResponse: &BatchResponseBody{
 				Responses: []SingleResponseBody{
 					{
-						Result:  "haha",
+						Result:  []byte(`"haha"`),
 						JSONRPC: "2.0",
 						ID:      67,
 					},
@@ -136,24 +145,24 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 		{
 			testName: "batch responses",
 			body: "[" +
-				"{\"result\":\"haha\",\"jsonrpc\":\"2.0\",\"id\":67}," +
-				"{\"result\":\"something\",\"jsonrpc\":\"2.0\",\"id\":68}," +
-				"{\"result\":\"else\",\"jsonrpc\":\"2.0\",\"id\":69}" +
+				`{"result":"haha","jsonrpc":"2.0","id":67},` +
+				`{"result":"something","jsonrpc":"2.0","id":68},` +
+				`{"result":"else","jsonrpc":"2.0","id":69}` +
 				"]",
 			expectedResponse: &BatchResponseBody{
 				Responses: []SingleResponseBody{
 					{
-						Result:  "haha",
+						Result:  []byte(`"haha"`),
 						JSONRPC: "2.0",
 						ID:      67,
 					},
 					{
-						Result:  "something",
+						Result:  []byte(`"something"`),
 						JSONRPC: "2.0",
 						ID:      68,
 					},
 					{
-						Result:  "else",
+						Result:  []byte(`"else"`),
 						JSONRPC: "2.0",
 						ID:      69,
 					},

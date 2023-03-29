@@ -60,10 +60,10 @@ type ResponseBody interface {
 
 // See: http://www.jsonrpc.org/specification#response_object
 type SingleResponseBody struct {
-	Result  any    `json:"result,omitempty"`
-	Error   *Error `json:"error,omitempty"`
-	JSONRPC string `json:"jsonrpc"`
-	ID      int64  `json:"id"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *Error          `json:"error,omitempty"`
+	JSONRPC string          `json:"jsonrpc"`
+	ID      int64           `json:"id"`
 }
 
 func (b *SingleResponseBody) Encode() ([]byte, error) {
