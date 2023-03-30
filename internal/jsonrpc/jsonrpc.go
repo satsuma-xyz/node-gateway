@@ -60,9 +60,9 @@ type ResponseBody interface {
 
 // See: http://www.jsonrpc.org/specification#response_object
 type SingleResponseBody struct {
-	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *Error          `json:"error,omitempty"`
 	JSONRPC string          `json:"jsonrpc"`
+	Result  json.RawMessage `json:"result,omitempty"`
 	ID      int64           `json:"id"`
 }
 

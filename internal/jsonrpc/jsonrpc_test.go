@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
@@ -113,16 +114,16 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 	}{
 		{
 			testName: "single response",
-			body:     `{"result":"haha","jsonrpc":"2.0","id":67}`,
+			body:     `{"jsonrpc":"2.0","result":"haha","id":67}`,
 			expectedResponse: &SingleResponseBody{
-				Result:  []byte(`"haha"`),
+				Result:  json.RawMessage(`"haha"`),
 				JSONRPC: "2.0",
 				ID:      67,
 			},
 		},
 		{
 			testName: "null result",
-			body:     `{"result":null,"jsonrpc":"2.0","id":1}`,
+			body:     `{"jsonrpc":"2.0","result":null,"id":1}`,
 			expectedResponse: &SingleResponseBody{
 				Result:  []byte("null"),
 				JSONRPC: "2.0",
@@ -131,7 +132,7 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 		},
 		{
 			testName: "single response in batch",
-			body:     `[{"result":"haha","jsonrpc":"2.0","id":67}]`,
+			body:     `[{"jsonrpc":"2.0","result":"haha","id":67}]`,
 			expectedResponse: &BatchResponseBody{
 				Responses: []SingleResponseBody{
 					{
@@ -145,9 +146,9 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 		{
 			testName: "batch responses",
 			body: "[" +
-				`{"result":"haha","jsonrpc":"2.0","id":67},` +
-				`{"result":"something","jsonrpc":"2.0","id":68},` +
-				`{"result":"else","jsonrpc":"2.0","id":69}` +
+				`{"jsonrpc":"2.0","result":"haha","id":67},` +
+				`{"jsonrpc":"2.0","result":"something","id":68},` +
+				`{"jsonrpc":"2.0","result":"else","id":69}` +
 				"]",
 			expectedResponse: &BatchResponseBody{
 				Responses: []SingleResponseBody{

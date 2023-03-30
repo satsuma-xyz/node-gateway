@@ -23,7 +23,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	router := mocks.NewRouter(t)
 	expectedRPCResponse := &jsonrpc.SingleResponseBody{
 		JSONRPC: jsonrpc.JSONRPCVersion,
-		Result:  "results",
+		Result:  json.RawMessage(`"results"`),
 		ID:      2,
 	}
 	router.EXPECT().Route(mock.Anything, mock.Anything).

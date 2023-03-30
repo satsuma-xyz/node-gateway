@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -61,7 +62,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
 func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
@@ -95,7 +96,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 		statusCode, responseBody, headers := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
 
 		assert.Equal(t, http.StatusOK, statusCode)
-		assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.GetSubResponses()[0].Result)
+		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
 		assert.Equal(t, upstreamConfig1.ID, headers.Get("X-Upstream-ID"))
 	}
 
@@ -103,7 +104,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 		statusCode, responseBody, headers := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler)
 
 		assert.Equal(t, http.StatusOK, statusCode)
-		assert.Equal(t, hexutil.Uint64(1000).String(), responseBody.GetSubResponses()[0].Result)
+		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
 		assert.Equal(t, upstreamConfig2.ID, headers.Get("X-Upstream-ID"))
 	}
 }
@@ -127,7 +128,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 			t.Logf("Serving method %s from full node as expected", nonStatefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: hexutil.Uint64(expectedBlockTxCount),
+				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()),
 				ID:     *request.ID,
 			}
 		},
@@ -140,7 +141,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: hexutil.Uint64(expectedTransactionCount),
+				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()),
 				ID:     *request.ID,
 			}
 		},
@@ -180,12 +181,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 
 	statusCode, responseBody, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
 func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.T) {
@@ -217,7 +218,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: hexutil.Uint64(expectedTransactionCount),
+				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()),
 				ID:     *request.ID,
 			}
 		},
@@ -226,7 +227,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 			t.Logf("Serving method %s from archive node as expected.", nonStatefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: hexutil.Uint64(expectedBlockTxCount),
+				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()),
 				ID:     *request.ID,
 			}
 		},
@@ -268,8 +269,8 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 		idsToExpectedResult[response.ID] = response.Result
 	}
 
-	assert.Equal(t, hexutil.Uint64(expectedTransactionCount).String(), idsToExpectedResult[0])
-	assert.Equal(t, hexutil.Uint64(expectedBlockTxCount).String(), idsToExpectedResult[1])
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), idsToExpectedResult[0])
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), idsToExpectedResult[1])
 }
 
 func executeSingleRequest(
@@ -402,21 +403,23 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 
 	switch request.Method {
 	case "eth_syncing":
-		return jsonrpc.SingleResponseBody{Result: false}
+		return jsonrpc.SingleResponseBody{Result: json.RawMessage(`false`)}
 
 	case "net_peerCount":
-		return jsonrpc.SingleResponseBody{Result: hexutil.Uint64(10)}
+		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(10).String())}
 
 	case "eth_getBlockByNumber":
+		result, _ := json.Marshal(types.Header{
+			Number:     big.NewInt(latestBlockNumber),
+			Difficulty: big.NewInt(0),
+		})
+
 		return jsonrpc.SingleResponseBody{
-			Result: types.Header{
-				Number:     big.NewInt(latestBlockNumber),
-				Difficulty: big.NewInt(0),
-			},
+			Result: json.RawMessage(result),
 		}
 
 	case "eth_blockNumber":
-		return jsonrpc.SingleResponseBody{Result: hexutil.Uint64(latestBlockNumber)}
+		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(latestBlockNumber).String())}
 
 	default:
 		if customHandler, found := additionalHandlers[request.Method]; found {
@@ -460,4 +463,8 @@ func writeResponseBody(t *testing.T, writer http.ResponseWriter, body jsonrpc.Re
 	assert.NoError(t, err)
 	_, err = writer.Write(encodedBody)
 	assert.NoError(t, err)
+}
+
+func getResultFromString(input string) json.RawMessage {
+	return json.RawMessage(`"` + input + `"`)
 }

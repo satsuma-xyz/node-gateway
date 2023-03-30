@@ -2,6 +2,7 @@ package route
 
 import (
 	"context"
+	"encoding/json"
 
 	"io"
 	"net/http"
@@ -118,7 +119,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
-	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig},
 		1: {&erigonConfig},
@@ -164,7 +165,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
-	assert.Equal(t, "hello", jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig, &erigonConfig},
 	}, metadata.RequestMetadata{Methods: []string{"my_method"}})
