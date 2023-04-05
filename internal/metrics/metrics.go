@@ -136,8 +136,9 @@ var (
 	// because it's used in the other chain height monitoring system.
 	chainHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "monitor_chains.latest_block_number",
-			Help: "Max height of a particular chain.",
+			Namespace: "monitor_chains",
+			Name:      "latest_block_number",
+			Help:      "Max height of a particular chain.",
 		},
 		[]string{"chain", "id", "url"},
 	)
