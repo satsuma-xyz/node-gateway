@@ -132,6 +132,16 @@ var (
 		[]string{"chain_name", "upstream_id", "url"},
 	)
 
+	// This format of this metric doesn't match other metrics here
+	// because it's used in the other chain height monitoring system.
+	chainHeight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "monitor_chains.latest_block_number",
+			Help: "Max height of a particular chain.",
+		},
+		[]string{"chain", "id", "url"},
+	)
+
 	blockHeightCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
@@ -259,6 +269,7 @@ type Container struct {
 	UpstreamRPCDuration               prometheus.ObserverVec
 
 	BlockHeight              *prometheus.GaugeVec
+	ChainHeight              *prometheus.GaugeVec
 	BlockHeightCheckRequests *prometheus.CounterVec
 	BlockHeightCheckDuration prometheus.ObserverVec
 	BlockHeightCheckErrors   *prometheus.CounterVec
@@ -291,6 +302,11 @@ func NewContainer(chainName string) *Container {
 	result.RPCResponseSizes = rpcResponseSizes.MustCurryWith(presetLabels)
 
 	result.BlockHeight = blockHeight.MustCurryWith(presetLabels)
+	// This format of this metric differs since it must match the metric
+	// in the other chain height monitoring system.
+	result.ChainHeight = chainHeight.MustCurryWith(prometheus.Labels{
+		"chain": chainName,
+	})
 	result.BlockHeightCheckRequests = blockHeightCheckRequests.MustCurryWith(presetLabels)
 	result.BlockHeightCheckDuration = blockHeightCheckDuration.MustCurryWith(presetLabels)
 	result.BlockHeightCheckErrors = blockHeightCheckErrors.MustCurryWith(presetLabels)

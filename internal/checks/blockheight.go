@@ -119,6 +119,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 		c.SetBlockHeight(header.Number.Uint64())
 
 		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.ChainHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		c.logger.Debug("Ran BlockHeightCheck over HTTP.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 	}
@@ -162,6 +163,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 
 		c.logger.Debug("Received blockheight over Websockets.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Uint64("blockHeight", c.blockHeight))
 		c.metricsContainer.BlockHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
+		c.metricsContainer.ChainHeight.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(c.blockHeight))
 
 		c.webSocketError = nil
 		c.setError(nil)
