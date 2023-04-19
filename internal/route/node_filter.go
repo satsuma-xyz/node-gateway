@@ -10,7 +10,7 @@ import (
 const DefaultMaxBlocksBehind = 10
 
 type NodeFilter interface {
-	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool
+	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool
 }
 
 type AndFilter struct {
@@ -19,13 +19,13 @@ type AndFilter struct {
 	isTopLevel bool
 }
 
-func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
 	var result = true
 
 	for filterIndex := range a.filters {
 		filter := a.filters[filterIndex]
 
-		ok := filter.Apply(requestMetadata, upstreamConfig)
+		ok := filter.Apply(requestMetadata, upstreamConfig, numUpstreamsInPriorityGroup)
 		if !ok {
 			result = false
 			break
@@ -48,7 +48,7 @@ type HasEnoughPeers struct {
 	minimumPeerCount   uint64
 }
 
-func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	peerCheck, _ := upstreamStatus.PeerCheck.(*checks.PeerCheck)
 
@@ -79,7 +79,7 @@ type IsDoneSyncing struct {
 	logger             *zap.Logger
 }
 
-func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
@@ -116,6 +116,7 @@ type IsCloseToGlobalMaxHeight struct {
 func (f *IsCloseToGlobalMaxHeight) Apply(
 	_ metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
+	numUpstreamsInPriorityGroup int,
 ) bool {
 	status := f.chainMetadataStore.GetBlockHeightStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
@@ -148,16 +149,27 @@ type IsAtMaxHeightForGroup struct {
 	logger             *zap.Logger
 }
 
-func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig) bool {
+func (f *IsAtMaxHeightForGroup) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
 	status := f.chainMetadataStore.GetBlockHeightStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
 	if status.Error != nil {
-		f.logger.Debug("IsCloseToGlobalMaxHeight failed: most recent health check did not succeed.",
+		f.logger.Debug("IsAtMaxHeightForGroup failed: most recent health check did not succeed.",
 			zap.String("UpstreamID", upstreamConfig.ID),
 			zap.Error(status.Error),
 		)
 
 		return false
+	}
+
+	// This allows us to successfully route requests if an upstream travels back in block
+	// height, *only in the case where there's only 1 upstream in the group.*
+	// This is a workaround for the fact that we set the max height in a group based on
+	// the max height across all rounds of checks instead of within 1 round. We should fix
+	// this so we can route properly to upstreams that travel back in height if there are
+	// multiple upstreams in the group.
+	if numUpstreamsInPriorityGroup == 1 {
+		f.logger.Debug("IsAtMaxHeightForGroup passing because there's only 1 upstream in the group.")
+		return true
 	}
 
 	if status.BlockHeight >= status.GroupMaxBlockHeight {
@@ -194,6 +206,7 @@ type AreMethodsAllowed struct {
 func (f *AreMethodsAllowed) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
+	numUpstreamsInPriorityGroup int,
 ) bool {
 	for _, method := range requestMetadata.Methods {
 		// Check methods that are have been disabled on the upstream.
@@ -258,12 +271,6 @@ func CreateSingleNodeFilter(
 			filters: []NodeFilter{&hasEnoughPeers},
 			logger:  logger,
 		}
-	case GlobalMaxHeight:
-		return &IsCloseToGlobalMaxHeight{
-			chainMetadataStore: store,
-			logger:             logger,
-			maxBlocksBehind:    0,
-		}
 	case NearGlobalMaxHeight:
 		maxBlocksBehind := DefaultMaxBlocksBehind
 		if routingConfig.MaxBlocksBehind != 0 {
@@ -291,7 +298,6 @@ type NodeFilterType string
 
 const (
 	Healthy             NodeFilterType = "healthy"
-	GlobalMaxHeight     NodeFilterType = "globalMaxHeight"
 	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
 	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
 	MethodsAllowed      NodeFilterType = "methodsAllowed"
