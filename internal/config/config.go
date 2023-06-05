@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"os"
-	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -104,8 +103,8 @@ type MethodsConfig struct {
 
 func (m *MethodsConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type MethodsConfigString struct {
-		Enabled  string
-		Disabled string
+		Enabled  []string
+		Disabled []string
 	}
 
 	var methodsConfigString MethodsConfigString
@@ -116,12 +115,12 @@ func (m *MethodsConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	m.Enabled = make(map[string]bool)
-	for _, method := range strings.Split(methodsConfigString.Enabled, ",") {
+	for _, method := range methodsConfigString.Enabled {
 		m.Enabled[method] = true
 	}
 
 	m.Disabled = make(map[string]bool)
-	for _, method := range strings.Split(methodsConfigString.Disabled, ",") {
+	for _, method := range methodsConfigString.Disabled {
 		m.Disabled[method] = true
 	}
 
