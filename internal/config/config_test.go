@@ -203,8 +203,11 @@ func TestParseConfig_ValidConfig(t *testing.T) {
             group: primary
             nodeType: full
             methods:
-              enabled: eth_getStorageAt
-              disabled: eth_getBalance,getLogs
+              enabled:
+                - eth_getStorageAt
+              disabled:
+                - eth_getBalance
+                - getLogs
           - id: ankr-polygon
             httpURL: "https://rpc.ankr.com/polygon"
             wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
