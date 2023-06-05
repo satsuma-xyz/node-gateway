@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -264,13 +265,13 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, 2, len(responseBody.GetSubResponses()))
 
-	idsToExpectedResult := make(map[int64]any)
+	idsToExpectedResult := make(map[json.Number]any)
 	for _, response := range responseBody.GetSubResponses() {
 		idsToExpectedResult[response.ID] = response.Result
 	}
 
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), idsToExpectedResult[0])
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), idsToExpectedResult[1])
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), idsToExpectedResult[json.Number(strconv.FormatInt(int64(0), 10))])
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), idsToExpectedResult[json.Number(strconv.FormatInt(int64(1), 10))])
 }
 
 func executeSingleRequest(
@@ -284,7 +285,7 @@ func executeSingleRequest(
 	singleRequest := jsonrpc.SingleRequestBody{
 		JSONRPCVersion: "2.0",
 		Method:         methodName,
-		ID:             lo.ToPtr[int64](1),
+		ID:             lo.ToPtr[json.Number](json.Number(strconv.FormatInt(int64(1), 10))),
 	}
 
 	return executeRequest(t, chainName, &singleRequest, handler)
@@ -304,7 +305,7 @@ func executeBatchRequest(
 		singleRequest := jsonrpc.SingleRequestBody{
 			JSONRPCVersion: "2.0",
 			Method:         methodName,
-			ID:             lo.ToPtr(int64(i)),
+			ID:             lo.ToPtr(json.Number(strconv.FormatInt(int64(i), 10))),
 		}
 		requests = append(requests, singleRequest)
 	}
