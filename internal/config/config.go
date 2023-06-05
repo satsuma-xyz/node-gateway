@@ -160,7 +160,12 @@ func IsGroupsValid(groups []GroupConfig) bool {
 }
 
 type GlobalConfig struct {
-	Port int `yaml:"port"`
+	Cache CacheConfig `yaml:"cache"`
+	Port  int         `yaml:"port"`
+}
+
+type CacheConfig struct {
+	Redis string `yaml:"redis"`
 }
 
 type RoutingConfig struct {
@@ -205,8 +210,8 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 }
 
 type Config struct {
-	Chains []SingleChainConfig
 	Global GlobalConfig
+	Chains []SingleChainConfig
 }
 
 func (config *Config) Validate() error {

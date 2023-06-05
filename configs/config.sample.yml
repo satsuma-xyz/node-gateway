@@ -1,5 +1,7 @@
 global:
   port: 8080
+  cache:
+    redis: kevin-test.jshtkz.ng.0001.use1.cache.amazonaws.com:6379
 
 # List of supported chains.
 # The HTTP endpoint for a given chain is <host>:<port>/<chainName>.

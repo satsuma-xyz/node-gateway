@@ -36,7 +36,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
 	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
@@ -109,7 +109,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L())
+	router := NewRouter(upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -155,7 +155,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		erigonConfig,
 	}
 
-	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L())
+	router := NewRouter(upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 

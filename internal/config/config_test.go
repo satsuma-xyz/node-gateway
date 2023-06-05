@@ -184,6 +184,8 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	config := `
     global:
       port: 8080
+      cache:
+        redis: localhost:6379
 
     chains:
       - chainName: ethereum
@@ -228,6 +230,9 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Port: 8080,
+			Cache: CacheConfig{
+				Redis: "localhost:6379",
+			},
 		},
 		Chains: []SingleChainConfig{{
 			Upstreams: []UpstreamConfig{

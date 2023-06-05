@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
@@ -26,7 +27,7 @@ type singleChainObjectGraph struct {
 	chainName string
 }
 
-func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger) singleChainObjectGraph {
+func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger, rpcCache *cache.RPCCache) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
@@ -40,7 +41,7 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 		Logger:          logger,
 	}
 
-	router := route.NewRouter(chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger)
+	router := route.NewRouter(chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger, rpcCache)
 
 	path := "/" + chainConfig.ChainName
 	handler := &RPCHandler{
@@ -62,6 +63,8 @@ func WireDependenciesForAllChains(
 	gatewayConfig config.Config,
 	rootLogger *zap.Logger,
 ) ObjectGraph {
+	rpcCache := cache.NewRPCCache(gatewayConfig.Global.Cache.Redis)
+
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
 
@@ -69,7 +72,7 @@ func WireDependenciesForAllChains(
 		currentChainConfig := &gatewayConfig.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
-		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger)
+		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger, rpcCache)
 
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
 		routers = append(routers, dependencyContainer.router)
