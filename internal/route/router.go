@@ -182,8 +182,12 @@ func (r *SimpleRouter) Route(
 			if req.ID == nil {
 				continue
 			}
+                        id, err := (*req.ID).Int64()
+                        if err != nil {
+				continue
+                        }
 
-			reqIDToRequestMap[*req.ID] = req
+			reqIDToRequestMap[id] = req
 		}
 
 		for _, resp := range body.GetSubResponses() {
@@ -193,7 +197,11 @@ func (r *SimpleRouter) Route(
 					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", upstreamID))
 
 				// In the rare case that the response has an ID that does not have a corresponding request.
-				if _, ok := reqIDToRequestMap[resp.ID]; !ok {
+                                id, err := resp.ID.Int64()
+                                if err != nil {
+                                        continue
+                                }
+				if _, ok := reqIDToRequestMap[id]; !ok {
 					continue
 				}
 
@@ -201,7 +209,7 @@ func (r *SimpleRouter) Route(
 					util.GetClientFromContext(ctx),
 					upstreamID,
 					configToRoute.HTTPURL,
-					reqIDToRequestMap[resp.ID].Method,
+					reqIDToRequestMap[id].Method,
 					HTTPReponseCode,
 					strconv.Itoa(resp.Error.Code),
 				).Inc()
