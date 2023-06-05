@@ -63,7 +63,7 @@ func NewRouter(
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
-		requestExecutor:     RequestExecutor{&http.Client{}, rpcCache, logger},
+		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
 		logger:              logger,

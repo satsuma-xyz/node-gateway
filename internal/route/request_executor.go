@@ -20,8 +20,8 @@ import (
 
 type RequestExecutor struct {
 	httpClient client.HTTPClient
-	cache      *cache.RPCCache
 	logger     *zap.Logger
+	cache      *cache.RPCCache
 }
 
 func (r *RequestExecutor) routeToConfig(
