@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
@@ -47,6 +48,7 @@ type SimpleRouter struct {
 }
 
 func NewRouter(
+	chainName string,
 	upstreamConfigs []config.UpstreamConfig,
 	groupConfigs []config.GroupConfig,
 	chainMetadataStore *metadata.ChainMetadataStore,
@@ -54,6 +56,7 @@ func NewRouter(
 	routingStrategy RoutingStrategy,
 	metricsContainer *metrics.Container,
 	logger *zap.Logger,
+	rpcCache *cache.RPCCache,
 ) Router {
 	r := &SimpleRouter{
 		chainMetadataStore:  chainMetadataStore,
@@ -61,7 +64,7 @@ func NewRouter(
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
-		requestExecutor:     RequestExecutor{httpClient: &http.Client{}, logger: logger},
+		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache, chainName},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
 		logger:              logger,
