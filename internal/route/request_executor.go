@@ -71,8 +71,7 @@ func (r *RequestExecutor) routeToConfig(
 			originError, _ := err.(*OriginError)
 			// An OriginError indicates a cache miss and request failure to origin.
 			// We want this error to bubble up.
-			// Any other errors should be unhandled caching errors.
-			// In these cases we default back to the "non-caching" behavior.
+			// Unknown cache errors will default back to the "non-caching" behavior.
 			if originError != nil {
 				r.logger.Warn("caching error making request to origin", zap.Error(err), zap.Any("request", requestBody))
 				return nil, nil, originError
@@ -99,6 +98,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 	originFunc := func() (*jsonrpc.SingleResponseBody, error) {
 		var err error
 
+		// Any errors will result in respBody and resp being nil.
 		respBody, resp, err = r.getResponseBody(httpReq, &requestBody, configToRoute) //nolint:bodyclose // linter bug
 		if err != nil {
 			return nil, err
@@ -113,13 +113,14 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 	}
 	result, err := r.cache.HandleRequest(requestBody, originFunc)
 
-	// A cache hit or the request to origin failed.
+	// Request to origin failed, we should fail out here.
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Cache hit
 	if resp == nil && respBody == nil {
-		// Request to origin failed, we should fail out here.
-		if err != nil {
-			return nil, nil, err
-		}
-		// Cache hit, fill in id and jsonrpc in the respBody to match the request.
+		// Fill in id and jsonrpc in the respBody to match the request.
 		r.logger.Debug("cache hit", zap.Any("request", requestBody))
 
 		resp = &http.Response{
