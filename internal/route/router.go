@@ -48,6 +48,7 @@ type SimpleRouter struct {
 }
 
 func NewRouter(
+	chainName string,
 	upstreamConfigs []config.UpstreamConfig,
 	groupConfigs []config.GroupConfig,
 	chainMetadataStore *metadata.ChainMetadataStore,
@@ -63,7 +64,7 @@ func NewRouter(
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
-		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache},
+		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache, chainName},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
 		logger:              logger,

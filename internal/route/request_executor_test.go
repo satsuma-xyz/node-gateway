@@ -38,7 +38,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	// We only expect the mock to be called once.
 	// The second call to retrieveOrCacheRequest should be cached.
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -58,7 +58,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
-	cacheKey := rpcCache.GetKeyFromRequestBody(requestBody)
+	cacheKey := rpcCache.CreateRequestKey("mainnet", requestBody)
 	redisClientMock.ExpectGet(cacheKey).SetErr(errors.New("error"))
 	// The cache has custom marshaling to pack the cache efficiently.
 	raw := json.RawMessage(`"hello"`)
@@ -113,7 +113,7 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -158,7 +158,7 @@ func TestRetrieveOrCacheRequest_Error(t *testing.T) {
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{

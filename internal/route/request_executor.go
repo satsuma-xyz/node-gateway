@@ -21,6 +21,7 @@ type RequestExecutor struct {
 	httpClient client.HTTPClient
 	logger     *zap.Logger
 	cache      *cache.RPCCache
+	chainName  string
 }
 
 type OriginError struct {
@@ -111,7 +112,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 
 		return singleRespBody, err
 	}
-	result, err := r.cache.HandleRequest(requestBody, originFunc)
+	result, err := r.cache.HandleRequest(r.chainName, requestBody, originFunc)
 
 	// Request to origin failed, we should fail out here.
 	if err != nil {

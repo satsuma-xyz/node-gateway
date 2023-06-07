@@ -49,11 +49,11 @@ func (c *RPCCache) ShouldCacheMethod(method string) bool {
 	return lo.Contains(methodsToCache, method)
 }
 
-func (c *RPCCache) GetKeyFromRequestBody(requestBody jsonrpc.SingleRequestBody) string {
-	return fmt.Sprintf("%s:%v", requestBody.Method, requestBody.Params)
+func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
+	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
-func (c *RPCCache) HandleRequest(reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
+func (c *RPCCache) HandleRequest(chainName string, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
 	var result json.RawMessage
 
 	// Even if the cache is down, redis-cache will route to the origin
@@ -61,7 +61,7 @@ func (c *RPCCache) HandleRequest(reqBody jsonrpc.SingleRequestBody, originFunc f
 	// Do() is executed on cache misses or if the cache is down.
 	// Item.Value is still set even on cache miss and the request to origin succeeds.
 	err := c.Once(&cache.Item{
-		Key:   c.GetKeyFromRequestBody(reqBody),
+		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   DefaultTTL,
 		Do: func(*cache.Item) (interface{}, error) {
