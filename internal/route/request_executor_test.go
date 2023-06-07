@@ -65,7 +65,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	expected, _ := rpcCache.Marshal(raw)
 	redisClientMock.ExpectSet(cacheKey, expected, cache.DefaultTTL).SetVal("OK")
 
-	respBody, resp, _ := executor.retrieveOrCacheRequest(httpReq, &requestBody, &configToRoute)
+	respBody, resp, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]
@@ -84,7 +84,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	// SetVal simulates returned value on a Get cache hit.
 	redisClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(expected).String())
 
-	respBody, resp, _ = executor.retrieveOrCacheRequest(httpReq, &requestBody, &configToRoute)
+	respBody, resp, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody = respBody.GetSubResponses()[0]
@@ -131,7 +131,8 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, &requestBody, &configToRoute)
+
+	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	if resp != nil {
 		resp.Body.Close()
 	}
@@ -175,7 +176,7 @@ func TestRetrieveOrCacheRequest_Error(t *testing.T) {
 
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, &requestBody, &configToRoute)
+	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]

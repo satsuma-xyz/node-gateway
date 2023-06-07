@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
 	"net/http"
 
-	redis "github.com/go-redis/cache/v9"
 	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/client"
 	"github.com/satsuma-data/node-gateway/internal/config"
@@ -62,12 +61,12 @@ func (r *RequestExecutor) routeToConfig(
 		resp     *http.Response
 	)
 
-	_, isSingleRequestBody := requestBody.(*jsonrpc.SingleRequestBody)
+	singleRequestBody, isSingleRequestBody := requestBody.(*jsonrpc.SingleRequestBody)
 
 	if r.cache != nil && r.cache.ShouldCacheMethod(requestBody.GetMethod()) && isSingleRequestBody {
 		// In case of unknown caching errors, the httpReq might get used twice.
 		// We must clone the httpReq otherwise the body will already be closed on the second request.
-		respBody, resp, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), requestBody, configToRoute)
+		respBody, resp, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
 		if err != nil {
 			originError, _ := err.(*OriginError)
 			// An OriginError indicates a cache miss and request failure to origin.
@@ -91,41 +90,28 @@ func (r *RequestExecutor) routeToConfig(
 	return respBody, resp, nil
 }
 
-func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestBody jsonrpc.RequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, error) {
+func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestBody jsonrpc.SingleRequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, error) {
 	var (
-		respBody     jsonrpc.ResponseBody
-		resp         *http.Response
-		cachedResult json.RawMessage
+		respBody jsonrpc.ResponseBody
+		resp     *http.Response
 	)
 
-	singleRequestBody := requestBody.GetSubRequests()[0]
-	// Even if the cache is down, redis-cache will route to the origin
-	// properly without returning an error.
-	err := r.cache.Once(&redis.Item{
-		Key:   r.cache.GetKeyFromRequestBody(singleRequestBody),
-		Value: &cachedResult,
-		TTL:   cache.DefaultTTL,
-		Do: func(*redis.Item) (interface{}, error) {
-			var originError error
-			respBody, resp, originError = r.getResponseBody(httpReq, requestBody, configToRoute) //nolint:bodyclose // linter bug
+	originFunc := func() (*jsonrpc.SingleResponseBody, error) {
+		var err error
 
-			// On cache miss, the request to origin fails.
-			// respBody and resp are nil and nothing should be cached.
-			// We should "fail out" of the outer function.
-			if originError != nil {
-				return nil, originError
-			}
-			defer resp.Body.Close()
-			// On cache miss, the request to origin succeeds but Error is set on responseBody.
-			// respBody and resp are not nil and nothing should be cached.
-			// respBody and resp should be returned in the outer function.
-			singleResponseBody := respBody.GetSubResponses()[0]
-			if singleResponseBody.Error != nil {
-				return nil, fmt.Errorf("error found, not caching: %v", singleResponseBody.Error)
-			}
-			return &singleResponseBody.Result, nil
-		},
-	})
+		respBody, resp, err = r.getResponseBody(httpReq, &requestBody, configToRoute) //nolint:bodyclose // linter bug
+		if err != nil {
+			return nil, err
+		}
+
+		singleRespBody, ok := respBody.(*jsonrpc.SingleResponseBody)
+		if !ok {
+			return nil, errors.New("batched responses do not support caching")
+		}
+
+		return singleRespBody, err
+	}
+	result, err := r.cache.HandleRequest(requestBody, originFunc)
 
 	// A cache hit or the request to origin failed.
 	if resp == nil && respBody == nil {
@@ -141,9 +127,9 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 			Body:       io.NopCloser(new(bytes.Buffer)),
 		}
 		respBody = &jsonrpc.SingleResponseBody{
-			ID:      *singleRequestBody.ID,
-			JSONRPC: singleRequestBody.JSONRPCVersion,
-			Result:  cachedResult,
+			ID:      *requestBody.ID,
+			JSONRPC: requestBody.JSONRPCVersion,
+			Result:  result,
 		}
 	}
 
