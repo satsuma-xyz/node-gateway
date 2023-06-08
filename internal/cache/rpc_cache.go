@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -21,6 +22,13 @@ type JSONRPCError struct {
 
 func (e *JSONRPCError) Error() string {
 	return fmt.Sprintf("error found in JSON RPC response: %v", e.err)
+}
+
+type NullResultError struct {
+}
+
+func (e *NullResultError) Error() string {
+	return "JSON RPC response has null Result field."
 }
 
 func NewRPCCache(url string) *RPCCache {
@@ -75,15 +83,21 @@ func (c *RPCCache) HandleRequest(chainName string, reqBody jsonrpc.SingleRequest
 			if singleResponseBody.Error != nil {
 				return nil, &JSONRPCError{singleResponseBody.Error}
 			}
+			r := bytes.NewBuffer(singleResponseBody.Result).String()
+			if r == "null" {
+				return nil, &NullResultError{}
+			}
 			return &singleResponseBody.Result, nil
 		},
 	})
 
 	if err != nil {
-		// A JSON RPC error should not be considered an origin error.
-		// However, it should not be cached.
-		_, ok := err.(*JSONRPCError)
-		if ok {
+		switch err.(type) {
+		// A JSON RPC error should be returned to the user but not cached.
+		case *JSONRPCError:
+			return nil, nil
+		// A null Result field response should be returned to the user but not cached.
+		case *NullResultError:
 			return nil, nil
 		}
 

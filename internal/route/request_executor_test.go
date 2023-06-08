@@ -144,7 +144,7 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func TestRetrieveOrCacheRequest_Error(t *testing.T) {
+func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 	redisClient, _ := redismock.NewClientMock()
 	rpcCache := &cache.RPCCache{
 		Cache: redis.New(&redis.Options{
@@ -186,4 +186,47 @@ func TestRetrieveOrCacheRequest_Error(t *testing.T) {
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Equal(t, "RPC error", singleRespBody.Error.Message)
 	assert.Nil(t, singleRespBody.Result)
+}
+
+func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := &cache.RPCCache{
+		Cache: redis.New(&redis.Options{
+			Redis: redisClient,
+		}),
+	}
+	httpResp := &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":null}`)),
+	}
+
+	httpClientMock := mocks.NewHTTPClient(t)
+	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
+
+	ctx := context.Background()
+	requestBody := jsonrpc.SingleRequestBody{
+		ID:             lo.ToPtr[int64](1),
+		JSONRPCVersion: "2.0",
+		Method:         "eth_getTransactionReceipt",
+		Params:         []any{"0xa8b4537fa06ea76df9498fc50cd59fc298e5f5e4c708dc3c82fd021fc230869d"},
+	}
+
+	configToRoute := config.UpstreamConfig{
+		ID:      "geth",
+		GroupID: "primary",
+		HTTPURL: "gethURL",
+	}
+
+	bodyBytes, _ := requestBody.Encode()
+	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
+	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	resp.Body.Close()
+
+	singleRespBody := respBody.GetSubResponses()[0]
+
+	assert.Nil(t, err)
+	assert.Equal(t, int64(1), singleRespBody.ID)
+	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
+	assert.Equal(t, json.RawMessage("null"), singleRespBody.Result)
 }
