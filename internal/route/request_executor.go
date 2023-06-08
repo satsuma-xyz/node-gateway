@@ -77,6 +77,8 @@ func (r *RequestExecutor) routeToConfig(
 				r.logger.Warn("caching error making request to origin", zap.Error(err), zap.Any("request", requestBody))
 				return nil, nil, originError
 			}
+
+			r.logger.Warn("unknown caching error", zap.Error(err), zap.Any("request", requestBody))
 		} else {
 			return respBody, resp, nil
 		}
@@ -110,7 +112,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 			return nil, errors.New("batched responses do not support caching")
 		}
 
-		return singleRespBody, err
+		return singleRespBody, nil
 	}
 	result, err := r.cache.HandleRequest(r.chainName, requestBody, originFunc)
 
@@ -121,8 +123,11 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 
 	// Cache hit
 	if resp == nil && respBody == nil {
+		if result == nil {
+			return nil, nil, fmt.Errorf("unexpected empty response from cache")
+		}
 		// Fill in id and jsonrpc in the respBody to match the request.
-		r.logger.Debug("cache hit", zap.Any("request", requestBody))
+		r.logger.Debug("cache hit", zap.Any("request", requestBody), zap.Any("result", result))
 
 		resp = &http.Response{
 			StatusCode: http.StatusOK,
