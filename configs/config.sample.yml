@@ -8,9 +8,8 @@ global:
 chains:
   - chainName: mainnet
     cache:
-      enabled: true
       # Sets the ttl of set values in the cache.
-      # If unset, will default to 1s.
+      # A ttl of zero will disable the cache.
       ttl: 6s
     routing:
       # Number of blocks a node can be behind the max known height and
