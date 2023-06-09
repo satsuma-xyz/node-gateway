@@ -38,17 +38,18 @@ type SimpleRouter struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 	healthCheckManager checks.HealthCheckManager
 	routingStrategy    RoutingStrategy
-	requestExecutor    RequestExecutor
 	metricsContainer   *metrics.Container
 	logger             *zap.Logger
 	// Map from Priority => UpstreamIDs
 	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
 	upstreamConfigs     []config.UpstreamConfig
+	requestExecutor     RequestExecutor
 }
 
 func NewRouter(
 	chainName string,
+	cacheConfig config.ChainCacheConfig,
 	upstreamConfigs []config.UpstreamConfig,
 	groupConfigs []config.GroupConfig,
 	chainMetadataStore *metadata.ChainMetadataStore,
@@ -64,7 +65,7 @@ func NewRouter(
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
-		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache, chainName},
+		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache, chainName, cacheConfig},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
 		logger:              logger,

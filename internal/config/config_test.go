@@ -13,6 +13,22 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
 		config string
 	}{
 		{
+			name: "Cache config has 0 < ttl < 1s",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                cache:
+                  ttl: 0.5s
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    nodeType: full
+            `,
+		},
+		{
 			name: "Upstream config without httpURL.",
 			config: `
             global:
@@ -164,15 +180,17 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             `,
 		},
 	} {
-		configBytes := []byte(testCase.config)
-		_, err := parseConfig(configBytes)
-		assert.NotNil(t, err)
+		t.Run(testCase.name, func(t *testing.T) {
+			configBytes := []byte(testCase.config)
+			_, err := parseConfig(configBytes)
+			assert.NotNil(t, err)
 
-		// To prevent catching formatting errors, that's not what we're checking for in this test.
-		if err != nil {
-			assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
-			assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
-		}
+			// To prevent catching formatting errors, that's not what we're checking for in this test.
+			if err != nil {
+				assert.NotContains(t, err.Error(), "found character that cannot start any token", testCase.config)
+				assert.NotContains(t, err.Error(), "found a tab character that violates indentation", testCase.config)
+			}
+		})
 	}
 }
 

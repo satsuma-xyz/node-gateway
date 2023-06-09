@@ -32,11 +32,12 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 			HTTPURL: "gethURL",
 		},
 	}
+	cacheConfig := config.ChainCacheConfig{}
 
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
 	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
 
-	router := NewRouter("mainnet", upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L(), nil)
+	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
@@ -109,7 +110,9 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 			Priority: 2,
 		},
 	}
-	router := NewRouter("mainnet", upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
+	cacheConfig := config.ChainCacheConfig{}
+
+	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
@@ -154,8 +157,9 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 		gethConfig,
 		erigonConfig,
 	}
+	cacheConfig := config.ChainCacheConfig{}
 
-	router := NewRouter("mainnet", upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
+	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 

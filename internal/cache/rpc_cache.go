@@ -14,7 +14,7 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-const DefaultTTL = 30 * time.Minute
+const DefaultTTL = 1 * time.Second
 
 type JSONRPCError struct {
 	err *jsonrpc.Error
@@ -61,7 +61,7 @@ func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.Single
 	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
-func (c *RPCCache) HandleRequest(chainName string, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
+func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
 	var result json.RawMessage
 
 	// Even if the cache is down, redis-cache will route to the origin
@@ -71,7 +71,7 @@ func (c *RPCCache) HandleRequest(chainName string, reqBody jsonrpc.SingleRequest
 	err := c.Once(&cache.Item{
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
-		TTL:   DefaultTTL,
+		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
 			respBody, err := originFunc()
 			if err != nil {

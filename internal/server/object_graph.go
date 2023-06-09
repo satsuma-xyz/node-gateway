@@ -41,7 +41,7 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 		Logger:          logger,
 	}
 
-	router := route.NewRouter(chainConfig.ChainName, chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger, rpcCache)
+	router := route.NewRouter(chainConfig.ChainName, chainConfig.Cache, chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger, rpcCache)
 
 	path := "/" + chainConfig.ChainName
 	handler := &RPCHandler{
