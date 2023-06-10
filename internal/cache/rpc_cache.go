@@ -14,8 +14,6 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-const DefaultTTL = 1 * time.Second
-
 type JSONRPCError struct {
 	err *jsonrpc.Error
 }
