@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	redis "github.com/go-redis/cache/v9"
 	"github.com/go-redis/redismock/v9"
@@ -34,11 +35,15 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":"hello"}`)),
 	}
 
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 6 * time.Second,
+	}
+
 	httpClientMock := mocks.NewHTTPClient(t)
 	// We only expect the mock to be called once.
 	// The second call to retrieveOrCacheRequest should be cached.
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -63,7 +68,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	// The cache has custom marshaling to pack the cache efficiently.
 	raw := json.RawMessage(`"hello"`)
 	expected, _ := rpcCache.Marshal(raw)
-	redisClientMock.ExpectSet(cacheKey, expected, cache.DefaultTTL).SetVal("OK")
+	redisClientMock.ExpectSet(cacheKey, expected, cacheConfig.TTL).SetVal("OK")
 
 	respBody, resp, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
@@ -111,9 +116,13 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader("error")),
 	}
 
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 6 * time.Second,
+	}
+
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -155,10 +164,13 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","error":{"code":1,"message":"RPC error"}}`)),
 	}
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 6 * time.Second,
+	}
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -199,10 +211,13 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":null}`)),
 	}
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 6 * time.Second,
+	}
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet"}
+	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -229,4 +244,80 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 	assert.Equal(t, int64(1), singleRespBody.ID)
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Equal(t, json.RawMessage("null"), singleRespBody.Result)
+}
+
+func TestUseCache(t *testing.T) {
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := &cache.RPCCache{
+		Cache: redis.New(&redis.Options{
+			Redis: redisClient,
+		}),
+	}
+
+	requestBody := &jsonrpc.SingleRequestBody{
+		ID:             lo.ToPtr[int64](1),
+		JSONRPCVersion: "2.0",
+		Method:         "eth_getTransactionReceipt",
+		Params:         []any{"0xa8b4537fa06ea76df9498fc50cd59fc298e5f5e4c708dc3c82fd021fc230869d"},
+	}
+
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 6 * time.Second,
+	}
+
+	var tests = []struct {
+		requestBody jsonrpc.RequestBody
+		cache       *cache.RPCCache
+		name        string
+		cacheConfig config.ChainCacheConfig
+		want        bool
+	}{
+		{
+			name:        "normal case",
+			cache:       rpcCache,
+			cacheConfig: cacheConfig,
+			requestBody: requestBody,
+			want:        true,
+		},
+		{
+			name:        "cache is nil",
+			cache:       nil,
+			cacheConfig: cacheConfig,
+			requestBody: requestBody,
+			want:        false,
+		},
+		{
+			name:  "cache TTL is zero",
+			cache: rpcCache,
+			cacheConfig: config.ChainCacheConfig{
+				TTL: 0,
+			},
+			requestBody: requestBody,
+			want:        false,
+		},
+		{
+			name:        "JSON RPC method does not match",
+			cache:       rpcCache,
+			cacheConfig: cacheConfig,
+			requestBody: &jsonrpc.SingleRequestBody{
+				ID:             lo.ToPtr[int64](1),
+				JSONRPCVersion: "2.0",
+				Method:         "eth_someFakeCall",
+				Params:         []any{"0xa8b4537fa06ea76df9498fc50cd59fc298e5f5e4c708dc3c82fd021fc230869d"},
+			},
+			want: false,
+		},
+	}
+
+	httpClientMock := mocks.NewHTTPClient(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			executor := RequestExecutor{httpClientMock, zap.L(), tt.cache, "mainnet", tt.cacheConfig}
+			ans := executor.useCache(tt.requestBody)
+			if ans != tt.want {
+				t.Errorf("got %t, want %t", ans, tt.want)
+			}
+		})
+	}
 }

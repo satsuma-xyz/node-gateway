@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -172,17 +173,34 @@ type RoutingConfig struct {
 	MaxBlocksBehind int `yaml:"maxBlocksBehind"`
 }
 
+type ChainCacheConfig struct {
+	TTL time.Duration `yaml:"ttl"`
+}
+
+func (c *ChainCacheConfig) isValid() bool {
+	// The redis-cache library will default the TTL to 1 hour
+	// if 0 < ttl < 1 second.
+	if c.TTL > 0 && c.TTL < time.Second {
+		zap.L().Error("ttl must be greater or equal to 1s")
+		return false
+	}
+
+	return true
+}
+
 type SingleChainConfig struct {
 	ChainName string `yaml:"chainName"`
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
 	Routing   RoutingConfig
+	Cache     ChainCacheConfig
 }
 
 func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := true
 	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
 	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
+	isChainConfigValid = isChainConfigValid && c.Cache.isValid()
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
