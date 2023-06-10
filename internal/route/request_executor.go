@@ -18,10 +18,11 @@ import (
 )
 
 type RequestExecutor struct {
-	httpClient client.HTTPClient
-	logger     *zap.Logger
-	cache      *cache.RPCCache
-	chainName  string
+	httpClient  client.HTTPClient
+	logger      *zap.Logger
+	cache       *cache.RPCCache
+	chainName   string
+	cacheConfig config.ChainCacheConfig
 }
 
 type OriginError struct {
@@ -64,7 +65,7 @@ func (r *RequestExecutor) routeToConfig(
 
 	singleRequestBody, isSingleRequestBody := requestBody.(*jsonrpc.SingleRequestBody)
 
-	if r.cache != nil && r.cache.ShouldCacheMethod(requestBody.GetMethod()) && isSingleRequestBody {
+	if r.useCache(requestBody) && isSingleRequestBody {
 		// In case of unknown caching errors, the httpReq might get used twice.
 		// We must clone the httpReq otherwise the body will already be closed on the second request.
 		respBody, resp, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
@@ -92,6 +93,14 @@ func (r *RequestExecutor) routeToConfig(
 	return respBody, resp, nil
 }
 
+func (r *RequestExecutor) useCache(requestBody jsonrpc.RequestBody) bool {
+	if r.cache == nil || r.cacheConfig.TTL == 0 {
+		return false
+	}
+
+	return r.cache.ShouldCacheMethod(requestBody.GetMethod())
+}
+
 func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestBody jsonrpc.SingleRequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, error) {
 	var (
 		respBody jsonrpc.ResponseBody
@@ -114,7 +123,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 
 		return singleRespBody, nil
 	}
-	result, err := r.cache.HandleRequest(r.chainName, requestBody, originFunc)
+	result, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
 
 	// Request to origin failed, we should fail out here.
 	if err != nil {
