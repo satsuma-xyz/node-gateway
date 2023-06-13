@@ -25,6 +25,14 @@ type RequestExecutor struct {
 	cacheConfig config.ChainCacheConfig
 }
 
+type HandledError struct {
+	rb *jsonrpc.SingleResponseBody
+}
+
+func (e *HandledError) Error() string {
+	return fmt.Sprintf("bubbling error response back to user: %v", e.rb)
+}
+
 type OriginError struct {
 	err error
 }
@@ -121,23 +129,50 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 			return nil, errors.New("batched responses do not support caching")
 		}
 
+		if singleRespBody.Error != nil {
+			r.logger.Debug("JSON RPC response has Error field set", zap.Any("request", requestBody), zap.Any("respBody", singleRespBody))
+			return nil, &HandledError{singleRespBody}
+		}
+
+		result := bytes.NewBuffer(singleRespBody.Result).String()
+		if result == "null" {
+			r.logger.Debug("null result", zap.Any("request", requestBody), zap.Any("respBody", singleRespBody))
+			return nil, &HandledError{singleRespBody}
+		}
+
 		return singleRespBody, nil
 	}
-	result, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
 
-	// Request to origin failed, we should fail out here.
+	val, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
+
 	if err != nil {
-		return nil, nil, err
+		switch err := err.(type) {
+		case *HandledError:
+			// The cache uses request coalescing, an error may be returned by another goroutine.
+			// Construct a responsebody and a fake response.
+			if resp == nil && respBody == nil {
+				resp = &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(new(bytes.Buffer)),
+				}
+				rb := *err.rb
+				rb.ID = *requestBody.ID
+				rb.JSONRPC = requestBody.JSONRPCVersion
+				respBody = &rb
+			}
+		default:
+			return nil, nil, err
+		}
 	}
 
-	// Cache hit
 	if resp == nil && respBody == nil {
-		if result == nil {
+		if val == nil {
 			return nil, nil, fmt.Errorf("unexpected empty response from cache")
 		}
-		// Fill in id and jsonrpc in the respBody to match the request.
-		r.logger.Debug("cache hit", zap.Any("request", requestBody), zap.Any("result", result))
 
+		r.logger.Debug("cache hit", zap.Any("request", requestBody), zap.Any("value", val))
+
+		// Fill in id and jsonrpc in the respBody to match the request.
 		resp = &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(new(bytes.Buffer)),
@@ -145,7 +180,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 		respBody = &jsonrpc.SingleResponseBody{
 			ID:      *requestBody.ID,
 			JSONRPC: requestBody.JSONRPCVersion,
-			Result:  result,
+			Result:  val,
 		}
 	}
 
