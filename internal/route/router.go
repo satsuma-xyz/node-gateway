@@ -138,31 +138,22 @@ func (r *SimpleRouter) Route(
 	}
 
 	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", upstreamID), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
-	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
-		util.GetClientFromContext(ctx),
-		upstreamID,
-		configToRoute.HTTPURL,
-		requestBody.GetMethod(),
-	).Inc()
-
-	go func() {
-		for _, request := range requestBody.GetSubRequests() {
-			r.metricsContainer.UpstreamJSONRPCRequestsTotal.WithLabelValues(
-				util.GetClientFromContext(ctx),
-				upstreamID,
-				configToRoute.HTTPURL,
-				request.Method,
-			).Inc()
-		}
-	}()
 
 	start := time.Now()
-	body, response, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
+	body, response, cached, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
 	HTTPReponseCode := ""
 
 	if response != nil {
 		HTTPReponseCode = strconv.Itoa(response.StatusCode)
 	}
+
+	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
+		util.GetClientFromContext(ctx),
+		upstreamID,
+		configToRoute.HTTPURL,
+		requestBody.GetMethod(),
+		strconv.FormatBool(cached),
+	).Inc()
 
 	if err != nil {
 		r.metricsContainer.UpstreamRPCRequestErrorsTotal.WithLabelValues(
@@ -171,7 +162,6 @@ func (r *SimpleRouter) Route(
 			configToRoute.HTTPURL,
 			requestBody.GetMethod(),
 			HTTPReponseCode,
-			"",
 		).Inc()
 	}
 
@@ -219,7 +209,6 @@ func (r *SimpleRouter) Route(
 		configToRoute.HTTPURL,
 		requestBody.GetMethod(),
 		HTTPReponseCode,
-		"",
 	).Observe(time.Since(start).Seconds())
 
 	return upstreamID, body, response, err
