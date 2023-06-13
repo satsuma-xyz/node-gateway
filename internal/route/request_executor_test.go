@@ -70,7 +70,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	expected, _ := rpcCache.Marshal(raw)
 	redisClientMock.ExpectSet(cacheKey, expected, cacheConfig.TTL).SetVal("OK")
 
-	respBody, resp, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	respBody, resp, cached, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]
@@ -79,6 +79,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Nil(t, singleRespBody.Error)
 	assert.Equal(t, raw, singleRespBody.Result)
+	assert.False(t, cached)
 
 	// Send a new request with new ID.
 	// The results should be cached.
@@ -89,7 +90,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	// SetVal simulates returned value on a Get cache hit.
 	redisClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(expected).String())
 
-	respBody, resp, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	respBody, resp, cached, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody = respBody.GetSubResponses()[0]
@@ -98,6 +99,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Nil(t, singleRespBody.Error)
 	assert.Equal(t, raw, singleRespBody.Result)
+	assert.True(t, cached)
 
 	if err := redisClientMock.ExpectationsWereMet(); err != nil {
 		t.Error(err)
@@ -141,7 +143,7 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
-	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	if resp != nil {
 		resp.Body.Close()
 	}
@@ -188,7 +190,7 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]
@@ -235,7 +237,7 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
-	respBody, resp, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
+	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]

@@ -45,18 +45,18 @@ func (r *RequestExecutor) routeToConfig(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
 	configToRoute *config.UpstreamConfig,
-) (jsonrpc.ResponseBody, *http.Response, error) {
+) (jsonrpc.ResponseBody, *http.Response, bool, error) {
 	bodyBytes, err := requestBody.Encode()
 	if err != nil {
 		r.logger.Error("Could not serialize request.", zap.Any("request", requestBody), zap.Error(err))
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		r.logger.Error("Could not create new http request.", zap.Any("request", requestBody),
 			zap.String("upstreamID", configToRoute.ID), zap.Error(err))
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	httpReq.Header.Set("content-type", "application/json")
@@ -74,9 +74,10 @@ func (r *RequestExecutor) routeToConfig(
 	singleRequestBody, isSingleRequestBody := requestBody.(*jsonrpc.SingleRequestBody)
 
 	if r.useCache(requestBody) && isSingleRequestBody {
+		var cached bool
 		// In case of unknown caching errors, the httpReq might get used twice.
 		// We must clone the httpReq otherwise the body will already be closed on the second request.
-		respBody, resp, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
+		respBody, resp, cached, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
 		if err != nil {
 			originError, _ := err.(*OriginError)
 			// An OriginError indicates a cache miss and request failure to origin.
@@ -84,21 +85,21 @@ func (r *RequestExecutor) routeToConfig(
 			// Unknown cache errors will default back to the "non-caching" behavior.
 			if originError != nil {
 				r.logger.Warn("caching error making request to origin", zap.Error(err), zap.Any("request", requestBody))
-				return nil, nil, originError
+				return nil, nil, cached, originError
 			}
 
 			r.logger.Warn("unknown caching error", zap.Error(err), zap.Any("request", requestBody))
 		} else {
-			return respBody, resp, nil
+			return respBody, resp, cached, nil
 		}
 	}
 
 	respBody, resp, err = r.getResponseBody(httpReq, requestBody, configToRoute)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
-	return respBody, resp, nil
+	return respBody, resp, false, nil
 }
 
 func (r *RequestExecutor) useCache(requestBody jsonrpc.RequestBody) bool {
@@ -109,7 +110,7 @@ func (r *RequestExecutor) useCache(requestBody jsonrpc.RequestBody) bool {
 	return r.cache.ShouldCacheMethod(requestBody.GetMethod())
 }
 
-func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestBody jsonrpc.SingleRequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, error) {
+func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestBody jsonrpc.SingleRequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, bool, error) {
 	var (
 		respBody jsonrpc.ResponseBody
 		resp     *http.Response
@@ -143,7 +144,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 		return singleRespBody, nil
 	}
 
-	val, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
+	val, cached, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
 
 	if err != nil {
 		switch err := err.(type) {
@@ -161,13 +162,13 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 				respBody = &rb
 			}
 		default:
-			return nil, nil, err
+			return nil, nil, cached, err
 		}
 	}
 
 	if resp == nil && respBody == nil {
 		if val == nil {
-			return nil, nil, fmt.Errorf("unexpected empty response from cache")
+			return nil, nil, cached, fmt.Errorf("unexpected empty response from cache")
 		}
 
 		r.logger.Debug("cache hit", zap.Any("request", requestBody), zap.Any("value", val))
@@ -184,7 +185,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 		}
 	}
 
-	return respBody, resp, nil
+	return respBody, resp, cached, nil
 }
 
 func (r *RequestExecutor) getResponseBody(httpReq *http.Request, requestBody jsonrpc.RequestBody, configToRoute *config.UpstreamConfig) (jsonrpc.ResponseBody, *http.Response, error) {

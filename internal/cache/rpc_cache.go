@@ -43,8 +43,10 @@ func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.Single
 	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
-func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
+func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, bool, error) {
 	var (
+		// Technically could be a coalesced request as well.
+		cached = true
 		result json.RawMessage
 	)
 
@@ -52,14 +54,15 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// properly without returning an error.
 	// Do() is executed on cache misses or if the cache is down.
 	// Item.Value is still set even on cache miss and the request to origin succeeds.
-	// Once() only allows a single in-flight request to origin even if there are
-	// multiple identical incoming requests. This also means that returned errors
+	// Once() uses request coalescing (single in-flight request to origin even if there are
+	// multiple identical incoming requests), which means returned errors
 	// could be coming from other goroutines.
 	err := c.Once(&cache.Item{
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
+			cached = false
 			respBody, err := originFunc()
 			if err != nil {
 				return nil, err
@@ -69,8 +72,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, cached, err
 	}
 
-	return result, nil
+	return result, cached, nil
 }

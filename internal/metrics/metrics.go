@@ -71,18 +71,7 @@ var (
 			Help:      "Count of total RPC requests forwarded to upstreams.",
 		},
 		// jsonrpc_method is  "batch" for batch requests
-		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method"},
-	)
-
-	upstreamJSONRPCRequestsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "router",
-			Name:      "upstream_jsonrpc_requests",
-			Help: "Count of total JSON RPC requests forwarded to upstreamsm including ones in batches. " +
-				"Batches are deconstructed to single JSON RPC requests for this metric.",
-		},
-		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "cached"},
 	)
 
 	upstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -93,7 +82,7 @@ var (
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code"},
 	)
 
 	upstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
@@ -117,7 +106,7 @@ var (
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code"},
 	)
 
 	// Health check metrics
@@ -253,7 +242,6 @@ type Container struct {
 	RPCResponseSizes    prometheus.ObserverVec
 
 	UpstreamRPCRequestsTotal          *prometheus.CounterVec
-	UpstreamJSONRPCRequestsTotal      *prometheus.CounterVec
 	UpstreamRPCRequestErrorsTotal     *prometheus.CounterVec
 	UpstreamJSONRPCRequestErrorsTotal *prometheus.CounterVec
 	UpstreamRPCDuration               prometheus.ObserverVec
@@ -281,7 +269,6 @@ func NewContainer(chainName string) *Container {
 	}
 
 	result.UpstreamRPCRequestsTotal = upstreamRPCRequestsTotal.MustCurryWith(presetLabels)
-	result.UpstreamJSONRPCRequestsTotal = upstreamJSONRPCRequestsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCRequestErrorsTotal = upstreamRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamJSONRPCRequestErrorsTotal = upstreamJSONRPCRequestErrorsTotal.MustCurryWith(presetLabels)
 	result.UpstreamRPCDuration = upstreamRPCDuration.MustCurryWith(presetLabels)
