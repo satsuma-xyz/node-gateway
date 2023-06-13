@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -13,21 +12,6 @@ import (
 )
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
-
-type JSONRPCError struct {
-	err *jsonrpc.Error
-}
-
-func (e *JSONRPCError) Error() string {
-	return fmt.Sprintf("error found in JSON RPC response: %v", e.err)
-}
-
-type NullResultError struct {
-}
-
-func (e *NullResultError) Error() string {
-	return "JSON RPC response has null Result field."
-}
 
 func NewRPCCache(url string) *RPCCache {
 	if url == "" {
@@ -60,12 +44,17 @@ func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.Single
 }
 
 func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, error) {
-	var result json.RawMessage
+	var (
+		result json.RawMessage
+	)
 
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
 	// Do() is executed on cache misses or if the cache is down.
 	// Item.Value is still set even on cache miss and the request to origin succeeds.
+	// Once() only allows a single in-flight request to origin even if there are
+	// multiple identical incoming requests. This also means that returned errors
+	// could be coming from other goroutines.
 	err := c.Once(&cache.Item{
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
@@ -75,30 +64,11 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 			if err != nil {
 				return nil, err
 			}
-			// Check that the Error field is set on responseBody.
-			// Even though this is a successful HTTP request, we do not want to cache JSONRPC errors.
-			singleResponseBody := respBody.GetSubResponses()[0]
-			if singleResponseBody.Error != nil {
-				return nil, &JSONRPCError{singleResponseBody.Error}
-			}
-			r := bytes.NewBuffer(singleResponseBody.Result).String()
-			if r == "null" {
-				return nil, &NullResultError{}
-			}
-			return &singleResponseBody.Result, nil
+			return &respBody.Result, nil
 		},
 	})
 
 	if err != nil {
-		switch err.(type) {
-		// A JSON RPC error should be returned to the user but not cached.
-		case *JSONRPCError:
-			return nil, nil
-		// A null Result field response should be returned to the user but not cached.
-		case *NullResultError:
-			return nil, nil
-		}
-
 		return nil, err
 	}
 
