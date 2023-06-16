@@ -19,10 +19,10 @@ type RequestBody interface {
 
 // See: https://www.jsonrpc.org/specification#request_object
 type SingleRequestBody struct {
-	ID             *int64 `json:"id,omitempty"`
-	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	Method         string `json:"method,omitempty"`
-	Params         []any  `json:"params,omitempty"`
+	ID	       *json.Number `json:"id,omitempty"`
+	JSONRPCVersion string	    `json:"jsonrpc,omitempty"`
+	Method	       string	    `json:"method,omitempty"`
+	Params	       []any	    `json:"params,omitempty"`
 }
 
 func (b *SingleRequestBody) Encode() ([]byte, error) {
@@ -60,10 +60,10 @@ type ResponseBody interface {
 
 // See: http://www.jsonrpc.org/specification#response_object
 type SingleResponseBody struct {
-	Error   *Error          `json:"error,omitempty"`
-	JSONRPC string          `json:"jsonrpc"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	ID      int64           `json:"id"`
+	Error	*Error		`json:"error,omitempty"`
+	JSONRPC string		`json:"jsonrpc"`
+	Result	json.RawMessage `json:"result,omitempty"`
+	ID	json.Number	`json:"id"`
 }
 
 func (b *SingleResponseBody) Encode() ([]byte, error) {
@@ -88,9 +88,9 @@ func (b *BatchResponseBody) GetSubResponses() []SingleResponseBody {
 
 // See: http://www.jsonrpc.org/specification#error_object
 type Error struct {
-	Data    any    `json:"data,omitempty"`
+	Data	any    `json:"data,omitempty"`
 	Message string `json:"message"`
-	Code    int    `json:"code"`
+	Code	int    `json:"code"`
 }
 
 type Decodable interface {
@@ -98,13 +98,13 @@ type Decodable interface {
 }
 
 type DecodeError struct {
-	Err     error
+	Err	error
 	Content []byte // Content that couldn't be decoded.
 }
 
 func NewDecodeError(err error, content []byte) DecodeError {
 	return DecodeError{
-		Err:     err,
+		Err:	 err,
 		Content: content,
 	}
 }
@@ -188,7 +188,7 @@ func CreateErrorJSONRPCResponseBody(message string, jsonRPCStatusCode int) *Sing
 	return &SingleResponseBody{
 		JSONRPC: JSONRPCVersion,
 		Error: &Error{
-			Code:    jsonRPCStatusCode,
+			Code:	 jsonRPCStatusCode,
 			Message: message,
 		},
 	}
@@ -211,7 +211,7 @@ func CreateErrorJSONRPCResponseBodyWithRequest(message string, jsonRPCStatusCode
 			response := SingleResponseBody{
 				JSONRPC: subReq.JSONRPCVersion,
 				Error: &Error{
-					Code:    jsonRPCStatusCode,
+					Code:	 jsonRPCStatusCode,
 					Message: message,
 				},
 				ID: *subReq.ID,

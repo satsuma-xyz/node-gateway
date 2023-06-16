@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	expectedRPCResponse := &jsonrpc.SingleResponseBody{
 		JSONRPC: jsonrpc.JSONRPCVersion,
 		Result:  json.RawMessage(`"results"`),
-		ID:      2,
+		ID:      json.Number(strconv.FormatInt(int64(2), 10)),
 	}
 	router.EXPECT().Route(mock.Anything, mock.Anything).
 		Return("fakeUpstream", expectedRPCResponse,

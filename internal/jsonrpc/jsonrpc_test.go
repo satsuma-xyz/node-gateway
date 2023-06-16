@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/samber/lo"
@@ -14,48 +15,48 @@ import (
 func TestEncodeAndDecodeRequests(t *testing.T) {
 	for _, tc := range []struct {
 		expectedRequest RequestBody
-		testName        string
-		body            string
+		testName	string
+		body		string
 	}{
 		{
 			testName: "no ID",
-			body:     "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			body:	  "{\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{
 				JSONRPCVersion: "2.0",
-				Method:         "web3_clientVersion",
-				Params:         []any{"hi"},
+				Method:		"web3_clientVersion",
+				Params:		[]any{"hi"},
 			},
 		},
 		{
 			testName: "ID zero",
-			body:     "{\"id\":0,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			body:	  "{\"id\":0,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{
 				JSONRPCVersion: "2.0",
-				Method:         "web3_clientVersion",
-				Params:         []any{"hi"},
-				ID:             lo.ToPtr[int64](0),
+				Method:		"web3_clientVersion",
+				Params:		[]any{"hi"},
+				ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(0))),
 			},
 		},
 		{
 			testName: "single request",
-			body:     "{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
+			body:	  "{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}",
 			expectedRequest: &SingleRequestBody{
 				JSONRPCVersion: "2.0",
-				Method:         "web3_clientVersion",
-				Params:         []any{"hi"},
-				ID:             lo.ToPtr[int64](67),
+				Method:		"web3_clientVersion",
+				Params:		[]any{"hi"},
+				ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(67))),
 			},
 		},
 		{
 			testName: "single request in batch",
-			body:     "[{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}]",
+			body:	  "[{\"id\":67,\"jsonrpc\":\"2.0\",\"method\":\"web3_clientVersion\",\"params\":[\"hi\"]}]",
 			expectedRequest: &BatchRequestBody{
 				Requests: []SingleRequestBody{
 					{
 						JSONRPCVersion: "2.0",
-						Method:         "web3_clientVersion",
-						Params:         []any{"hi"},
-						ID:             lo.ToPtr[int64](67),
+						Method:		"web3_clientVersion",
+						Params:		[]any{"hi"},
+						ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(67))),
 					},
 				},
 			},
@@ -71,21 +72,21 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 				Requests: []SingleRequestBody{
 					{
 						JSONRPCVersion: "2.0",
-						Method:         "web3_clientVersion",
-						Params:         []any{"hi"},
-						ID:             lo.ToPtr[int64](67),
+						Method:		"web3_clientVersion",
+						Params:		[]any{"hi"},
+				ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(67))),
 					},
 					{
 						JSONRPCVersion: "2.0",
-						Method:         "web3_weee",
-						Params:         []any{"hi"},
-						ID:             lo.ToPtr[int64](68),
+						Method:		"web3_weee",
+						Params:		[]any{"hi"},
+				ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(68))),
 					},
 					{
 						JSONRPCVersion: "2.0",
-						Method:         "web3_something_else",
-						Params:         []any{"hello"},
-						ID:             lo.ToPtr[int64](69),
+						Method:		"web3_something_else",
+						Params:		[]any{"hello"},
+				ID:		lo.ToPtr[json.Number](json.Number(strconv.Itoa(69))),
 					},
 				},
 			},
@@ -109,36 +110,36 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 func TestEncodeAndDecodeResponses(t *testing.T) {
 	for _, tc := range []struct {
 		expectedResponse ResponseBody
-		testName         string
-		body             string
+		testName	 string
+		body		 string
 	}{
 		{
 			testName: "single response",
-			body:     `{"jsonrpc":"2.0","result":"haha","id":67}`,
+			body:	  `{"jsonrpc":"2.0","result":"haha","id":67}`,
 			expectedResponse: &SingleResponseBody{
 				Result:  json.RawMessage(`"haha"`),
 				JSONRPC: "2.0",
-				ID:      67,
+				ID:	 json.Number(strconv.Itoa(67)),
 			},
 		},
 		{
 			testName: "null result",
-			body:     `{"jsonrpc":"2.0","result":null,"id":1}`,
+			body:	  `{"jsonrpc":"2.0","result":null,"id":1}`,
 			expectedResponse: &SingleResponseBody{
 				Result:  []byte("null"),
 				JSONRPC: "2.0",
-				ID:      1,
+				ID:	 json.Number(strconv.Itoa(1)),
 			},
 		},
 		{
 			testName: "single response in batch",
-			body:     `[{"jsonrpc":"2.0","result":"haha","id":67}]`,
+			body:	  `[{"jsonrpc":"2.0","result":"haha","id":67}]`,
 			expectedResponse: &BatchResponseBody{
 				Responses: []SingleResponseBody{
 					{
 						Result:  []byte(`"haha"`),
 						JSONRPC: "2.0",
-						ID:      67,
+						ID:	 json.Number(strconv.Itoa(67)),
 					},
 				},
 			},
@@ -155,17 +156,17 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 					{
 						Result:  []byte(`"haha"`),
 						JSONRPC: "2.0",
-						ID:      67,
+						ID:	 json.Number(strconv.Itoa(67)),
 					},
 					{
 						Result:  []byte(`"something"`),
 						JSONRPC: "2.0",
-						ID:      68,
+						ID:	 json.Number(strconv.Itoa(68)),
 					},
 					{
 						Result:  []byte(`"else"`),
 						JSONRPC: "2.0",
-						ID:      69,
+						ID:	 json.Number(strconv.Itoa(69)),
 					},
 				},
 			},
