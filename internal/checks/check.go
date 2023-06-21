@@ -10,7 +10,7 @@ import (
 
 const (
 	JSONRPCErrCodeMethodNotFound = -32601
-	MinimumPeerCount             = 5
+	MinimumPeerCount             = 3
 	RPCRequestTimeout            = 10 * time.Second
 )
 

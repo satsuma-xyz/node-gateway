@@ -15,7 +15,7 @@ import (
 
 func TestPeerChecker(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
-	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(6), nil)
+	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(4), nil)
 
 	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
 		return ethClient, nil
@@ -27,7 +27,7 @@ func TestPeerChecker(t *testing.T) {
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 1)
 
 	ethClient.ExpectedCalls = nil
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(4), nil)
+	ethClient.On("PeerCount", mock.Anything).Return(uint64(2), nil)
 
 	checker.RunCheck()
 	assert.False(t, checker.IsPassing())
@@ -41,7 +41,7 @@ func TestPeerChecker(t *testing.T) {
 	ethClient.AssertNumberOfCalls(t, "PeerCount", 3)
 
 	ethClient.ExpectedCalls = nil
-	ethClient.On("PeerCount", mock.Anything).Return(uint64(6), nil)
+	ethClient.On("PeerCount", mock.Anything).Return(uint64(3), nil)
 
 	checker.RunCheck()
 	assert.True(t, checker.IsPassing())
