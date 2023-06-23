@@ -18,14 +18,15 @@ const (
 )
 
 type UpstreamConfig struct {
-	Methods           MethodsConfig     `yaml:"methods"`
-	HealthCheckConfig HealthCheckConfig `yaml:"healthCheck"`
-	BasicAuthConfig   BasicAuthConfig   `yaml:"basicAuth"`
-	ID                string            `yaml:"id"`
-	HTTPURL           string            `yaml:"httpURL"`
-	WSURL             string            `yaml:"wsURL"`
-	GroupID           string            `yaml:"group"`
-	NodeType          NodeType          `yaml:"nodeType"`
+	Methods              MethodsConfig         `yaml:"methods"`
+	HealthCheckConfig    HealthCheckConfig     `yaml:"healthCheck"`
+	BasicAuthConfig      BasicAuthConfig       `yaml:"basicAuth"`
+	ID                   string                `yaml:"id"`
+	HTTPURL              string                `yaml:"httpURL"`
+	WSURL                string                `yaml:"wsURL"`
+	GroupID              string                `yaml:"group"`
+	NodeType             NodeType              `yaml:"nodeType"`
+	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -96,6 +97,11 @@ type HealthCheckConfig struct {
 type BasicAuthConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+type RequestHeaderConfig struct {
+	Key   string `yaml:"key"`
+	Value string `yaml:"value"`
 }
 
 type MethodsConfig struct {
