@@ -230,6 +230,11 @@ func TestParseConfig_ValidConfig(t *testing.T) {
             wsURL: "wss://rpc.ankr.com/polygon/ws/${ANKR_API_KEY}"
             group: fallback
             nodeType: archive
+            requestHeaders:
+              - key: "x-api-key"
+                value: "xxxx"
+              - key: "client-id"
+                value: "my-client"
 
       - chainName: polygon
         upstreams:
@@ -277,6 +282,16 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 					},
 					GroupID:  "fallback",
 					NodeType: Archive,
+					RequestHeadersConfig: []RequestHeaderConfig{
+						{
+							Key:   "x-api-key",
+							Value: "xxxx",
+						},
+						{
+							Key:   "client-id",
+							Value: "my-client",
+						},
+					},
 				},
 			},
 			ChainName: "ethereum",

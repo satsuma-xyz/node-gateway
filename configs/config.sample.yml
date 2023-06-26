@@ -51,6 +51,7 @@ chains:
       #   skipPeerCountCheck - whether or not to skip the peer count check. Some chains,
       #     like Optimism, always report a peer count of 0, so peer count can be ignored.
       # nodeType - full or archive
+      # requestHeaders - Additional headers to add to the upstream request.
       - id: my-node
         httpURL: "http://12.57.207.168:8545"
         wsURL: "wss://12.57.207.168:8546"
@@ -73,3 +74,6 @@ chains:
           useWsForBlockHeight: false
         group: fallback
         nodeType: full
+        requestHeaders:
+          - key: "x-api-key"
+            value: "xxxx"
