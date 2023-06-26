@@ -77,7 +77,7 @@ func (c *BlockHeightCheck) initializeWebsockets() error {
 }
 
 func (c *BlockHeightCheck) initializeHTTP() {
-	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
+	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
 	if err != nil {
 		c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		c.setError(err)
@@ -112,7 +112,9 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 		header, err := c.httpClient.HeaderByNumber(ctx, nil)
 
 		if c.blockHeightError = err; c.blockHeightError != nil {
+			c.logger.Debug("BlockHeightCheck request failed.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.String("httpURL", c.upstreamConfig.HTTPURL), zap.Error(c.blockHeightError))
 			c.metricsContainer.BlockHeightCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+
 			return
 		}
 
@@ -175,7 +177,7 @@ func (c *BlockHeightCheck) subscribeNewHead() error {
 		c.setError(c.webSocketError)
 	}
 
-	wsClient, err := c.clientGetter(c.upstreamConfig.WSURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
+	wsClient, err := c.clientGetter(c.upstreamConfig.WSURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
 	if err != nil {
 		c.webSocketError = err
 		return err
