@@ -17,7 +17,7 @@ func TestPeerChecker(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
 	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(4), nil)
 
-	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
 		return ethClient, nil
 	}
 
@@ -52,7 +52,7 @@ func TestPeerChecker_MethodNotSupported(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
 	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(0), methodNotSupportedError{})
 
-	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
 		return ethClient, nil
 	}
 
@@ -69,7 +69,7 @@ func TestPeerChecker_SkipPeerCountCheck(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
 	ethClient.EXPECT().PeerCount(mock.Anything).Return(uint64(0), nil)
 
-	mockEthClientGetter := func(url string, credentials *client.BasicAuthCredentials) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
 		return ethClient, nil
 	}
 

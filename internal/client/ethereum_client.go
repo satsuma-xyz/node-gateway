@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/satsuma-data/node-gateway/internal/config"
 )
 
 const (
@@ -31,19 +32,25 @@ type EthClient interface {
 	SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error)
 }
 
-type BasicAuthCredentials struct {
-	Username string
-	Password string
+type EthClientGetter func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (EthClient, error)
+
+func NewEthClient(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (EthClient, error) {
+	rpcClient, err := getRPCClientWithAuthHeader(url, credentials)
+	if err != nil {
+		return nil, err
+	}
+
+	setAdditionalRequestHeaders(rpcClient, additionalRequestHeaders)
+
+	return ethclient.NewClient(rpcClient), nil
 }
 
-type EthClientGetter func(url string, credentials *BasicAuthCredentials) (EthClient, error)
-
-func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, error) {
+func getRPCClientWithAuthHeader(url string, credentials *config.BasicAuthConfig) (*rpc.Client, error) {
 	if credentials == nil || (credentials.Username == "" && credentials.Password == "") {
 		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
 		defer cancel()
 
-		return ethclient.DialContext(ctx, url)
+		return rpc.DialContext(ctx, url)
 	}
 
 	parsedURL, err := netUrl.Parse(url)
@@ -60,16 +67,16 @@ func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, err
 		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
 		defer cancel()
 
-		c, err := rpc.DialContext(ctx, url)
+		rpcClient, err := rpc.DialContext(ctx, url)
 
 		if err != nil {
 			return nil, err
 		}
 
 		encodedCredentials := base64.StdEncoding.EncodeToString([]byte(credentials.Username + ":" + credentials.Password))
-		c.SetHeader("Authorization", "Basic "+encodedCredentials)
+		rpcClient.SetHeader("Authorization", "Basic "+encodedCredentials)
 
-		return ethclient.NewClient(c), nil
+		return rpcClient, nil
 	case "ws", "wss":
 		parsedURL.User = netUrl.UserPassword(credentials.Username, credentials.Password)
 		urlWithUser := parsedURL.String()
@@ -77,14 +84,14 @@ func NewEthClient(url string, credentials *BasicAuthCredentials) (EthClient, err
 		ctx, cancel := context.WithTimeout(context.Background(), clientDialTimeout)
 		defer cancel()
 
-		c, err := rpc.DialContext(ctx, urlWithUser)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return ethclient.NewClient(c), nil
+		return rpc.DialContext(ctx, urlWithUser)
 	default:
 		return nil, fmt.Errorf("unsupported scheme: %s", parsedURL.Scheme)
+	}
+}
+
+func setAdditionalRequestHeaders(c *rpc.Client, additionalRequestHeaders *[]config.RequestHeaderConfig) {
+	for _, requestHeader := range *additionalRequestHeaders {
+		c.SetHeader(requestHeader.Key, requestHeader.Value)
 	}
 }

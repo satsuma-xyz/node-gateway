@@ -44,7 +44,7 @@ func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.
 func (c *SyncingCheck) Initialize() error {
 	c.logger.Debug("Initializing SyncingCheck.", zap.Any("config", c.upstreamConfig))
 
-	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &client.BasicAuthCredentials{Username: c.upstreamConfig.BasicAuthConfig.Username, Password: c.upstreamConfig.BasicAuthConfig.Password})
+	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
 	if err != nil {
 		c.Err = err
 		return c.Err
