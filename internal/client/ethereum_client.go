@@ -91,10 +91,6 @@ func getRPCClientWithAuthHeader(url string, credentials *config.BasicAuthConfig)
 }
 
 func setAdditionalRequestHeaders(c *rpc.Client, additionalRequestHeaders *[]config.RequestHeaderConfig) {
-	if additionalRequestHeaders == nil {
-		return
-	}
-
 	for _, requestHeader := range *additionalRequestHeaders {
 		c.SetHeader(requestHeader.Key, requestHeader.Value)
 	}
