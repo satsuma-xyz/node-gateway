@@ -1,15 +1,12 @@
 package route
 
 import (
-	"bytes"
 	"context"
-	"errors"
 
 	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/types"
 
-	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -31,7 +28,7 @@ import (
 type Router interface {
 	Start()
 	IsInitialized() bool
-	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (string, jsonrpc.ResponseBody, *http.Response, error)
+	Route(ctx context.Context, requestBody jsonrpc.RequestBody) (string, jsonrpc.ResponseBody, error)
 }
 
 type SimpleRouter struct {
@@ -111,22 +108,12 @@ func (r *SimpleRouter) IsInitialized() bool {
 func (r *SimpleRouter) Route(
 	ctx context.Context,
 	requestBody jsonrpc.RequestBody,
-) (string, jsonrpc.ResponseBody, *http.Response, error) {
+) (string, jsonrpc.ResponseBody, error) {
 	requestMetadata := r.metadataParser.Parse(requestBody)
 	upstreamID, err := r.routingStrategy.RouteNextRequest(r.priorityToUpstreams, requestMetadata)
 
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrNoHealthyUpstreams):
-			httpResp := &http.Response{
-				StatusCode: http.StatusServiceUnavailable,
-				Body:       io.NopCloser(bytes.NewBufferString(err.Error())),
-			}
-
-			return "", nil, httpResp, nil
-		default:
-			return "", nil, nil, err
-		}
+		return "", nil, err
 	}
 
 	var configToRoute config.UpstreamConfig
@@ -140,11 +127,11 @@ func (r *SimpleRouter) Route(
 	r.logger.Debug("Routing request to upstream.", zap.String("upstreamID", upstreamID), zap.Any("request", requestBody), zap.String("client", util.GetClientFromContext(ctx)))
 
 	start := time.Now()
-	body, response, cached, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
+	jsonRPCResponse, httpResponse, cached, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
 	HTTPReponseCode := ""
 
-	if response != nil {
-		HTTPReponseCode = strconv.Itoa(response.StatusCode)
+	if httpResponse != nil {
+		HTTPReponseCode = strconv.Itoa(httpResponse.StatusCode)
 	}
 
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
@@ -155,7 +142,7 @@ func (r *SimpleRouter) Route(
 		strconv.FormatBool(cached),
 	).Inc()
 
-	if err != nil {
+	if err != nil || httpResponse.StatusCode >= http.StatusBadRequest {
 		r.metricsContainer.UpstreamRPCRequestErrorsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			upstreamID,
@@ -165,7 +152,7 @@ func (r *SimpleRouter) Route(
 		).Inc()
 	}
 
-	if body != nil {
+	if jsonRPCResponse != nil {
 		// To help correlate request IDs to responses.
 		// It's the responsibility of the client to provide unique IDs.
 		reqIDToRequestMap := make(map[int64]jsonrpc.SingleRequestBody)
@@ -180,9 +167,9 @@ func (r *SimpleRouter) Route(
 			reqIDToRequestMap[*req.ID] = req
 		}
 
-		for _, resp := range body.GetSubResponses() {
+		for _, resp := range jsonRPCResponse.GetSubResponses() {
 			if resp.Error != nil {
-				zap.L().Warn("Encountered error in upstream JSONRPC response.",
+				r.logger.Warn("Encountered error in upstream JSONRPC response.",
 					zap.Any("request", requestBody), zap.Any("error", resp.Error),
 					zap.String("client", util.GetClientFromContext(ctx)), zap.String("upstreamID", upstreamID))
 
@@ -196,7 +183,6 @@ func (r *SimpleRouter) Route(
 					upstreamID,
 					configToRoute.HTTPURL,
 					reqIDToRequestMap[resp.ID].Method,
-					HTTPReponseCode,
 					strconv.Itoa(resp.Error.Code),
 				).Inc()
 			}
@@ -211,5 +197,5 @@ func (r *SimpleRouter) Route(
 		HTTPReponseCode,
 	).Observe(time.Since(start).Seconds())
 
-	return upstreamID, body, response, err
+	return upstreamID, jsonRPCResponse, err
 }

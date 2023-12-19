@@ -1,10 +1,7 @@
 package jsonrpc
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
-	"net/http"
 	"testing"
 
 	"github.com/samber/lo"
@@ -91,10 +88,7 @@ func TestEncodeAndDecodeRequests(t *testing.T) {
 			},
 		},
 	} {
-		req := http.Request{
-			Body: io.NopCloser(bytes.NewReader([]byte(tc.body))),
-		}
-		decoded, err := DecodeRequestBody(&req)
+		decoded, err := DecodeRequestBody([]byte(tc.body))
 
 		assert.Nil(t, err)
 		assert.Equal(t, tc.expectedRequest, decoded)
@@ -144,6 +138,11 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 			},
 		},
 		{
+			testName:         "empty response in batch",
+			body:             ``,
+			expectedResponse: nil,
+		},
+		{
 			testName: "batch responses",
 			body: "[" +
 				`{"jsonrpc":"2.0","result":"haha","id":67},` +
@@ -171,18 +170,16 @@ func TestEncodeAndDecodeResponses(t *testing.T) {
 			},
 		},
 	} {
-		resp := http.Response{
-			Body: io.NopCloser(bytes.NewReader([]byte(tc.body))),
-		}
-
-		decoded, err := DecodeResponseBody(&resp)
+		decoded, err := DecodeResponseBody([]byte(tc.body))
 
 		assert.Nil(t, err)
 		assert.Equal(t, tc.expectedResponse, decoded)
 
-		encoded, err := decoded.Encode()
+		if decoded != nil {
+			encoded, err := decoded.Encode()
 
-		assert.Nil(t, err)
-		assert.Equal(t, tc.body, string(encoded))
+			assert.Nil(t, err)
+			assert.Equal(t, tc.body, string(encoded))
+		}
 	}
 }

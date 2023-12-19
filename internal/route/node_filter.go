@@ -48,7 +48,7 @@ type HasEnoughPeers struct {
 	minimumPeerCount   uint64
 }
 
-func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
+func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	peerCheck, _ := upstreamStatus.PeerCheck.(*checks.PeerCheck)
 
@@ -79,7 +79,7 @@ type IsDoneSyncing struct {
 	logger             *zap.Logger
 }
 
-func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
+func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
@@ -116,7 +116,7 @@ type IsCloseToGlobalMaxHeight struct {
 func (f *IsCloseToGlobalMaxHeight) Apply(
 	_ metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
-	numUpstreamsInPriorityGroup int,
+	_ int,
 ) bool {
 	status := f.chainMetadataStore.GetBlockHeightStatus(upstreamConfig.GroupID, upstreamConfig.ID)
 
@@ -206,7 +206,7 @@ type AreMethodsAllowed struct {
 func (f *AreMethodsAllowed) Apply(
 	requestMetadata metadata.RequestMetadata,
 	upstreamConfig *config.UpstreamConfig,
-	numUpstreamsInPriorityGroup int,
+	_ int,
 ) bool {
 	for _, method := range requestMetadata.Methods {
 		// Check methods that are have been disabled on the upstream.

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
@@ -28,10 +27,7 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	}
 	router.EXPECT().Route(mock.Anything, mock.Anything).
 		Return("fakeUpstream", expectedRPCResponse,
-			&http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("dummy")),
-			}, nil)
+			nil)
 
 	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
@@ -44,9 +40,11 @@ func TestHandleJSONRPCRequest_Success(t *testing.T) {
 	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
+	resultBody, _ := io.ReadAll(result.Body)
+
 	defer result.Body.Close()
 
-	jsonRPCResponse, _ := jsonrpc.DecodeResponseBody(result)
+	jsonRPCResponse, _ := jsonrpc.DecodeResponseBody(resultBody)
 
 	assert.Equal(t, result.StatusCode, http.StatusOK)
 	assert.Equal(t, expectedRPCResponse, jsonRPCResponse)
@@ -126,11 +124,7 @@ func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
 	router := mocks.NewRouter(t)
 
 	router.EXPECT().Route(mock.Anything, mock.Anything).
-		Return("", nil,
-			&http.Response{
-				StatusCode: http.StatusAccepted,
-				Body:       io.NopCloser(strings.NewReader("dummy")),
-			}, nil)
+		Return("", nil, nil)
 
 	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 
@@ -145,7 +139,7 @@ func TestHandleJSONRPCRequest_NilJSONRPCResponse(t *testing.T) {
 	result := recorder.Result()
 	defer result.Body.Close()
 
-	assert.Equal(t, http.StatusAccepted, result.StatusCode)
+	assert.Equal(t, http.StatusOK, result.StatusCode)
 	body, _ := io.ReadAll(result.Body)
 	assert.Empty(t, body)
 }
@@ -155,7 +149,7 @@ func TestHandleJSONRPCRequest_JSONRPCDecodeError(t *testing.T) {
 	undecodableContent := []byte("content")
 
 	router.EXPECT().Route(mock.Anything, mock.Anything).
-		Return("", nil, nil, jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
+		Return("", nil, &jsonrpc.DecodeError{Err: errors.New("error decoding"), Content: undecodableContent})
 
 	handler := &RPCHandler{path: "/" + config.TestChainName, router: router, logger: zap.L()}
 

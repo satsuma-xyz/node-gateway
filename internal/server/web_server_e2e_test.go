@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -117,7 +118,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	expectedBlockTxCount := 29
 
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
-		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
@@ -145,7 +146,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 				ID:     *request.ID,
 			}
 		},
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to method %s: archive node is at lower priority!", nonStatefulMethod)
 
@@ -197,13 +198,13 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	expectedBlockTxCount := 29
 
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
-		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{}
 		},
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to non-stateful method %s on a full node!", nonStatefulMethod)
 
@@ -332,9 +333,11 @@ func executeRequest(
 	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
+	resultBody, _ := io.ReadAll(result.Body)
+
 	defer result.Body.Close()
 
-	responseBody, err := jsonrpc.DecodeResponseBody(result)
+	responseBody, err := jsonrpc.DecodeResponseBody(resultBody)
 	assert.NoError(t, err)
 	require.NotNil(t, responseBody)
 
@@ -369,7 +372,10 @@ func setUpHealthyUpstream(
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		requestBodyRawBytes, err := io.ReadAll(request.Body)
+		assert.NoError(t, err)
+
+		requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
 		assert.NoError(t, err)
 
 		var responseBody jsonrpc.ResponseBody
@@ -434,7 +440,10 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		requestBodyRawBytes, err := io.ReadAll(request.Body)
+		assert.NoError(t, err)
+
+		requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
 		assert.NoError(t, err)
 
 		var responseBody jsonrpc.ResponseBody

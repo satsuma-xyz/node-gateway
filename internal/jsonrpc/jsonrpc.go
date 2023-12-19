@@ -3,9 +3,8 @@ package jsonrpc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"net/http"
 )
 
 const JSONRPCVersion = "2.0"
@@ -102,73 +101,50 @@ type DecodeError struct {
 	Content []byte // Content that couldn't be decoded.
 }
 
-func NewDecodeError(err error, content []byte) DecodeError {
-	return DecodeError{
+func NewDecodeError(err error, content []byte) *DecodeError {
+	return &DecodeError{
 		Err:     err,
 		Content: content,
 	}
 }
 
-func (e DecodeError) Error() string {
+func (e *DecodeError) Error() string {
 	return fmt.Sprintf("decode error: %s, content: %s", e.Err.Error(), string(e.Content))
 }
 
-func DecodeRequestBody(req *http.Request) (RequestBody, error) {
-	// No need to close the request body, the Server implementation will take care of it.
-	requestRawBytes, err := io.ReadAll(req.Body)
-
-	if err != nil {
-		return nil, NewDecodeError(err, requestRawBytes)
-	}
-
-	var body *SingleRequestBody
-
+func DecodeRequestBody(requestBodyRawBytes []byte) (RequestBody, error) {
 	// Try non-batch first as these are probably more common.
-	if body, err = decode[SingleRequestBody](requestRawBytes); err == nil {
+	if body, err := decode[SingleRequestBody](requestBodyRawBytes); err == nil {
 		return body, nil
 	}
 
-	var batchBody *[]SingleRequestBody
-
-	if batchBody, err = decode[[]SingleRequestBody](requestRawBytes); err == nil {
+	if batchBody, err := decode[[]SingleRequestBody](requestBodyRawBytes); err == nil {
 		return &BatchRequestBody{
 			Requests: *batchBody,
 		}, nil
 	}
 
-	return nil, NewDecodeError(err, requestRawBytes)
+	return nil, NewDecodeError(errors.New("unexpected decoding request error"), requestBodyRawBytes)
 }
 
-func DecodeResponseBody(resp *http.Response) (ResponseBody, error) {
-	// As per the spec, it is the caller's responsibility to close the response body.
-	defer resp.Body.Close()
-	responseRawBytes, err := io.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, NewDecodeError(err, responseRawBytes)
-	}
-
+func DecodeResponseBody(responseBodyRawBytes []byte) (ResponseBody, error) {
 	// Empty JSON RPC responses are valid for "Notifications" (requests without "ID") https://www.jsonrpc.org/specification#notification
-	if len(responseRawBytes) == 0 {
+	if len(responseBodyRawBytes) == 0 {
 		return nil, nil
 	}
 
-	var body *SingleResponseBody
-
 	// Try non-batch first as these are probably more common.
-	if body, err = decode[SingleResponseBody](responseRawBytes); err == nil {
+	if body, err := decode[SingleResponseBody](responseBodyRawBytes); err == nil {
 		return body, nil
 	}
 
-	var batchBody *[]SingleResponseBody
-
-	if batchBody, err = decode[[]SingleResponseBody](responseRawBytes); err == nil {
+	if batchBody, err := decode[[]SingleResponseBody](responseBodyRawBytes); err == nil {
 		return &BatchResponseBody{
 			Responses: *batchBody,
 		}, nil
 	}
 
-	return nil, NewDecodeError(err, responseRawBytes)
+	return nil, NewDecodeError(errors.New("unexpected decoding response error"), responseBodyRawBytes)
 }
 
 func decode[T Decodable](rawBytes []byte) (*T, error) {

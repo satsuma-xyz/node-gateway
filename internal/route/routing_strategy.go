@@ -1,8 +1,6 @@
 package route
 
 import (
-	"errors"
-
 	"sort"
 	"sync/atomic"
 
@@ -32,7 +30,15 @@ func NewPriorityRoundRobinStrategy(logger *zap.Logger) *PriorityRoundRobinStrate
 	}
 }
 
-var ErrNoHealthyUpstreams = errors.New("no healthy upstreams")
+type NoHealthyUpstreamsError struct {
+	msg string
+}
+
+var DefaultNoHealthyUpstreamsError = &NoHealthyUpstreamsError{"no healthy upstreams found"}
+
+func (e *NoHealthyUpstreamsError) Error() string {
+	return e.msg
+}
 
 func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
@@ -53,5 +59,5 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 		s.logger.Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
 	}
 
-	return "", ErrNoHealthyUpstreams
+	return "", DefaultNoHealthyUpstreamsError
 }
