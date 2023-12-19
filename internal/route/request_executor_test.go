@@ -146,7 +146,7 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
 	assert.Nil(t, respBody)
-	assert.Equal(t , 500, resp.StatusCode)
+	assert.Equal(t, 500, resp.StatusCode)
 
 	_, ok := err.(*OriginError)
 	assert.True(t, ok)
