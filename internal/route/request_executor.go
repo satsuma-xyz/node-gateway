@@ -45,7 +45,7 @@ type HTTPResponse struct {
 }
 
 func (e *OriginError) Error() string {
-	return fmt.Sprintf("error making request to origin: %v", e.err)
+	return fmt.Sprintf("error making request to origin. err: %v, resp: %s, respCode: %d", e.err, e.response, e.ResponseCode)
 }
 
 /*
@@ -87,8 +87,8 @@ func (r *RequestExecutor) routeToConfig(
 	}
 
 	var (
-		respBody jsonrpc.ResponseBody
-		resp     *HTTPResponse
+		jsonRespBody jsonrpc.ResponseBody
+		httpResp     *HTTPResponse
 	)
 
 	singleRequestBody, isSingleRequestBody := requestBody.(*jsonrpc.SingleRequestBody)
@@ -97,26 +97,26 @@ func (r *RequestExecutor) routeToConfig(
 		var cached bool
 		// In case of unknown caching errors, the httpReq might get used twice.
 		// We must clone the httpReq otherwise the body will already be closed on the second request.
-		respBody, resp, cached, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
+		jsonRespBody, httpResp, cached, err = r.retrieveOrCacheRequest(cloneRequest(httpReq), *singleRequestBody, configToRoute)
 		if err != nil {
 			switch e := err.(type) {
 			case *OriginError, *jsonrpc.DecodeError:
 				// These errors indicates a cache miss and request failure to origin.
 				// We want this error to bubble up.
 				// Unknown cache errors will default back to the "non-caching" behavior.
-				r.logger.Warn("caching error making request to origin", zap.Error(err), zap.Any("request", requestBody))
-				return nil, nil, cached, e
+				r.logger.Warn("caching error making request to origin", zap.Error(err), zap.Any("request", requestBody), zap.Any("resp", httpResp))
+				return nil, httpResp, cached, e
 			default:
-				r.logger.Warn("unknown caching error", zap.Error(err), zap.Any("request", requestBody))
+				r.logger.Warn("unknown caching error", zap.Error(err), zap.Any("request", requestBody), zap.Any("resp", httpResp))
 			}
 		} else {
-			return respBody, resp, cached, nil
+			return jsonRespBody, httpResp, cached, nil
 		}
 	}
 
-	respBody, resp, err = r.getResponseBody(httpReq, requestBody, configToRoute)
+	jsonRespBody, httpResp, err = r.getResponseBody(httpReq, requestBody, configToRoute)
 
-	return respBody, resp, false, err
+	return jsonRespBody, httpResp, false, err
 }
 
 func (r *RequestExecutor) useCache(requestBody jsonrpc.RequestBody) bool {
@@ -227,7 +227,7 @@ func (r *RequestExecutor) getResponseBody(httpReq *http.Request, requestBody jso
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		r.logger.Error("Non-2xx/3xx status code encountered when executing request.", zap.Any("request", requestBody),
+		r.logger.Error("4xx/5xx status code encountered when executing request.", zap.Any("request", requestBody),
 			zap.String("upstreamID", configToRoute.ID), zap.String("response", respBodyString),
 			zap.Int("httpStatusCode", resp.StatusCode), zap.Error(err))
 

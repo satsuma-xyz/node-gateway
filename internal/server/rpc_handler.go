@@ -51,6 +51,8 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		errMsg := fmt.Sprintf("Request body could not be read, err: %s", err.Error())
 		h.logger.Error(errMsg)
 		respondJSON(h.logger, writer, errMsg, http.StatusInternalServerError)
+
+		return
 	}
 
 	requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
