@@ -75,7 +75,7 @@ func (c *ChainMetadataStore) ProcessBlockHeightUpdate(groupID, upstreamID string
 	}
 }
 
-func (c *ChainMetadataStore) ProcessErrorUpdate(groupID, upstreamID string, err error) {
+func (c *ChainMetadataStore) ProcessErrorUpdate(_, upstreamID string, err error) {
 	c.opChannel <- func() {
 		c.updateErrorForUpstream(upstreamID, err)
 	}

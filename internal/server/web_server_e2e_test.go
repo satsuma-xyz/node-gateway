@@ -118,7 +118,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	expectedBlockTxCount := 29
 
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
-		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
@@ -146,7 +146,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 				ID:     *request.ID,
 			}
 		},
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to method %s: archive node is at lower priority!", nonStatefulMethod)
 
@@ -198,13 +198,13 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	expectedBlockTxCount := 29
 
 	fullNodeUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
-		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		statefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to stateful method %s on a full node!", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{}
 		},
-		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		nonStatefulMethod: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody { //nolint:unparam // test method always returns err
 			t.Helper()
 			t.Errorf("Unexpected call to non-stateful method %s on a full node!", nonStatefulMethod)
 
