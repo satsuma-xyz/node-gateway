@@ -178,7 +178,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 				jsonRPCRespBody = &rb
 			}
 		default:
-			return nil, nil, cached, err
+			return nil, httpResp, cached, err
 		}
 	}
 
