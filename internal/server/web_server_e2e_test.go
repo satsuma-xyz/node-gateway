@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -332,9 +333,11 @@ func executeRequest(
 	handler.ServeHTTP(recorder, req)
 
 	result := recorder.Result()
+	resultBody, _ := io.ReadAll(result.Body)
+
 	defer result.Body.Close()
 
-	responseBody, err := jsonrpc.DecodeResponseBody(result)
+	responseBody, err := jsonrpc.DecodeResponseBody(resultBody)
 	assert.NoError(t, err)
 	require.NotNil(t, responseBody)
 
@@ -369,7 +372,10 @@ func setUpHealthyUpstream(
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		requestBodyRawBytes, err := io.ReadAll(request.Body)
+		assert.NoError(t, err)
+
+		requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
 		assert.NoError(t, err)
 
 		var responseBody jsonrpc.ResponseBody
@@ -434,7 +440,10 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestBody, err := jsonrpc.DecodeRequestBody(request)
+		requestBodyRawBytes, err := io.ReadAll(request.Body)
+		assert.NoError(t, err)
+
+		requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
 		assert.NoError(t, err)
 
 		var responseBody jsonrpc.ResponseBody

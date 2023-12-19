@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -43,7 +44,16 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	requestBody, err := jsonrpc.DecodeRequestBody(req)
+	// No need to close the request body, the Server implementation will take care of it.
+	requestBodyRawBytes, err := io.ReadAll(req.Body)
+
+	if err != nil {
+		errMsg := fmt.Sprintf("Request body could not be read, err: %s", err.Error())
+		h.logger.Error(errMsg)
+		respondJSON(h.logger, writer, errMsg, http.StatusInternalServerError)
+	}
+
+	requestBody, err := jsonrpc.DecodeRequestBody(requestBodyRawBytes)
 	if err != nil {
 		errMsg := fmt.Sprintf("Request body could not be parsed, err: %s", err.Error())
 		resp := jsonrpc.CreateErrorJSONRPCResponseBody(errMsg, jsonrpc.InternalServerErrorCode)
@@ -55,26 +65,31 @@ func (h *RPCHandler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 
 	h.logger.Debug("Request received.", zap.String("method", req.Method), zap.String("path", req.URL.Path), zap.String("query", req.URL.RawQuery), zap.Any("body", requestBody))
 
-	upstreamID, respBody, resp, err := h.router.Route(ctx, requestBody)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
+	upstreamID, jsonRPCRespBody, err := h.router.Route(ctx, requestBody)
 
 	if err != nil {
 		switch e := err.(type) {
-		case jsonrpc.DecodeError:
+		// Still pass the response to client if we're not able to decode response from upstream.
+		case *jsonrpc.DecodeError:
 			respondRaw(nil, writer, e.Content, http.StatusOK)
 			return
+		case *route.NoHealthyUpstreamsError:
+			respondJSON(h.logger, writer, "No healthy upstreams.", http.StatusServiceUnavailable)
+			return
 		default:
-			resp := jsonrpc.CreateErrorJSONRPCResponseBodyWithRequest(fmt.Sprintf("Request could not be routed, err: %s", err.Error()), jsonrpc.InternalServerErrorCode, requestBody)
-			respondJSONRPC(h.logger, writer, resp, http.StatusInternalServerError)
+			statusCode := http.StatusInternalServerError
+			if originErr, ok := err.(*route.OriginError); ok && originErr.ResponseCode != 0 {
+				statusCode = originErr.ResponseCode
+			}
+
+			respondJSON(h.logger, writer, fmt.Sprintf("Request could not be routed, err: %s", err.Error()), statusCode)
 
 			return
 		}
 	}
 
 	writer.Header().Set("X-Upstream-ID", upstreamID)
-	respondJSONRPC(h.logger, writer, respBody, resp.StatusCode)
+	respondJSONRPC(h.logger, writer, jsonRPCRespBody, http.StatusOK)
 
 	h.logger.Debug("Request successfully routed.", zap.Any("requestBody", requestBody))
 }

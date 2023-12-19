@@ -35,24 +35,16 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	cacheConfig := config.ChainCacheConfig{}
 
 	routingStrategy := mocks.NewMockRoutingStrategy(t)
-	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", ErrNoHealthyUpstreams)
+	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", DefaultNoHealthyUpstreamsError)
 
 	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L(), nil)
 	router.(*SimpleRouter).healthCheckManager = managerMock
 	router.Start()
 
-	_, jsonResp, httpResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
-	defer httpResp.Body.Close()
+	_, jsonResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
 
 	assert.Nil(t, jsonResp)
-	assert.Equal(t, 503, httpResp.StatusCode)
-	assert.Equal(t, "no healthy upstreams", readyBody(httpResp.Body))
-	assert.Nil(t, err)
-}
-
-func readyBody(body io.ReadCloser) string {
-	bodyBytes, _ := io.ReadAll(body)
-	return string(bodyBytes)
+	assert.Equal(t, DefaultNoHealthyUpstreamsError, err)
 }
 
 func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
@@ -116,8 +108,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
-	defer httpResp.Body.Close()
+	upstreamID, jsonRPCResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)
@@ -163,8 +154,7 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
 	router.(*SimpleRouter).routingStrategy = routingStrategyMock
 
-	upstreamID, jsonRPCResp, httpResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
-	defer httpResp.Body.Close()
+	upstreamID, jsonRPCResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)

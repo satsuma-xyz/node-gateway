@@ -94,7 +94,7 @@ var (
 				"Batches are deconstructed to single JSON RPC requests for this metric.",
 		},
 		// jsonrpc_method is "batch" for batch requests
-		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "response_code", "jsonrpc_error_code"},
+		[]string{"chain_name", "client", "upstream_id", "url", "jsonrpc_method", "jsonrpc_error_code"},
 	)
 
 	upstreamRPCDuration = promauto.NewHistogramVec(

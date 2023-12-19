@@ -62,6 +62,6 @@ func TestPriorityStrategy_NoUpstreams(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		upstreamID, err := strategy.RouteNextRequest(upstreams, metadata.RequestMetadata{})
 		assert.Equal(t, "", upstreamID)
-		assert.True(t, errors.Is(err, ErrNoHealthyUpstreams))
+		assert.True(t, errors.Is(err, DefaultNoHealthyUpstreamsError))
 	}
 }

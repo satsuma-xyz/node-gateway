@@ -70,15 +70,15 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	expected, _ := rpcCache.Marshal(raw)
 	redisClientMock.ExpectSet(cacheKey, expected, cacheConfig.TTL).SetVal("OK")
 
-	respBody, resp, cached, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
-	resp.Body.Close()
+	jsonRPCResponseBody, httpResponse, cached, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
-	singleRespBody := respBody.GetSubResponses()[0]
+	singleRespBody := jsonRPCResponseBody.GetSubResponses()[0]
 
 	assert.Equal(t, int64(1), singleRespBody.ID)
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Nil(t, singleRespBody.Error)
 	assert.Equal(t, raw, singleRespBody.Result)
+	assert.Equal(t, httpResp.StatusCode, httpResponse.StatusCode)
 	assert.False(t, cached)
 
 	// Send a new request with new ID.
@@ -90,15 +90,15 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	// SetVal simulates returned value on a Get cache hit.
 	redisClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(expected).String())
 
-	respBody, resp, cached, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
-	resp.Body.Close()
+	jsonRPCResponseBody, httpResponse, cached, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
-	singleRespBody = respBody.GetSubResponses()[0]
+	singleRespBody = jsonRPCResponseBody.GetSubResponses()[0]
 
 	assert.Equal(t, int64(20), singleRespBody.ID)
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Nil(t, singleRespBody.Error)
 	assert.Equal(t, raw, singleRespBody.Result)
+	assert.Equal(t, httpResp.StatusCode, httpResponse.StatusCode)
 	assert.True(t, cached)
 
 	if err := redisClientMock.ExpectationsWereMet(); err != nil {
@@ -144,9 +144,6 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
 	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
-	if resp != nil {
-		resp.Body.Close()
-	}
 
 	assert.Nil(t, respBody)
 	assert.Nil(t, resp)
@@ -191,11 +188,11 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
-	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]
 
 	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, int64(1), singleRespBody.ID)
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Equal(t, "RPC error", singleRespBody.Error.Message)
@@ -238,11 +235,11 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 	bodyBytes, _ := requestBody.Encode()
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 	respBody, resp, _, err := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
-	resp.Body.Close()
 
 	singleRespBody := respBody.GetSubResponses()[0]
 
 	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, int64(1), singleRespBody.ID)
 	assert.Equal(t, "2.0", singleRespBody.JSONRPC)
 	assert.Equal(t, json.RawMessage("null"), singleRespBody.Result)
