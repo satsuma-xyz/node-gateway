@@ -98,11 +98,18 @@ go generate ./...
 
 This command will generate mocks for interfaces/types annotated with `go:generate mockery ...` and place them in the `mocks` folder
 
+If you get a `command not found` error, make sure `~/go/bin` is in your `PATH`.
+
 Run tests with:
 
 ```sh
 go build -v ./...
 go test -v ./...
+```
+
+To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
+```sh
+go get golang.org/x/tools/cmd/cover
 ```
 
 #### Linting
