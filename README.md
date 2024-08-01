@@ -84,7 +84,7 @@ By default, Prometheus metrics are exposed on port 9090. See
 
 #### Running locally
 
-1. Install Go 1.19.
+1. Install Go 1.22.
 2. Install dependencies: `go mod download`.
 3. Run `go run cmd/gateway/main.go`.
 
