@@ -314,7 +314,7 @@ func TestUseCache(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			executor := RequestExecutor{httpClientMock, zap.L(), tt.cache, "mainnet", tt.cacheConfig}
 			ans := executor.useCache(tt.requestBody)
-			if ans != tt.want {
+			if ans != tt.want { //nolint:wsl // Legacy
 				t.Errorf("got %t, want %t", ans, tt.want)
 			}
 		})

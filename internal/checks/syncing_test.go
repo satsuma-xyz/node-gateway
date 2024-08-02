@@ -18,7 +18,7 @@ func TestSyncingChecker(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
 	ethClient.On("SyncProgress", mock.Anything).Return(&ethereum.SyncProgress{}, nil)
 
-	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:revive // Legacy
 		return ethClient, nil
 	}
 
@@ -46,7 +46,7 @@ func TestSyncingChecker_MethodNotSupported(t *testing.T) {
 	ethClient := mocks.NewEthClient(t)
 	ethClient.On("SyncProgress", mock.Anything).Return(nil, methodNotSupportedError{})
 
-	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:revive // Legacy
 		return ethClient, nil
 	}
 

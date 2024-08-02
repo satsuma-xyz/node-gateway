@@ -56,7 +56,7 @@ func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 			zap.L().Error("A Group must be specified on upstreams since groups are defined.", zap.Any("config", c), zap.String("upstreamId", c.ID))
 		} else {
 			groupIsValid := false
-			for _, group := range groups {
+			for _, group := range groups { //nolint:wsl // Legacy
 				if group.ID == c.GroupID {
 					groupIsValid = true
 				}

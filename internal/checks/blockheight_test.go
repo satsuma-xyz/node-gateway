@@ -31,7 +31,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	ethClient.On("SubscribeNewHead", mock.Anything, mock.Anything).Return(&mockSubscription{}, nil)
 	ethClient.On("HeaderByNumber", mock.Anything, mock.Anything).Return(&types.Header{Number: big.NewInt(int64(maxBlockHeight))}, nil)
 
-	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:gocritic,nolintlint,revive
 		return ethClient, nil
 	}
 
@@ -59,7 +59,7 @@ func TestBlockHeightChecker_WSSubscribeFailed(t *testing.T) {
 	ethClient.On("SubscribeNewHead", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 	ethClient.On("HeaderByNumber", mock.Anything, mock.Anything).Return(&types.Header{Number: big.NewInt(int64(50000))}, nil)
 
-	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:revive // Legacy
 		return ethClient, nil
 	}
 
@@ -94,7 +94,7 @@ func TestBlockHeightChecker_HTTP(t *testing.T) {
 		ethClient := mocks.NewEthClient(t)
 		ethClient.On("HeaderByNumber", mock.Anything, mock.Anything).Return(&types.Header{Number: big.NewInt(int64(maxBlockHeight))}, nil)
 
-		mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
+		mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:revive // Legacy
 			return ethClient, nil
 		}
 
