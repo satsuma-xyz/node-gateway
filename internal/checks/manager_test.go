@@ -53,18 +53,18 @@ func TestHealthCheckManager(t *testing.T) {
 		return mockBlockHeightChecker
 	}
 	manager.(*healthCheckManager).newPeerCheck = func(
-		upstreamConfig *config.UpstreamConfig, //nolint:revive // Legacy
-		clientGetter client.EthClientGetter, //nolint:revive // Legacy
-		metricsContainer *metrics.Container, //nolint:revive // Legacy
-		logger *zap.Logger, //nolint:revive // Legacy
+		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
+		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
+		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
+		logger *zap.Logger, //nolint:nolintlint,revive // Legacy
 	) types.Checker {
 		return mockPeerChecker
 	}
 	manager.(*healthCheckManager).newSyncingCheck = func(
-		upstreamConfig *config.UpstreamConfig, //nolint:revive // Legacy
-		clientGetter client.EthClientGetter, //nolint:revive // Legacy
-		metricsContainer *metrics.Container, //nolint:revive // Legacy
-		logger *zap.Logger, //nolint:revive // Legacy
+		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
+		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
+		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
+		logger *zap.Logger, //nolint:nolintlint,revive // Legacy
 	) types.Checker {
 		return mockSyncingChecker
 	}
