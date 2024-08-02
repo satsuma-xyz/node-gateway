@@ -177,7 +177,10 @@ type CacheConfig struct {
 }
 
 type ErrorsConfig struct {
-	Rate float64 `yaml:"rate"`
+	HTTPCodes    []string `yaml:"httpCodes"`
+	JSONRPCCodes []string `yaml:"jsonRpcCodes"`
+	ErrorStrings []string `yaml:"errorStrings"`
+	Rate         float64  `yaml:"rate"`
 }
 
 type MethodConfig struct {
@@ -192,11 +195,11 @@ type LatencyConfig struct {
 
 type RoutingConfig struct {
 	AlwaysRoute     *bool         `yaml:"alwaysRoute"`
+	Errors          ErrorsConfig  `yaml:"errors"`
 	Latency         LatencyConfig `yaml:"latency"`
 	MaxBlocksBehind int           `yaml:"maxBlocksBehind"`
 	DetectionWindow time.Duration `yaml:"detectionWindow"`
 	BanWindow       time.Duration `yaml:"banWindow"`
-	Errors          ErrorsConfig  `yaml:"errors"`
 }
 
 type ChainCacheConfig struct {

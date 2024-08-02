@@ -329,11 +329,20 @@ func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
         banWindow: 5m
         errors:
           rate: 0.25
+          httpCodes:
+            - 5xx
+            - 420
+          jsonRpcCodes:
+            - 32xxx
+          errorStrings:
+            - "internal server error"
         latency:
           threshold: 1000ms
           methods:
             - method: eth_getLogs
               threshold: 2000ms
+            - method: eth_call
+              threshold: 10000ms
         alwaysRoute: true
 
     chains:
@@ -364,6 +373,16 @@ func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
 				BanWindow:       5 * time.Minute,
 				Errors: ErrorsConfig{
 					Rate: 0.25,
+					HTTPCodes: []string{
+						"5xx",
+						"420",
+					},
+					JSONRPCCodes: []string{
+						"32xxx",
+					},
+					ErrorStrings: []string{
+						"internal server error",
+					},
 				},
 				Latency: LatencyConfig{
 					Threshold: 1000 * time.Millisecond,
@@ -371,6 +390,10 @@ func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
 						{
 							Name:      "eth_getLogs",
 							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name:      "eth_call",
+							Threshold: 10000 * time.Millisecond,
 						},
 					},
 				},
