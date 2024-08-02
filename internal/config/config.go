@@ -168,8 +168,8 @@ func IsGroupsValid(groups []GroupConfig) bool {
 
 type GlobalConfig struct {
 	Cache   CacheConfig   `yaml:"cache"`
-	Port    int           `yaml:"port"`
 	Routing RoutingConfig `yaml:"routing"`
+	Port    int           `yaml:"port"`
 }
 
 type CacheConfig struct {
@@ -186,17 +186,17 @@ type MethodConfig struct {
 }
 
 type LatencyConfig struct {
-	Threshold time.Duration  `yaml:"threshold"`
 	Methods   []MethodConfig `yaml:"methods"`
+	Threshold time.Duration  `yaml:"threshold"`
 }
 
 type RoutingConfig struct {
+	AlwaysRoute     *bool         `yaml:"alwaysRoute"`
+	Latency         LatencyConfig `yaml:"latency"`
 	MaxBlocksBehind int           `yaml:"maxBlocksBehind"`
 	DetectionWindow time.Duration `yaml:"detectionWindow"`
 	BanWindow       time.Duration `yaml:"banWindow"`
-	AlwaysRoute     *bool         `yaml:"alwaysRoute"`
 	Errors          ErrorsConfig  `yaml:"errors"`
-	Latency         LatencyConfig `yaml:"latency"`
 }
 
 type ChainCacheConfig struct {
@@ -254,8 +254,8 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 }
 
 type Config struct {
-	Global GlobalConfig
 	Chains []SingleChainConfig
+	Global GlobalConfig
 }
 
 func (config *Config) Validate() error {
