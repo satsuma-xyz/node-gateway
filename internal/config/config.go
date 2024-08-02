@@ -167,16 +167,36 @@ func IsGroupsValid(groups []GroupConfig) bool {
 }
 
 type GlobalConfig struct {
-	Cache CacheConfig `yaml:"cache"`
-	Port  int         `yaml:"port"`
+	Cache   CacheConfig   `yaml:"cache"`
+	Port    int           `yaml:"port"`
+	Routing RoutingConfig `yaml:"routing"`
 }
 
 type CacheConfig struct {
 	Redis string `yaml:"redis"`
 }
 
+type ErrorsConfig struct {
+	Rate float64 `yaml:"rate"`
+}
+
+type MethodConfig struct {
+	Name      string        `yaml:"method"`
+	Threshold time.Duration `yaml:"threshold"`
+}
+
+type LatencyConfig struct {
+	Threshold time.Duration  `yaml:"threshold"`
+	Methods   []MethodConfig `yaml:"methods"`
+}
+
 type RoutingConfig struct {
-	MaxBlocksBehind int `yaml:"maxBlocksBehind"`
+	MaxBlocksBehind int           `yaml:"maxBlocksBehind"`
+	DetectionWindow time.Duration `yaml:"detectionWindow"`
+	BanWindow       time.Duration `yaml:"banWindow"`
+	AlwaysRoute     *bool         `yaml:"alwaysRoute"`
+	Errors          ErrorsConfig  `yaml:"errors"`
+	Latency         LatencyConfig `yaml:"latency"`
 }
 
 type ChainCacheConfig struct {

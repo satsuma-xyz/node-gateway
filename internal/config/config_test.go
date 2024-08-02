@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -312,6 +313,86 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 				HTTPURL:  "http://127.0.0.1:4040",
 				NodeType: Archive,
 			}},
+		}},
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
+	config := `
+    global:
+      routing:
+        detectionWindow: 1m
+        banWindow: 5m
+        errors:
+          rate: 0.25
+        latency:
+          threshold: 1000ms
+          methods:
+            - method: eth_getLogs
+              threshold: 2000ms
+        alwaysRoute: true
+
+    chains:
+      - chainName: ethereum
+
+        groups:
+          - id: primary
+            priority: 0
+
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: time.Minute,
+				BanWindow:       5 * time.Minute,
+				Errors: ErrorsConfig{
+					Rate: 0.25,
+				},
+				Latency: LatencyConfig{
+					Threshold: 1000 * time.Millisecond,
+					Methods: []MethodConfig{
+						{
+							Name:      "eth_getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+					},
+				},
+				AlwaysRoute: newBool(true),
+			},
+		},
+		Chains: []SingleChainConfig{{
+			Upstreams: []UpstreamConfig{
+				{
+					ID:       "alchemy-eth",
+					HTTPURL:  "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+					GroupID:  "primary",
+					NodeType: Full,
+				},
+			},
+			ChainName: "ethereum",
+			Groups: []GroupConfig{
+				{
+					ID:       "primary",
+					Priority: 0,
+				},
+			},
 		}},
 	}
 
