@@ -245,6 +245,7 @@ func (c *SingleChainConfig) isValid() bool {
 }
 
 func (r *RoutingConfig) isRoutingConfigValid() bool {
+	// TODO(polsar): Validate the HTTP codes.
 	return r.isErrorRateValid()
 }
 

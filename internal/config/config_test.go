@@ -325,8 +325,8 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	config := `
     global:
       routing:
-        detectionWindow: 1m
-        banWindow: 5m
+        detectionWindow: 10m
+        banWindow: 50m
         errors:
           rate: 0.25
           httpCodes:
@@ -369,8 +369,8 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: time.Minute,
-				BanWindow:       5 * time.Minute,
+				DetectionWindow: 10 * time.Minute,
+				BanWindow:       50 * time.Minute,
 				Errors: ErrorsConfig{
 					Rate: 0.25,
 					HTTPCodes: []string{
@@ -455,6 +455,7 @@ func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInGlobalConfig(t *te
       routing:
         errors:
           rate: -0.25
+
     chains:
       - chainName: ethereum
         groups:
