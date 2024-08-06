@@ -194,12 +194,12 @@ type LatencyConfig struct {
 }
 
 type RoutingConfig struct {
-	AlwaysRoute     *bool         `yaml:"alwaysRoute"`
-	Errors          ErrorsConfig  `yaml:"errors"`
-	Latency         LatencyConfig `yaml:"latency"`
-	MaxBlocksBehind int           `yaml:"maxBlocksBehind"`
-	DetectionWindow time.Duration `yaml:"detectionWindow"`
-	BanWindow       time.Duration `yaml:"banWindow"`
+	AlwaysRoute     *bool          `yaml:"alwaysRoute"`
+	Errors          *ErrorsConfig  `yaml:"errors"`
+	Latency         *LatencyConfig `yaml:"latency"`
+	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
+	DetectionWindow time.Duration  `yaml:"detectionWindow"`
+	BanWindow       time.Duration  `yaml:"banWindow"`
 }
 
 type ChainCacheConfig struct {
@@ -245,11 +245,15 @@ func (c *SingleChainConfig) isValid() bool {
 }
 
 func (r *RoutingConfig) isRoutingConfigValid() bool {
-	// TODO(polsar): Validate the HTTP codes.
+	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
 	return r.isErrorRateValid()
 }
 
 func (r *RoutingConfig) isErrorRateValid() bool {
+	if r.Errors == nil {
+		return true
+	}
+
 	rate := r.Errors.Rate
 	isValid := 0.0 <= rate && rate <= 1.0
 

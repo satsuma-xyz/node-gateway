@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp" //nolint:imports // Legacy
 	"github.com/stretchr/testify/assert"
 )
 
@@ -371,7 +371,7 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 			Routing: RoutingConfig{
 				DetectionWindow: 10 * time.Minute,
 				BanWindow:       50 * time.Minute,
-				Errors: ErrorsConfig{
+				Errors: &ErrorsConfig{
 					Rate: 0.25,
 					HTTPCodes: []string{
 						"5xx",
@@ -384,7 +384,7 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 						"internal server error",
 					},
 				},
-				Latency: LatencyConfig{
+				Latency: &LatencyConfig{
 					Threshold: 1000 * time.Millisecond,
 					Methods: []MethodConfig{
 						{
