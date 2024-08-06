@@ -226,10 +226,10 @@ type SingleChainConfig struct {
 }
 
 func (c *SingleChainConfig) isValid() bool {
-	isChainConfigValid := true
-	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
+	isChainConfigValid := IsGroupsValid(c.Groups)
 	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
 	isChainConfigValid = isChainConfigValid && c.Cache.isValid()
+	isChainConfigValid = isChainConfigValid && c.Routing.isRateValid()
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
@@ -242,6 +242,17 @@ func (c *SingleChainConfig) isValid() bool {
 	}
 
 	return isChainConfigValid
+}
+
+func (r *RoutingConfig) isRateValid() bool {
+	rate := r.Errors.Rate
+	isValid := 0.0 <= rate && rate <= 1.0
+
+	if !isValid {
+		zap.L().Error("Rate is not in range [0.0, 1.0]", zap.Any("rate", rate))
+	}
+
+	return isValid
 }
 
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
@@ -263,6 +274,9 @@ type Config struct {
 
 func (config *Config) Validate() error {
 	isValid := isChainsValid(config.Chains)
+
+	// Validate global config.
+	isValid = isValid && config.Global.Routing.isRateValid()
 
 	if !isValid {
 		return errors.New("invalid config found")

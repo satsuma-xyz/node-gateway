@@ -321,7 +321,7 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	}
 }
 
-func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
+func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	config := `
     global:
       routing:
@@ -421,6 +421,57 @@ func TestParseConfig_ValidGlobalConfigLatencyRouting(t *testing.T) {
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
 		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInChainConfig(t *testing.T) {
+	config := `
+    chains:
+      - chainName: ethereum
+        routing:
+          errors:
+            rate: 1.25
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	_, err := parseConfig(configBytes)
+
+	if err == nil {
+		t.Errorf("Expected error parsing invalid YAML.")
+	}
+}
+
+func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInGlobalConfig(t *testing.T) {
+	config := `
+    global:
+      routing:
+        errors:
+          rate: -0.25
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	_, err := parseConfig(configBytes)
+
+	if err == nil {
+		t.Errorf("Expected error parsing invalid YAML.")
 	}
 }
 
