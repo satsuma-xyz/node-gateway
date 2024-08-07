@@ -325,6 +325,7 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	config := `
     global:
       routing:
+        maxBlocksBehind: 33
         detectionWindow: 10m
         banWindow: 50m
         errors:
@@ -369,6 +370,7 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
+				MaxBlocksBehind: 33,
 				DetectionWindow: 10 * time.Minute,
 				BanWindow:       50 * time.Minute,
 				Errors: &ErrorsConfig{
