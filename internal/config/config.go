@@ -1,4 +1,4 @@
-package config
+package config //nolint:nolintlint,typecheck // Legacy
 
 import (
 	"errors"
@@ -11,6 +11,9 @@ import (
 )
 
 type NodeType string
+
+const DefDetectionWindow = time.Minute
+const DefBanWindow = 5 * time.Minute
 
 const (
 	Archive NodeType = "archive"
@@ -27,6 +30,10 @@ type UpstreamConfig struct {
 	GroupID              string                `yaml:"group"`
 	NodeType             NodeType              `yaml:"nodeType"`
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
+}
+
+func newDuration(d time.Duration) *time.Duration {
+	return &d
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -167,8 +174,8 @@ func IsGroupsValid(groups []GroupConfig) bool {
 }
 
 type GlobalConfig struct {
-	Cache   CacheConfig   `yaml:"cache"`
 	Routing RoutingConfig `yaml:"routing"`
+	Cache   CacheConfig   `yaml:"cache"`
 	Port    int           `yaml:"port"`
 }
 
@@ -197,9 +204,9 @@ type RoutingConfig struct {
 	AlwaysRoute     *bool          `yaml:"alwaysRoute"`
 	Errors          *ErrorsConfig  `yaml:"errors"`
 	Latency         *LatencyConfig `yaml:"latency"`
+	DetectionWindow *time.Duration `yaml:"detectionWindow"`
+	BanWindow       *time.Duration `yaml:"banWindow"`
 	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
-	DetectionWindow time.Duration  `yaml:"detectionWindow"`
-	BanWindow       time.Duration  `yaml:"banWindow"`
 }
 
 type ChainCacheConfig struct {
@@ -218,10 +225,10 @@ func (c *ChainCacheConfig) isValid() bool {
 }
 
 type SingleChainConfig struct {
+	Routing   RoutingConfig
 	ChainName string `yaml:"chainName"`
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
-	Routing   RoutingConfig
 	Cache     ChainCacheConfig
 }
 
@@ -229,7 +236,7 @@ func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := IsGroupsValid(c.Groups)
 	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
 	isChainConfigValid = isChainConfigValid && c.Cache.isValid()
-	isChainConfigValid = isChainConfigValid && c.Routing.isRoutingConfigValid()
+	isChainConfigValid = isChainConfigValid && c.Routing.isRoutingConfigValidAndSetDefaults()
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
@@ -244,7 +251,22 @@ func (c *SingleChainConfig) isValid() bool {
 	return isChainConfigValid
 }
 
-func (r *RoutingConfig) isRoutingConfigValid() bool {
+func (r *RoutingConfig) setDefaults() {
+	if r.Errors == nil || r.Latency == nil {
+		return
+	}
+
+	if r.DetectionWindow == nil {
+		r.DetectionWindow = newDuration(DefDetectionWindow)
+	}
+
+	if r.BanWindow == nil {
+		r.BanWindow = newDuration(DefBanWindow)
+	}
+}
+
+func (r *RoutingConfig) isRoutingConfigValidAndSetDefaults() bool {
+	r.setDefaults()
 	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
 	return r.isErrorRateValid()
 }
@@ -277,15 +299,15 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 }
 
 type Config struct {
-	Chains []SingleChainConfig
 	Global GlobalConfig
+	Chains []SingleChainConfig
 }
 
 func (config *Config) Validate() error {
 	isValid := isChainsValid(config.Chains)
 
 	// Validate global config.
-	isValid = isValid && config.Global.Routing.isRoutingConfigValid()
+	isValid = isValid && config.Global.Routing.isRoutingConfigValidAndSetDefaults()
 
 	if !isValid {
 		return errors.New("invalid config found")

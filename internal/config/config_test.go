@@ -321,6 +321,26 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	}
 }
 
+func getCommonChainsConfig() []SingleChainConfig {
+	return []SingleChainConfig{{
+		Upstreams: []UpstreamConfig{
+			{
+				ID:       "alchemy-eth",
+				HTTPURL:  "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
+				GroupID:  "primary",
+				NodeType: Full,
+			},
+		},
+		ChainName: "ethereum",
+		Groups: []GroupConfig{
+			{
+				ID:       "primary",
+				Priority: 0,
+			},
+		},
+	}}
+}
+
 func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	config := `
     global:
@@ -371,8 +391,8 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
 				MaxBlocksBehind: 33,
-				DetectionWindow: 10 * time.Minute,
-				BanWindow:       50 * time.Minute,
+				DetectionWindow: newDuration(10 * time.Minute),
+				BanWindow:       newDuration(50 * time.Minute),
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 					HTTPCodes: []string{
@@ -402,23 +422,86 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 				AlwaysRoute: newBool(true),
 			},
 		},
-		Chains: []SingleChainConfig{{
-			Upstreams: []UpstreamConfig{
-				{
-					ID:       "alchemy-eth",
-					HTTPURL:  "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}",
-					GroupID:  "primary",
-					NodeType: Full,
+		Chains: getCommonChainsConfig(),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows_Set(t *testing.T) {
+	config := `
+    global:
+      routing:
+        errors:
+          rate: 0.25
+        latency:
+          threshold: 1000ms
+
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: newDuration(DefDetectionWindow),
+				BanWindow:       newDuration(DefBanWindow),
+				Errors: &ErrorsConfig{
+					Rate: 0.25,
+				},
+				Latency: &LatencyConfig{
+					Threshold: 1000 * time.Millisecond,
 				},
 			},
-			ChainName: "ethereum",
-			Groups: []GroupConfig{
-				{
-					ID:       "primary",
-					Priority: 0,
-				},
-			},
-		}},
+		},
+		Chains: getCommonChainsConfig(),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows_NotSet(t *testing.T) {
+	config := `
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Chains: getCommonChainsConfig(),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
