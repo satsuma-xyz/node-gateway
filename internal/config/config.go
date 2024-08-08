@@ -209,6 +209,41 @@ type RoutingConfig struct {
 	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
 }
 
+func (r *RoutingConfig) setDefaults() {
+	if r.Errors == nil || r.Latency == nil {
+		return
+	}
+
+	if r.DetectionWindow == nil {
+		r.DetectionWindow = newDuration(DefDetectionWindow)
+	}
+
+	if r.BanWindow == nil {
+		r.BanWindow = newDuration(DefBanWindow)
+	}
+}
+
+func (r *RoutingConfig) isRoutingConfigValidAndSetDefaults() bool {
+	r.setDefaults()
+	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
+	return r.isErrorRateValid()
+}
+
+func (r *RoutingConfig) isErrorRateValid() bool {
+	if r.Errors == nil {
+		return true
+	}
+
+	rate := r.Errors.Rate
+	isValid := 0.0 <= rate && rate <= 1.0
+
+	if !isValid {
+		zap.L().Error("Rate is not in range [0.0, 1.0]", zap.Any("rate", rate))
+	}
+
+	return isValid
+}
+
 type ChainCacheConfig struct {
 	TTL time.Duration `yaml:"ttl"`
 }
@@ -249,41 +284,6 @@ func (c *SingleChainConfig) isValid() bool {
 	}
 
 	return isChainConfigValid
-}
-
-func (r *RoutingConfig) setDefaults() {
-	if r.Errors == nil || r.Latency == nil {
-		return
-	}
-
-	if r.DetectionWindow == nil {
-		r.DetectionWindow = newDuration(DefDetectionWindow)
-	}
-
-	if r.BanWindow == nil {
-		r.BanWindow = newDuration(DefBanWindow)
-	}
-}
-
-func (r *RoutingConfig) isRoutingConfigValidAndSetDefaults() bool {
-	r.setDefaults()
-	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
-	return r.isErrorRateValid()
-}
-
-func (r *RoutingConfig) isErrorRateValid() bool {
-	if r.Errors == nil {
-		return true
-	}
-
-	rate := r.Errors.Rate
-	isValid := 0.0 <= rate && rate <= 1.0
-
-	if !isValid {
-		zap.L().Error("Rate is not in range [0.0, 1.0]", zap.Any("rate", rate))
-	}
-
-	return isValid
 }
 
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
