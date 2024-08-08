@@ -179,6 +179,10 @@ type GlobalConfig struct {
 	Port    int           `yaml:"port"`
 }
 
+func (c *GlobalConfig) setDefaults() {
+	c.Routing.setDefaults()
+}
+
 type CacheConfig struct {
 	Redis string `yaml:"redis"`
 }
@@ -282,9 +286,11 @@ func (c *SingleChainConfig) isValid() bool {
 		isChainConfigValid = false
 	}
 
-	c.Routing.setDefaults()
-
 	return isChainConfigValid
+}
+
+func (c *SingleChainConfig) setDefaults() {
+	c.Routing.setDefaults()
 }
 
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
@@ -302,6 +308,15 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 type Config struct {
 	Global GlobalConfig
 	Chains []SingleChainConfig
+}
+
+func (config *Config) setDefaults() {
+	config.Global.setDefaults()
+
+	for chainIndex := range config.Chains {
+		chainConfig := &config.Chains[chainIndex]
+		chainConfig.setDefaults()
+	}
 }
 
 func (config *Config) Validate() error {
@@ -336,6 +351,8 @@ func parseConfig(configBytes []byte) (Config, error) {
 	if err != nil {
 		return config, err
 	}
+
+	config.setDefaults()
 
 	err = config.Validate()
 
