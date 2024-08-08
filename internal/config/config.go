@@ -223,8 +223,7 @@ func (r *RoutingConfig) setDefaults() {
 	}
 }
 
-func (r *RoutingConfig) isRoutingConfigValidAndSetDefaults() bool {
-	r.setDefaults()
+func (r *RoutingConfig) isRoutingConfigValid() bool {
 	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
 	return r.isErrorRateValid()
 }
@@ -271,7 +270,7 @@ func (c *SingleChainConfig) isValid() bool {
 	isChainConfigValid := IsGroupsValid(c.Groups)
 	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
 	isChainConfigValid = isChainConfigValid && c.Cache.isValid()
-	isChainConfigValid = isChainConfigValid && c.Routing.isRoutingConfigValidAndSetDefaults()
+	isChainConfigValid = isChainConfigValid && c.Routing.isRoutingConfigValid()
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
@@ -282,6 +281,8 @@ func (c *SingleChainConfig) isValid() bool {
 
 		isChainConfigValid = false
 	}
+
+	c.Routing.setDefaults()
 
 	return isChainConfigValid
 }
@@ -307,11 +308,13 @@ func (config *Config) Validate() error {
 	isValid := isChainsValid(config.Chains)
 
 	// Validate global config.
-	isValid = isValid && config.Global.Routing.isRoutingConfigValidAndSetDefaults()
+	isValid = isValid && config.Global.Routing.isRoutingConfigValid()
 
 	if !isValid {
 		return errors.New("invalid config found")
 	}
+
+	config.Global.Routing.setDefaults()
 
 	return nil
 }
