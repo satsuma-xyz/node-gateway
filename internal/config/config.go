@@ -329,8 +329,6 @@ func (config *Config) Validate() error {
 		return errors.New("invalid config found")
 	}
 
-	config.Global.Routing.setDefaults()
-
 	return nil
 }
 
