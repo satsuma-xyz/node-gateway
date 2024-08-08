@@ -210,7 +210,7 @@ type RoutingConfig struct {
 }
 
 func (r *RoutingConfig) setDefaults() {
-	if r.Errors == nil || r.Latency == nil {
+	if r.Errors == nil && r.Latency == nil {
 		return
 	}
 
