@@ -344,7 +344,7 @@ func executeRequest(
 	return result.StatusCode, responseBody, recorder.Header()
 }
 
-func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux {
+func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux { //nolint:gocritic // Legacy
 	t.Helper()
 
 	err := conf.Validate()
