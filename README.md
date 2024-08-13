@@ -105,6 +105,7 @@ Run tests with:
 ```sh
 go build -v ./...
 go test -v ./...
+go test -v ./... -cover
 ```
 
 To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
