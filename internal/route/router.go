@@ -128,10 +128,10 @@ func (r *SimpleRouter) Route(
 
 	start := time.Now()
 	jsonRPCResponse, httpResponse, cached, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
-	HTTPReponseCode := ""
+	HTTPResponseCode := ""
 
 	if httpResponse != nil {
-		HTTPReponseCode = strconv.Itoa(httpResponse.StatusCode)
+		HTTPResponseCode = strconv.Itoa(httpResponse.StatusCode)
 	}
 
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
@@ -148,7 +148,7 @@ func (r *SimpleRouter) Route(
 			upstreamID,
 			configToRoute.HTTPURL,
 			requestBody.GetMethod(),
-			HTTPReponseCode,
+			HTTPResponseCode,
 		).Inc()
 	}
 
@@ -194,7 +194,7 @@ func (r *SimpleRouter) Route(
 		configToRoute.ID,
 		configToRoute.HTTPURL,
 		requestBody.GetMethod(),
-		HTTPReponseCode,
+		HTTPResponseCode,
 	).Observe(time.Since(start).Seconds())
 
 	return upstreamID, jsonRPCResponse, err

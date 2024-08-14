@@ -69,7 +69,7 @@ func (c *PeerCheck) Initialize() error {
 func (c *PeerCheck) RunCheck() {
 	if c.client == nil {
 		if err := c.Initialize(); err != nil {
-			c.logger.Error("Errorr initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
+			c.logger.Error("Error initializing PeerCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 			c.metricsContainer.PeerCountCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
