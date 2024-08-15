@@ -106,6 +106,8 @@ func (c *PeerCheck) runCheck() {
 }
 
 func (c *PeerCheck) IsPassing() bool {
+	// TODO(polsar): This function is unused. Instead, the decision whether this check is passing is made here:
+	//  https://github.com/satsuma-xyz/node-gateway/blob/b7f20aa2ad97f53772e9fa1565a300be7c0fff78/internal/route/node_filter.go#L61
 	if c.ShouldRun && (c.Err != nil || c.PeerCount < MinimumPeerCount) {
 		c.logger.Debug("PeerCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("peerCount", c.PeerCount), zap.Error(c.Err))
 
