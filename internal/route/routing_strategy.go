@@ -12,7 +12,7 @@ import (
 
 //go:generate mockery --output ../mocks --name RoutingStrategy --structname MockRoutingStrategy --with-expecter
 type RoutingStrategy interface {
-	// Returns the next UpstreamID a request should route to.
+	// RouteNextRequest returns the next UpstreamID a request should route to.
 	RouteNextRequest(
 		upstreamsByPriority types.PriorityToUpstreamsMap,
 		requestMetadata metadata.RequestMetadata,
