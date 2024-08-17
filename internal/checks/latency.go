@@ -133,7 +133,7 @@ func (c *LatencyCheck) runCheck() {
 			val.timeoutOrError++
 
 			c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-		} else if duration > defaultMaxLatency {
+		} else if duration > defaultMaxLatency { // TODO(polsar): Get the latency threshold from config.
 			val.latencyTooHigh++
 
 			c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
