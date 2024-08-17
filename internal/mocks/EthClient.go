@@ -11,6 +11,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	time "time"
+
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -82,6 +84,63 @@ func (_c *EthClient_HeaderByNumber_Call) Return(_a0 *types.Header, _a1 error) *E
 }
 
 func (_c *EthClient_HeaderByNumber_Call) RunAndReturn(run func(context.Context, *big.Int) (*types.Header, error)) *EthClient_HeaderByNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HealthCheck provides a mock function with given fields: ctx, method
+func (_m *EthClient) HealthCheck(ctx context.Context, method string) (time.Duration, error) {
+	ret := _m.Called(ctx, method)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HealthCheck")
+	}
+
+	var r0 time.Duration
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (time.Duration, error)); ok {
+		return rf(ctx, method)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) time.Duration); ok {
+		r0 = rf(ctx, method)
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, method)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EthClient_HealthCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HealthCheck'
+type EthClient_HealthCheck_Call struct {
+	*mock.Call
+}
+
+// HealthCheck is a helper method to define mock.On call
+//   - ctx context.Context
+//   - method string
+func (_e *EthClient_Expecter) HealthCheck(ctx interface{}, method interface{}) *EthClient_HealthCheck_Call {
+	return &EthClient_HealthCheck_Call{Call: _e.mock.On("HealthCheck", ctx, method)}
+}
+
+func (_c *EthClient_HealthCheck_Call) Run(run func(ctx context.Context, method string)) *EthClient_HealthCheck_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *EthClient_HealthCheck_Call) Return(_a0 time.Duration, _a1 error) *EthClient_HealthCheck_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *EthClient_HealthCheck_Call) RunAndReturn(run func(context.Context, string) (time.Duration, error)) *EthClient_HealthCheck_Call {
 	_c.Call.Return(run)
 	return _c
 }
