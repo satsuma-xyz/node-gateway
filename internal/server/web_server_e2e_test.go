@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/samber/lo"
+	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
@@ -414,6 +415,9 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 	case "net_peerCount":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(10).String())}
 
+	case checks.LatencyCheckMethod:
+		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(11).String())}
+
 	case "eth_getBlockByNumber":
 		result, _ := json.Marshal(types.Header{
 			Number:     big.NewInt(latestBlockNumber),
@@ -451,7 +455,7 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 		switch r := requestBody.(type) {
 		case *jsonrpc.SingleRequestBody:
 			switch requestBody.GetMethod() {
-			case "eth_syncing", "net_peerCount", "eth_getBlockByNumber":
+			case "eth_syncing", "net_peerCount", checks.LatencyCheckMethod, "eth_getBlockByNumber":
 				responseBody = &jsonrpc.SingleResponseBody{Error: &jsonrpc.Error{Message: "This is a failing fake node!"}}
 				writeResponseBody(t, writer, responseBody)
 			default:

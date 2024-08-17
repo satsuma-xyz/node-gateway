@@ -107,6 +107,23 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 	return true
 }
 
+type IsLatencyAcceptable struct {
+	healthCheckManager checks.HealthCheckManager
+	logger             *zap.Logger
+}
+
+func (f *IsLatencyAcceptable) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
+	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+
+	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.LatencyCheck)
+
+	if latencyCheck.ShouldRun {
+		return latencyCheck.IsPassing()
+	}
+
+	return true
+}
+
 type IsCloseToGlobalMaxHeight struct {
 	chainMetadataStore *metadata.ChainMetadataStore
 	logger             *zap.Logger
@@ -267,9 +284,17 @@ func CreateSingleNodeFilter(
 			minimumPeerCount:   checks.MinimumPeerCount,
 		}
 
+		isLatencyAcceptable := IsLatencyAcceptable{
+			healthCheckManager: manager,
+			logger:             logger,
+		}
+
 		return &AndFilter{
-			filters: []NodeFilter{&hasEnoughPeers},
-			logger:  logger,
+			filters: []NodeFilter{
+				&hasEnoughPeers,
+				&isLatencyAcceptable,
+			},
+			logger: logger,
 		}
 	case NearGlobalMaxHeight:
 		maxBlocksBehind := DefaultMaxBlocksBehind
