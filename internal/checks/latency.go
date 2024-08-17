@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -20,7 +21,7 @@ const (
 )
 
 type FailureCounts struct {
-	// TODO(polsar): Replace these with sliding window counts.
+	// TODO(polsar): Replace these with sliding window counts (must be thread-safe).
 	// https://failsafe-go.dev/circuit-breaker/
 	latencyTooHigh uint64
 	timeoutOrError uint64
@@ -41,6 +42,7 @@ type LatencyCheck struct {
 	logger              *zap.Logger
 	upstreamConfig      *conf.UpstreamConfig
 	methodFailureCounts map[string]*FailureCounts // RPC method -> FailureCounts
+	lock                sync.RWMutex
 	ShouldRun           bool
 }
 
@@ -115,15 +117,21 @@ func (c *LatencyCheck) runCheck() {
 		// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
 		method := LatencyCheckMethod
 
-		// TODO(polsar): Protect the map with a mutex or use a thread-safe map.
 		var val *FailureCounts
-		val, exists := c.methodFailureCounts[method]
 
-		if !exists {
-			// This is the first time we are checking this method so initialize its failure counts.
-			val = NewFailureCounts()
-			c.methodFailureCounts[method] = val
-		}
+		func() {
+			c.lock.Lock()
+			defer c.lock.Unlock()
+
+			var exists bool
+			val, exists = c.methodFailureCounts[method]
+
+			if !exists {
+				// This is the first time we are checking this method so initialize its failure counts.
+				val = NewFailureCounts()
+				c.methodFailureCounts[method] = val
+			}
+		}()
 
 		// Make the request and increment the appropriate failure count if it takes too long or errors out.
 		var duration time.Duration
