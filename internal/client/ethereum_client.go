@@ -32,7 +32,7 @@ type EthClient interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	PeerCount(ctx context.Context) (uint64, error)
 	SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error)
-	HealthCheck(ctx context.Context, method string) (time.Duration, error)
+	Latency(ctx context.Context, method string) (time.Duration, error)
 }
 
 func (c *Client) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
@@ -51,13 +51,13 @@ func (c *Client) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, erro
 	return (*ethclient.Client)(c).SyncProgress(ctx)
 }
 
-// HealthCheck calls the specified RPC method using the given context and returns the duration
-// of the call, as well as the error if one occurred. No arguments are passed to the RPC method.
+// Latency calls the specified RPC method using the given context and returns the duration of the call,
+// as well as the error if one occurred. No arguments are passed to the RPC method.
 //
-// TODO(polsar): If the method expects one or more arguments, it will return an error that will
-// be passed to the caller. We should detect this type of error and not return it, since the call
-// has otherwise succeeded, which is the only thing the caller cares about.
-func (c *Client) HealthCheck(ctx context.Context, method string) (time.Duration, error) {
+// TODO(polsar): If the method expects one or more arguments, it will return an error that will be passed
+// to the caller. We should detect this type of error and not return it, since the call has otherwise succeeded,
+// which is the only thing the caller cares about.
+func (c *Client) Latency(ctx context.Context, method string) (time.Duration, error) {
 	start := time.Now()
 	err := (*ethclient.Client)(c).Client().CallContext(ctx, nil, method)
 

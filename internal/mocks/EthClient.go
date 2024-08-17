@@ -88,12 +88,12 @@ func (_c *EthClient_HeaderByNumber_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// HealthCheck provides a mock function with given fields: ctx, method
-func (_m *EthClient) HealthCheck(ctx context.Context, method string) (time.Duration, error) {
+// Latency provides a mock function with given fields: ctx, method
+func (_m *EthClient) Latency(ctx context.Context, method string) (time.Duration, error) {
 	ret := _m.Called(ctx, method)
 
 	if len(ret) == 0 {
-		panic("no return value specified for HealthCheck")
+		panic("no return value specified for Latency")
 	}
 
 	var r0 time.Duration
@@ -116,31 +116,31 @@ func (_m *EthClient) HealthCheck(ctx context.Context, method string) (time.Durat
 	return r0, r1
 }
 
-// EthClient_HealthCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HealthCheck'
-type EthClient_HealthCheck_Call struct {
+// EthClient_Latency_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Latency'
+type EthClient_Latency_Call struct {
 	*mock.Call
 }
 
-// HealthCheck is a helper method to define mock.On call
+// Latency is a helper method to define mock.On call
 //   - ctx context.Context
 //   - method string
-func (_e *EthClient_Expecter) HealthCheck(ctx interface{}, method interface{}) *EthClient_HealthCheck_Call {
-	return &EthClient_HealthCheck_Call{Call: _e.mock.On("HealthCheck", ctx, method)}
+func (_e *EthClient_Expecter) Latency(ctx interface{}, method interface{}) *EthClient_Latency_Call {
+	return &EthClient_Latency_Call{Call: _e.mock.On("Latency", ctx, method)}
 }
 
-func (_c *EthClient_HealthCheck_Call) Run(run func(ctx context.Context, method string)) *EthClient_HealthCheck_Call {
+func (_c *EthClient_Latency_Call) Run(run func(ctx context.Context, method string)) *EthClient_Latency_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *EthClient_HealthCheck_Call) Return(_a0 time.Duration, _a1 error) *EthClient_HealthCheck_Call {
+func (_c *EthClient_Latency_Call) Return(_a0 time.Duration, _a1 error) *EthClient_Latency_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *EthClient_HealthCheck_Call) RunAndReturn(run func(context.Context, string) (time.Duration, error)) *EthClient_HealthCheck_Call {
+func (_c *EthClient_Latency_Call) RunAndReturn(run func(context.Context, string) (time.Duration, error)) *EthClient_Latency_Call {
 	_c.Call.Return(run)
 	return _c
 }
