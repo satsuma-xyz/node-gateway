@@ -105,12 +105,16 @@ Run tests with:
 ```sh
 go build -v ./...
 go test -v ./...
-go test -v ./... -cover
 ```
 
 To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
 ```sh
 go get golang.org/x/tools/cmd/cover
+```
+
+You can generate HTML coverage report and open it in your browser by running:
+```sh
+go test -coverprofile=cover.out ./... && go tool cover -html=cover.out
 ```
 
 #### Linting
