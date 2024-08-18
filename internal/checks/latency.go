@@ -12,15 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
-	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
-	LatencyCheckMethod = "eth_chainId"
-	// If the latency threshold is not specified in the config, we use this value.
-	// TODO(polsar): We should probably use a lower value than RPCRequestTimeout.
-	defaultMaxLatency = RPCRequestTimeout
-)
-
 type FailureCounts struct {
 	// TODO(polsar): Replace these with sliding window counts (must be thread-safe).
 	// https://failsafe-go.dev/circuit-breaker/
@@ -112,9 +103,9 @@ func (c *LatencyCheck) runCheck() {
 	}
 
 	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
-	method := LatencyCheckMethod
+	method := conf.LatencyCheckMethod
 	// TODO(polsar): Get the latency threshold from config.
-	maxLatency := defaultMaxLatency
+	maxLatency := conf.DefaultMaxLatency
 
 	runCheck := func() {
 		c.runCheckForMethod(method, maxLatency)

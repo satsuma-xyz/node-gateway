@@ -461,8 +461,8 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefDetectionWindow),
-				BanWindow:       newDuration(DefBanWindow),
+				DetectionWindow: newDuration(DefaultDetectionWindow),
+				BanWindow:       newDuration(DefaultBanWindow),
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 				},

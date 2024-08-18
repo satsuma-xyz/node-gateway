@@ -12,12 +12,17 @@ import (
 
 type NodeType string
 
-const DefDetectionWindow = time.Minute
-const DefBanWindow = 5 * time.Minute
-
 const (
-	Archive NodeType = "archive"
-	Full    NodeType = "full"
+	DefaultBanWindow       = 5 * time.Minute
+	DefaultDetectionWindow = time.Minute
+	// DefaultMaxLatency is used when the latency threshold is not specified in the config.
+	// TODO(polsar): We should probably use a lower value.
+	DefaultMaxLatency          = 10 * time.Second
+	Archive           NodeType = "archive"
+	Full              NodeType = "full"
+	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
+	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
+	LatencyCheckMethod = "eth_chainId"
 )
 
 type UpstreamConfig struct {
@@ -195,9 +200,31 @@ type MethodConfig struct {
 	Threshold time.Duration `yaml:"threshold"`
 }
 
+func (c *MethodConfig) isMethodConfigValid() bool {
+	if c == nil {
+		return true
+	}
+	// TODO(polsar): Validate the method name.
+	return !strings.EqualFold(c.Name, LatencyCheckMethod)
+}
+
 type LatencyConfig struct {
 	Methods   []MethodConfig `yaml:"methods"`
 	Threshold time.Duration  `yaml:"threshold"`
+}
+
+func (c *LatencyConfig) isLatencyConfigValid() bool {
+	if c == nil {
+		return true
+	}
+
+	for _, method := range c.Methods {
+		if !method.isMethodConfigValid() {
+			return false
+		}
+	}
+
+	return true
 }
 
 type RoutingConfig struct {
@@ -219,17 +246,24 @@ func (r *RoutingConfig) setDefaults() {
 	}
 
 	if r.DetectionWindow == nil {
-		r.DetectionWindow = newDuration(DefDetectionWindow)
+		r.DetectionWindow = newDuration(DefaultDetectionWindow)
 	}
 
 	if r.BanWindow == nil {
-		r.BanWindow = newDuration(DefBanWindow)
+		r.BanWindow = newDuration(DefaultBanWindow)
 	}
 }
 
 func (r *RoutingConfig) isRoutingConfigValid() bool {
-	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
-	return r.isErrorRateValid()
+	// TODO(polsar): Validate the HTTP and JSON RPC codes.
+	isValid := r.isErrorRateValid()
+	latency := r.Latency
+
+	if latency != nil {
+		isValid = isValid && latency.isLatencyConfigValid()
+	}
+
+	return isValid
 }
 
 func (r *RoutingConfig) isErrorRateValid() bool {
