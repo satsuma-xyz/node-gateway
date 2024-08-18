@@ -28,6 +28,7 @@ type singleChainObjectGraph struct {
 }
 
 func wireSingleChainDependencies(
+	globalConfig config.GlobalConfig,
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
 	rpcCache *cache.RPCCache,
@@ -38,6 +39,8 @@ func wireSingleChainDependencies(
 	healthCheckManager := checks.NewHealthCheckManager(
 		client.NewEthClient,
 		chainConfig.Upstreams,
+		chainConfig.Routing,
+		globalConfig.Routing,
 		chainMetadataStore,
 		ticker,
 		metricContainer,
@@ -84,6 +87,7 @@ func WireDependenciesForAllChains(
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
 		dependencyContainer := wireSingleChainDependencies(
+			gatewayConfig.Global,
 			currentChainConfig,
 			childLogger,
 			rpcCache,

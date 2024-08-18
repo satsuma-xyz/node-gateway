@@ -34,16 +34,18 @@ type HealthCheckManager interface {
 }
 
 type healthCheckManager struct {
-	upstreamIDToStatus  map[string]*types.UpstreamStatus
-	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container, *zap.Logger) types.BlockHeightChecker
+	blockHeightObserver BlockHeightObserver
 	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
+	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container, *zap.Logger) types.BlockHeightChecker
+	upstreamIDToStatus  map[string]*types.UpstreamStatus
 	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
 	newLatencyCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
-	blockHeightObserver BlockHeightObserver
+	ethClientGetter     client.EthClientGetter
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
 	logger              *zap.Logger
+	globalRoutingConfig conf.RoutingConfig
+	routingConfig       conf.RoutingConfig
 	configs             []conf.UpstreamConfig
 	isInitialized       atomic.Bool
 }
@@ -51,6 +53,8 @@ type healthCheckManager struct {
 func NewHealthCheckManager(
 	ethClientGetter client.EthClientGetter,
 	config []conf.UpstreamConfig,
+	routingConfig conf.RoutingConfig,
+	globalRoutingConfig conf.RoutingConfig,
 	blockHeightObserver BlockHeightObserver,
 	healthCheckTicker *time.Ticker,
 	metricsContainer *metrics.Container,
@@ -60,6 +64,8 @@ func NewHealthCheckManager(
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
 		configs:             config,
+		routingConfig:       routingConfig,
+		globalRoutingConfig: globalRoutingConfig,
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
