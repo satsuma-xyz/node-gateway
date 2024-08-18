@@ -105,21 +105,35 @@ func (c *LatencyCheck) runCheck() {
 		return
 	}
 
-	// TODO(polsar): Iterate over all (method, latency) pairs and launch the check for each in parallel.
-	method := conf.LatencyCheckMethod
-	maxLatency := conf.DefaultMaxLatency
-
-	runCheck := func() {
-		c.runCheckForMethod(method, maxLatency)
+	latencyConfig := c.routingConfig.Latency
+	if latencyConfig == nil {
+		// TODO(polsar): We still want to check the latency of LatencyCheckMethod using the top-level latency threshold.
+		return
 	}
 
-	runCheckWithMetrics(runCheck,
-		c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-		c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// Iterate over all (method, latencyThreshold) pairs and launch the check for each in parallel.
+	for method, latencyThreshold := range latencyConfig.MethodLatencyThresholds {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			runCheck := func() {
+				c.runCheckForMethod(method, latencyThreshold)
+			}
+
+			runCheckWithMetrics(runCheck,
+				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
+				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+		}()
+	}
 }
 
 // This method runs the latency check for the specified method and latency threshold.
-func (c *LatencyCheck) runCheckForMethod(method string, maxLatency time.Duration) {
+func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
 
@@ -149,7 +163,7 @@ func (c *LatencyCheck) runCheckForMethod(method string, maxLatency time.Duration
 		val.timeoutOrError++
 
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-	} else if duration > maxLatency {
+	} else if duration > latencyThreshold {
 		val.latencyTooHigh++
 
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
