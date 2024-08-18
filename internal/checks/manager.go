@@ -35,11 +35,33 @@ type HealthCheckManager interface {
 
 type healthCheckManager struct {
 	blockHeightObserver BlockHeightObserver
-	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
-	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container, *zap.Logger) types.BlockHeightChecker
-	upstreamIDToStatus  map[string]*types.UpstreamStatus
-	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
-	newLatencyCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
+	newPeerCheck        func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.Checker
+	newBlockHeightCheck func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		BlockHeightObserver,
+		*metrics.Container,
+		*zap.Logger,
+	) types.BlockHeightChecker
+	upstreamIDToStatus map[string]*types.UpstreamStatus
+	newSyncingCheck    func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.Checker
+	newLatencyCheck func(
+		*conf.UpstreamConfig,
+		*conf.RoutingConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.Checker
 	ethClientGetter     client.EthClientGetter
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
@@ -122,7 +144,13 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver, h.metricsContainer, h.logger)
+				blockHeightCheck = h.newBlockHeightCheck(
+					&config,
+					client.NewEthClient,
+					h.blockHeightObserver,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			var peerCheck types.Checker
@@ -132,7 +160,12 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				peerCheck = h.newPeerCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
+				peerCheck = h.newPeerCheck(
+					&config,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			var syncingCheck types.Checker
@@ -142,7 +175,12 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
+				syncingCheck = h.newSyncingCheck(
+					&config,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			var latencyCheck types.Checker
@@ -152,7 +190,13 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				latencyCheck = h.newLatencyCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
+				latencyCheck = h.newLatencyCheck(
+					&config,
+					&h.routingConfig,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			innerWG.Wait()

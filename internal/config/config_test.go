@@ -394,6 +394,24 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{
+			"eth_call":    10000 * time.Millisecond,
+			"eth_getLogs": 2000 * time.Millisecond,
+		},
+		Threshold: 1000 * time.Millisecond,
+		Methods: []MethodConfig{
+			{
+				Name:      "eth_getLogs",
+				Threshold: 2000 * time.Millisecond,
+			},
+			{
+				Name:      "eth_call",
+				Threshold: 10000 * time.Millisecond,
+			},
+		},
+	}
+
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
@@ -413,27 +431,13 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 						"internal server error",
 					},
 				},
-				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{
-						"eth_call":    10000 * time.Millisecond,
-						"eth_getLogs": 2000 * time.Millisecond,
-					},
-					Threshold: 1000 * time.Millisecond,
-					Methods: []MethodConfig{
-						{
-							Name:      "eth_getLogs",
-							Threshold: 2000 * time.Millisecond,
-						},
-						{
-							Name:      "eth_call",
-							Threshold: 10000 * time.Millisecond,
-						},
-					},
-				},
+				Latency:     &expectedLatencyConfig,
 				AlwaysRoute: newBool(true),
 			},
 		},
-		Chains: getCommonChainsConfig(nil),
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			Latency: &expectedLatencyConfig,
+		}),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -469,6 +473,11 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{},
+		Threshold:               1000 * time.Millisecond,
+	}
+
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
@@ -477,13 +486,12 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 				},
-				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{},
-					Threshold:        1000 * time.Millisecond,
-				},
+				Latency: &expectedLatencyConfig,
 			},
 		},
-		Chains: getCommonChainsConfig(nil),
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			Latency: &expectedLatencyConfig,
+		}),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -648,7 +656,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 				DetectionWindow: newDuration(DefaultDetectionWindow),
 				BanWindow:       newDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{
+					MethodLatencyThresholds: map[string]time.Duration{
 						"getLogs":          2000 * time.Millisecond,
 						"eth_getStorageAt": 1000 * time.Millisecond, // Top-level latency default
 					},
@@ -670,7 +678,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 			DetectionWindow: newDuration(DefaultDetectionWindow),
 			BanWindow:       newDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
-				MethodThresholds: map[string]time.Duration{
+				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":          4000 * time.Millisecond, // Top-level latency default
 					"eth_getStorageAt": 6000 * time.Millisecond,
 				},
@@ -722,30 +730,34 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{
+			"getLogs":          2000 * time.Millisecond,
+			"eth_getStorageAt": DefaultMaxLatency, // Global default
+		},
+		Methods: []MethodConfig{
+			{
+				Name:      "getLogs",
+				Threshold: 2000 * time.Millisecond,
+			},
+			{
+				Name: "eth_getStorageAt",
+			},
+		},
+	}
+
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
 				DetectionWindow: newDuration(DefaultDetectionWindow),
 				BanWindow:       newDuration(DefaultBanWindow),
-				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{
-						"getLogs":          2000 * time.Millisecond,
-						"eth_getStorageAt": DefaultMaxLatency, // Global default
-					},
-					Methods: []MethodConfig{
-						{
-							Name:      "getLogs",
-							Threshold: 2000 * time.Millisecond,
-						},
-						{
-							Name: "eth_getStorageAt",
-						},
-					},
-				},
+				Latency:         &expectedLatencyConfig,
 			},
 		},
 
-		Chains: getCommonChainsConfig(nil),
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			Latency: &expectedLatencyConfig,
+		}),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -795,7 +807,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 				DetectionWindow: newDuration(DefaultDetectionWindow),
 				BanWindow:       newDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{
+					MethodLatencyThresholds: map[string]time.Duration{
 						"getLogs":          2000 * time.Millisecond,
 						"eth_getStorageAt": 1000 * time.Millisecond, // Top-level latency default
 					},
@@ -817,7 +829,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 			DetectionWindow: newDuration(DefaultDetectionWindow),
 			BanWindow:       newDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
-				MethodThresholds: map[string]time.Duration{
+				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":          2000 * time.Millisecond, // Top-level latency for method
 					"eth_getStorageAt": 6000 * time.Millisecond,
 				},
@@ -848,6 +860,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
             - method: getLogs
               threshold: 2000ms
             - method: eth_getStorageAt
+            - method: eth_awesomeMethod
+              threshold: 20ms
 
     chains:
       - chainName: ethereum
@@ -881,9 +895,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				DetectionWindow: newDuration(DefaultDetectionWindow),
 				BanWindow:       newDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
-					MethodThresholds: map[string]time.Duration{
-						"getLogs":          2000 * time.Millisecond,
-						"eth_getStorageAt": DefaultMaxLatency, // Top-level latency default
+					MethodLatencyThresholds: map[string]time.Duration{
+						"getLogs":           2000 * time.Millisecond,
+						"eth_getStorageAt":  DefaultMaxLatency, // Top-level latency default
+						"eth_awesomeMethod": 20 * time.Millisecond,
 					},
 					Methods: []MethodConfig{
 						{
@@ -892,6 +907,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 						},
 						{
 							Name: "eth_getStorageAt",
+						},
+						{
+							Name:      "eth_awesomeMethod",
+							Threshold: 20 * time.Millisecond,
 						},
 					},
 				},
@@ -902,10 +921,11 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 			DetectionWindow: newDuration(DefaultDetectionWindow),
 			BanWindow:       newDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
-				MethodThresholds: map[string]time.Duration{
+				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":                    2000 * time.Millisecond, // Top-level latency for method
 					"eth_getStorageAt":           6000 * time.Millisecond,
 					"eth_doesSomethingImportant": DefaultMaxLatency,
+					"eth_awesomeMethod":          20 * time.Millisecond, // Inherited from global latency config
 				},
 				Methods: []MethodConfig{
 					{

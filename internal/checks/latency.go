@@ -33,6 +33,7 @@ type LatencyCheck struct {
 	metricsContainer    *metrics.Container
 	logger              *zap.Logger
 	upstreamConfig      *conf.UpstreamConfig
+	routingConfig       *conf.RoutingConfig
 	methodFailureCounts map[string]*FailureCounts // RPC method -> FailureCounts
 	lock                sync.RWMutex
 	ShouldRun           bool
@@ -40,12 +41,14 @@ type LatencyCheck struct {
 
 func NewLatencyChecker(
 	upstreamConfig *conf.UpstreamConfig,
+	routingConfig *conf.RoutingConfig,
 	clientGetter client.EthClientGetter,
 	metricsContainer *metrics.Container,
 	logger *zap.Logger,
 ) types.Checker {
 	c := &LatencyCheck{
 		upstreamConfig:      upstreamConfig,
+		routingConfig:       routingConfig,
 		clientGetter:        clientGetter,
 		metricsContainer:    metricsContainer,
 		logger:              logger,

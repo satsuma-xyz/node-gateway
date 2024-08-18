@@ -213,10 +213,22 @@ func (c *MethodConfig) isMethodConfigValid() bool {
 }
 
 type LatencyConfig struct {
-	MethodThresholds map[string]time.Duration
+	MethodLatencyThresholds map[string]time.Duration
 
 	Methods   []MethodConfig `yaml:"methods"`
 	Threshold time.Duration  `yaml:"threshold"`
+}
+
+func (c *LatencyConfig) merge(globalConfig *LatencyConfig) {
+	if globalConfig == nil {
+		return
+	}
+
+	for method, latencyThreshold := range globalConfig.MethodLatencyThresholds {
+		if _, exists := c.MethodLatencyThresholds[method]; !exists {
+			c.MethodLatencyThresholds[method] = latencyThreshold
+		}
+	}
 }
 
 func (c *LatencyConfig) GetLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
@@ -233,7 +245,7 @@ func (c *LatencyConfig) GetLatencyThreshold(globalConfig *LatencyConfig) time.Du
 }
 
 func (c *LatencyConfig) GetLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
-	latency, exists := c.MethodThresholds[method]
+	latency, exists := c.MethodLatencyThresholds[method]
 	if !exists {
 		// Use the global config's latency value or the default.
 		if globalConfig != nil {
@@ -247,7 +259,7 @@ func (c *LatencyConfig) GetLatencyThresholdForMethod(method string, globalConfig
 }
 
 func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
-	c.MethodThresholds = make(map[string]time.Duration)
+	c.MethodLatencyThresholds = make(map[string]time.Duration)
 
 	if c.Methods == nil {
 		return
@@ -269,7 +281,7 @@ func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
 			threshold = method.Threshold
 		}
 
-		c.MethodThresholds[method.Name] = threshold
+		c.MethodLatencyThresholds[method.Name] = threshold
 	}
 }
 
@@ -311,14 +323,26 @@ func (r *RoutingConfig) setDefaults() {
 }
 
 func (r *RoutingConfig) initialize(globalConfig *RoutingConfig) {
-	var latencyConfig *LatencyConfig
+	var globalLatencyConfig *LatencyConfig
 
 	if globalConfig != nil {
-		latencyConfig = globalConfig.Latency
+		globalLatencyConfig = globalConfig.Latency
 	}
 
-	if r.Latency != nil {
-		r.Latency.initialize(latencyConfig)
+	if r.Latency == nil {
+		if globalConfig != nil {
+			// Use global latency config which is already initialized.
+			r.Latency = globalLatencyConfig
+		}
+
+		return
+	}
+
+	r.Latency.initialize(globalLatencyConfig)
+
+	if globalConfig != nil {
+		// Merge global latency config into the chain latency config.
+		r.Latency.merge(globalLatencyConfig)
 	}
 }
 
