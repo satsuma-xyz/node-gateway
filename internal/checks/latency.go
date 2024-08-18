@@ -17,6 +17,7 @@ const (
 	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
 	LatencyCheckMethod = "eth_chainId"
 	// If the latency threshold is not specified in the config, we use this value.
+	// TODO(polsar): We should probably use a lower value than RPCRequestTimeout.
 	defaultMaxLatency = RPCRequestTimeout
 )
 
@@ -140,7 +141,8 @@ func (c *LatencyCheck) runCheckForMethod(method string, maxLatency time.Duration
 
 		if !exists {
 			// This is the first time we are checking this method so initialize its failure counts.
-			// TODO(polsar): We could initialize all (method, FailureCounts) pairs in the Initialize method instead.
+			// TODO(polsar): Initialize all (method, FailureCounts) pairs in the Initialize method instead.
+			// Once initialized, the map will only be read, eliminating the need for the lock.
 			val = NewFailureCounts()
 			c.methodFailureCounts[method] = val
 		}

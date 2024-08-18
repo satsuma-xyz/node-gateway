@@ -32,10 +32,6 @@ type UpstreamConfig struct {
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
 }
 
-func newDuration(d time.Duration) *time.Duration {
-	return &d
-}
-
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 	isValid := true
 	if c.HTTPURL == "" {
@@ -211,6 +207,10 @@ type RoutingConfig struct {
 	DetectionWindow *time.Duration `yaml:"detectionWindow"`
 	BanWindow       *time.Duration `yaml:"banWindow"`
 	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
+}
+
+func newDuration(d time.Duration) *time.Duration {
+	return &d
 }
 
 func (r *RoutingConfig) setDefaults() {
