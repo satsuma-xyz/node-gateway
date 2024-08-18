@@ -27,11 +27,22 @@ type singleChainObjectGraph struct {
 	chainName string
 }
 
-func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger, rpcCache *cache.RPCCache) singleChainObjectGraph {
+func wireSingleChainDependencies(
+	chainConfig *config.SingleChainConfig,
+	logger *zap.Logger,
+	rpcCache *cache.RPCCache,
+) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, chainConfig.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
+	healthCheckManager := checks.NewHealthCheckManager(
+		client.NewEthClient,
+		chainConfig.Upstreams,
+		chainMetadataStore,
+		ticker,
+		metricContainer,
+		logger,
+	)
 
 	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.MethodsAllowed, route.NearGlobalMaxHeight}
 	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &chainConfig.Routing)
@@ -72,7 +83,11 @@ func WireDependenciesForAllChains(
 		currentChainConfig := &gatewayConfig.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
-		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger, rpcCache)
+		dependencyContainer := wireSingleChainDependencies(
+			currentChainConfig,
+			childLogger,
+			rpcCache,
+		)
 
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
 		routers = append(routers, dependencyContainer.router)
