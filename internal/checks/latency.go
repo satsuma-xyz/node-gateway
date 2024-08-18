@@ -110,8 +110,13 @@ func (c *LatencyCheck) runCheck() {
 		return
 	}
 
+	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
+	method := LatencyCheckMethod
+	// TODO(polsar): Get the latency threshold from config.
+	maxLatency := defaultMaxLatency
+
 	runCheck := func() {
-		c.runCheckForMethod()
+		c.runCheckForMethod(method, maxLatency)
 	}
 
 	runCheckWithMetrics(runCheck,
@@ -119,12 +124,10 @@ func (c *LatencyCheck) runCheck() {
 		c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
 }
 
-func (c *LatencyCheck) runCheckForMethod() {
+// This method runs the latency check for the specified method and latency threshold.
+func (c *LatencyCheck) runCheckForMethod(method string, maxLatency time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
-
-	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
-	method := LatencyCheckMethod
 
 	var val *FailureCounts
 
@@ -151,7 +154,7 @@ func (c *LatencyCheck) runCheckForMethod() {
 		val.timeoutOrError++
 
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-	} else if duration > defaultMaxLatency { // TODO(polsar): Get the latency threshold from config.
+	} else if duration > maxLatency {
 		val.latencyTooHigh++
 
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
