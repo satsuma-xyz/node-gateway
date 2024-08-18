@@ -231,11 +231,11 @@ func (c *LatencyConfig) merge(globalConfig *LatencyConfig) {
 	}
 }
 
-func (c *LatencyConfig) GetLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
+func (c *LatencyConfig) getLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
 	if c.Threshold <= time.Duration(0) {
 		// The latency threshold is not configured or invalid, so use the global config's value or the default.
 		if globalConfig != nil {
-			return globalConfig.GetLatencyThreshold(nil)
+			return globalConfig.getLatencyThreshold(nil)
 		}
 
 		return DefaultMaxLatency
@@ -244,12 +244,12 @@ func (c *LatencyConfig) GetLatencyThreshold(globalConfig *LatencyConfig) time.Du
 	return c.Threshold
 }
 
-func (c *LatencyConfig) GetLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
+func (c *LatencyConfig) getLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
 	latency, exists := c.MethodLatencyThresholds[method]
 	if !exists {
 		// Use the global config's latency value or the default.
 		if globalConfig != nil {
-			return globalConfig.GetLatencyThresholdForMethod(method, nil)
+			return globalConfig.getLatencyThresholdForMethod(method, nil)
 		}
 
 		return DefaultMaxLatency
@@ -272,10 +272,10 @@ func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
 			// The method's latency threshold is not configured or invalid
 			if c.Threshold <= time.Duration(0) && globalConfig != nil {
 				// Use the top-level value.
-				threshold = globalConfig.GetLatencyThresholdForMethod(method.Name, nil)
+				threshold = globalConfig.getLatencyThresholdForMethod(method.Name, nil)
 			} else {
 				// Use the global config latency value for the method.
-				threshold = c.GetLatencyThreshold(globalConfig)
+				threshold = c.getLatencyThreshold(globalConfig)
 			}
 		} else {
 			threshold = method.Threshold
