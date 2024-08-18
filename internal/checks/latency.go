@@ -53,7 +53,7 @@ func NewLatencyChecker(
 		metricsContainer:    metricsContainer,
 		logger:              logger,
 		methodFailureCounts: make(map[string]*FailureCounts),
-		ShouldRun:           true, // TODO(polsar): Set this from the config.
+		ShouldRun:           routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
 
 	if err := c.Initialize(); err != nil {
@@ -106,9 +106,7 @@ func (c *LatencyCheck) runCheck() {
 	}
 
 	// TODO(polsar): Iterate over all (method, latency) pairs and launch the check for each in parallel.
-	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
 	method := conf.LatencyCheckMethod
-	// TODO(polsar): Get the latency threshold from config.
 	maxLatency := conf.DefaultMaxLatency
 
 	runCheck := func() {

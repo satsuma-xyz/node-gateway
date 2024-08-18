@@ -323,6 +323,7 @@ func (r *RoutingConfig) setDefaults() {
 }
 
 func (r *RoutingConfig) initialize(globalConfig *RoutingConfig) {
+	// TODO(polsar): Analogous code should be used from ErrorsConfig.
 	var globalLatencyConfig *LatencyConfig
 
 	if globalConfig != nil {
