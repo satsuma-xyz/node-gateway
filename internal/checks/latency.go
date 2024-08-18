@@ -111,50 +111,55 @@ func (c *LatencyCheck) runCheck() {
 	}
 
 	runCheck := func() {
-		ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
-		defer cancel()
-
-		// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
-		method := LatencyCheckMethod
-
-		var val *FailureCounts
-
-		func() {
-			c.lock.Lock()
-			defer c.lock.Unlock()
-
-			var exists bool
-			val, exists = c.methodFailureCounts[method]
-
-			if !exists {
-				// This is the first time we are checking this method so initialize its failure counts.
-				val = NewFailureCounts()
-				c.methodFailureCounts[method] = val
-			}
-		}()
-
-		// Make the request and increment the appropriate failure count if it takes too long or errors out.
-		var duration time.Duration
-		duration, c.Err = c.client.Latency(ctx, method)
-
-		if c.Err != nil {
-			val.timeoutOrError++
-
-			c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-		} else if duration > defaultMaxLatency { // TODO(polsar): Get the latency threshold from config.
-			val.latencyTooHigh++
-
-			c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-		}
-
-		c.metricsContainer.Latency.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(duration.Milliseconds()))
-
-		c.logger.Debug("Ran LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
+		c.runCheckForMethod()
 	}
 
 	runCheckWithMetrics(runCheck,
 		c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
 		c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+}
+
+func (c *LatencyCheck) runCheckForMethod() {
+	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
+	defer cancel()
+
+	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
+	method := LatencyCheckMethod
+
+	var val *FailureCounts
+
+	func() {
+		c.lock.Lock()
+		defer c.lock.Unlock()
+
+		var exists bool
+		val, exists = c.methodFailureCounts[method]
+
+		if !exists {
+			// This is the first time we are checking this method so initialize its failure counts.
+			// TODO(polsar): We could initialize all (method, FailureCounts) pairs in the Initialize method instead.
+			val = NewFailureCounts()
+			c.methodFailureCounts[method] = val
+		}
+	}()
+
+	// Make the request and increment the appropriate failure count if it takes too long or errors out.
+	var duration time.Duration
+	duration, c.Err = c.client.Latency(ctx, method)
+
+	if c.Err != nil {
+		val.timeoutOrError++
+
+		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+	} else if duration > defaultMaxLatency { // TODO(polsar): Get the latency threshold from config.
+		val.latencyTooHigh++
+
+		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+	}
+
+	c.metricsContainer.Latency.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(duration.Milliseconds()))
+
+	c.logger.Debug("Ran LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
 func (c *LatencyCheck) IsPassing() bool {
