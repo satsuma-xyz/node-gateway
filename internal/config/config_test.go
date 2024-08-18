@@ -693,6 +693,66 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 	}
 }
 
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNotSpecifiedGlobalConfig(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: newDuration(DefaultDetectionWindow),
+				BanWindow:       newDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodThresholds: map[string]time.Duration{
+						"getLogs":          2000 * time.Millisecond,
+						"eth_getStorageAt": DefaultMaxLatency, // Global default
+					},
+					Methods: []MethodConfig{
+						{
+							Name:      "getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name: "eth_getStorageAt",
+						},
+					},
+				},
+			},
+		},
+
+		Chains: getCommonChainsConfig(nil),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
 func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySpecifiedInGlobalConfigOnly(t *testing.T) {
 	config := `
     global:
@@ -768,6 +828,95 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 					{
 						Name:      "eth_getStorageAt",
 						Threshold: 6000 * time.Millisecond,
+					},
+				},
+			},
+		}),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNotSpecifiedNeitherGlobalNotChain(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+              - method: eth_getStorageAt
+                threshold: 6000ms
+              - method: eth_doesSomethingImportant
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: newDuration(DefaultDetectionWindow),
+				BanWindow:       newDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodThresholds: map[string]time.Duration{
+						"getLogs":          2000 * time.Millisecond,
+						"eth_getStorageAt": DefaultMaxLatency, // Top-level latency default
+					},
+					Methods: []MethodConfig{
+						{
+							Name:      "getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name: "eth_getStorageAt",
+						},
+					},
+				},
+			},
+		},
+
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: newDuration(DefaultDetectionWindow),
+			BanWindow:       newDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodThresholds: map[string]time.Duration{
+					"getLogs":                    2000 * time.Millisecond, // Top-level latency for method
+					"eth_getStorageAt":           6000 * time.Millisecond,
+					"eth_doesSomethingImportant": DefaultMaxLatency,
+				},
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+					{
+						Name:      "eth_getStorageAt",
+						Threshold: 6000 * time.Millisecond,
+					},
+					{
+						Name: "eth_doesSomethingImportant",
 					},
 				},
 			},
