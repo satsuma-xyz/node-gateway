@@ -118,7 +118,9 @@ func (c *LatencyCheck) runCheck() {
 	for method, latencyThreshold := range latencyConfig.MethodLatencyThresholds {
 		wg.Add(1)
 
-		go func() {
+		// Passing the loop variables as arguments is required to prevent the following lint error:
+		// loopclosure: loop variable method captured by func literal (govet)
+		go func(method string, latencyThreshold time.Duration) {
 			defer wg.Done()
 
 			runCheck := func() {
@@ -128,7 +130,7 @@ func (c *LatencyCheck) runCheck() {
 			runCheckWithMetrics(runCheck,
 				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
 				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
-		}()
+		}(method, latencyThreshold)
 	}
 }
 
@@ -148,6 +150,7 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 
 		if !exists {
 			// This is the first time we are checking this method so initialize its failure counts.
+			//
 			// TODO(polsar): Initialize all (method, FailureCounts) pairs in the Initialize method instead.
 			// Once initialized, the map will only be read, eliminating the need for the lock.
 			val = NewFailureCounts()
