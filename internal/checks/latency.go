@@ -102,6 +102,7 @@ func (c *LatencyCheck) runCheck() {
 		return
 	}
 
+	// TODO(polsar): Iterate over all (method, latency) pairs and launch the check for each in parallel.
 	// TODO(polsar): Add support for checking the latency of specific method(s), as specified in the config.
 	method := conf.LatencyCheckMethod
 	// TODO(polsar): Get the latency threshold from config.

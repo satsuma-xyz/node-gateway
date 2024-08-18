@@ -236,10 +236,6 @@ type RoutingConfig struct {
 	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
 }
 
-func newDuration(d time.Duration) *time.Duration {
-	return &d
-}
-
 func (r *RoutingConfig) setDefaults() {
 	if r.Errors == nil && r.Latency == nil {
 		return
@@ -279,6 +275,10 @@ func (r *RoutingConfig) isErrorRateValid() bool {
 	}
 
 	return isValid
+}
+
+func newDuration(d time.Duration) *time.Duration {
+	return &d
 }
 
 type ChainCacheConfig struct {
