@@ -184,6 +184,10 @@ func (c *GlobalConfig) setDefaults() {
 	c.Routing.setDefaults()
 }
 
+func (c *GlobalConfig) initialize() {
+	c.Routing.initialize(nil)
+}
+
 type CacheConfig struct {
 	Redis string `yaml:"redis"`
 }
@@ -209,8 +213,64 @@ func (c *MethodConfig) isMethodConfigValid() bool {
 }
 
 type LatencyConfig struct {
+	MethodThresholds map[string]time.Duration
+
 	Methods   []MethodConfig `yaml:"methods"`
 	Threshold time.Duration  `yaml:"threshold"`
+}
+
+func (c *LatencyConfig) GetLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
+	if c.Threshold <= time.Duration(0) {
+		// The latency threshold is not configured or invalid, so use the global config's value or the default.
+		if globalConfig != nil {
+			return globalConfig.GetLatencyThreshold(nil)
+		}
+
+		return DefaultMaxLatency
+	}
+
+	return c.Threshold
+}
+
+func (c *LatencyConfig) GetLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
+	latency, exists := c.MethodThresholds[method]
+	if !exists {
+		// Use the global config's latency value or the default.
+		if globalConfig != nil {
+			return globalConfig.GetLatencyThresholdForMethod(method, nil)
+		}
+
+		return DefaultMaxLatency
+	}
+
+	return latency
+}
+
+func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
+	c.MethodThresholds = make(map[string]time.Duration)
+
+	if c.Methods == nil {
+		return
+	}
+
+	for _, method := range c.Methods {
+		var threshold time.Duration
+
+		if method.Threshold <= time.Duration(0) {
+			// The method's latency threshold is not configured or invalid
+			if c.Threshold <= time.Duration(0) && globalConfig != nil {
+				// Use the top-level value.
+				threshold = globalConfig.GetLatencyThresholdForMethod(method.Name, nil)
+			} else {
+				// Use the global config latency value for the method.
+				threshold = c.GetLatencyThreshold(globalConfig)
+			}
+		} else {
+			threshold = method.Threshold
+		}
+
+		c.MethodThresholds[method.Name] = threshold
+	}
 }
 
 func (c *LatencyConfig) isLatencyConfigValid() bool {
@@ -247,6 +307,18 @@ func (r *RoutingConfig) setDefaults() {
 
 	if r.BanWindow == nil {
 		r.BanWindow = newDuration(DefaultBanWindow)
+	}
+}
+
+func (r *RoutingConfig) initialize(globalConfig *RoutingConfig) {
+	var latencyConfig *LatencyConfig
+
+	if globalConfig != nil {
+		latencyConfig = globalConfig.Latency
+	}
+
+	if r.Latency != nil {
+		r.Latency.initialize(latencyConfig)
 	}
 }
 
@@ -327,6 +399,10 @@ func (c *SingleChainConfig) setDefaults() {
 	c.Routing.setDefaults()
 }
 
+func (c *SingleChainConfig) initialize(globalConfig *GlobalConfig) {
+	c.Routing.initialize(&globalConfig.Routing)
+}
+
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
 	isValid := len(chainsConfig) > 0
 
@@ -350,6 +426,15 @@ func (config *Config) setDefaults() {
 	for chainIndex := range config.Chains {
 		chainConfig := &config.Chains[chainIndex]
 		chainConfig.setDefaults()
+	}
+}
+
+func (config *Config) initialize() {
+	config.Global.initialize()
+
+	for chainIndex := range config.Chains {
+		chainConfig := &config.Chains[chainIndex]
+		chainConfig.initialize(&config.Global)
 	}
 }
 
@@ -385,6 +470,7 @@ func parseConfig(configBytes []byte) (Config, error) {
 	}
 
 	config.setDefaults()
+	config.initialize()
 
 	err = config.Validate()
 
