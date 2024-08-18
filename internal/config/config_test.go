@@ -561,6 +561,38 @@ func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInGlobalConfig(t *te
 	}
 }
 
+func TestParseConfig_InvalidConfigLatencyRouting_InvalidMethodName(t *testing.T) {
+	config := `
+    global:
+      routing:
+        errors:
+          rate: 0.25
+        latency:
+          threshold: 1000ms
+          methods:
+            - method: eth_chainid
+              threshold: 2000ms
+
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	_, err := parseConfig(configBytes)
+
+	if err == nil {
+		t.Errorf("Expected error parsing invalid YAML.")
+	}
+}
+
 func TestParseConfig_InvalidYaml(t *testing.T) {
 	config := `
     global:
