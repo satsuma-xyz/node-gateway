@@ -115,6 +115,8 @@ func (c *LatencyCheck) runCheck() {
 	defer wg.Wait()
 
 	// Iterate over all (method, latencyThreshold) pairs and launch the check for each in parallel.
+	// Note that `latencyConfig.MethodLatencyThresholds` is never modified after its initialization
+	// in `config` package, so we don't need a lock to protect concurrent read access.
 	for method, latencyThreshold := range latencyConfig.MethodLatencyThresholds {
 		wg.Add(1)
 
