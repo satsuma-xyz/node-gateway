@@ -13,6 +13,9 @@ import (
 )
 
 type FailureCounts struct {
+	// TODO(polsar): Average out the latencies over the `detectionWindow`.
+	// For V2, add the minimum number of measurements required to make a decision,
+	// as well as other aggregation options.
 	// TODO(polsar): Replace these with sliding window counts (must be thread-safe).
 	// https://failsafe-go.dev/circuit-breaker/
 	latencyTooHigh uint64
