@@ -132,7 +132,7 @@ func (r *SimpleRouter) Route(
 	HTTPResponseCode := ""
 	r.healthCheckManager.RecordRequest(upstreamID, &types.RequestData{
 		Method:           requestBody.GetMethod(),
-		HTTPResponseCode: HTTPResponseCode,
+		HTTPResponseCode: statusCode,
 		ResponseBody:     jsonRPCResponse,
 		Latency:          time.Since(start),
 	})

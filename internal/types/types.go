@@ -19,7 +19,7 @@ type UpstreamStatus struct {
 type RequestData struct {
 	ResponseBody     jsonrpc.ResponseBody
 	Method           string
-	HTTPResponseCode string
+	HTTPResponseCode int
 	Latency          time.Duration
 }
 

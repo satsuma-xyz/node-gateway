@@ -2,6 +2,9 @@ package checks
 
 import (
 	"context"
+	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +13,10 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"github.com/satsuma-data/node-gateway/internal/types"
 	"go.uber.org/zap"
+)
+
+const (
+	ResponseCodeWildcard = 'x'
 )
 
 type LatencyStats struct {
@@ -211,8 +218,103 @@ func (c *LatencyCheck) IsPassing() bool {
 	return true
 }
 
-func (c *LatencyCheck) RecordRequest(*types.RequestData) {
-	if !c.routingConfig.PassiveLatencyChecking { //nolint:revive,staticcheck // Will be implemented soon
-		// TODO(polsar): Implement this.
+func (c *LatencyCheck) recordError(method string) { //nolint:revive // Will be implemented soon
+	// TODO(polsar): Implement this.
+}
+
+func (c *LatencyCheck) recordLatency(method string, latency time.Duration) { //nolint:revive // Will be implemented soon
+	// TODO(polsar): Implement this.
+}
+
+func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
+	if c.routingConfig.PassiveLatencyChecking {
+		return
 	}
+
+	c.recordLatency(data.Method, data.Latency)
+
+	if data.HTTPResponseCode >= http.StatusBadRequest {
+		// No RPC responses are available since the HTTP request errored out.
+		c.processError(data.Method, strconv.Itoa(data.HTTPResponseCode), "", "")
+		return
+	}
+
+	if data.ResponseBody == nil {
+		// TODO(polsar): What does this even mean when no HTTP error occurred? How should we handle this case?
+		return
+	}
+
+	for _, resp := range data.ResponseBody.GetSubResponses() {
+		if resp.Error != nil {
+			// TODO(polsar): Should we ignore this response if it does not correspond to a request.
+			c.processError(data.Method, "", strconv.Itoa(resp.Error.Code), resp.Error.Message)
+		}
+	}
+}
+
+func (c *LatencyCheck) processError(method, httpCode, jsonRPCCode, errorMsg string) {
+	if isMatchForPatterns(httpCode, c.routingConfig.Errors.HTTPCodes) ||
+		isMatchForPatterns(jsonRPCCode, c.routingConfig.Errors.JSONRPCCodes) ||
+		isErrorMatches(errorMsg, c.routingConfig.Errors.ErrorStrings) {
+		c.recordError(method)
+	}
+}
+
+func isMatchForPatterns(responseCode string, patterns []string) bool {
+	if responseCode == "" {
+		return false
+	}
+
+	if len(patterns) == 0 {
+		return true
+	}
+
+	for _, pattern := range patterns {
+		if isMatch(responseCode, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Returns true iff the response code matches the pattern using ResponseCodeWildcard as the wildcard character.
+func isMatch(responseCode, pattern string) bool {
+	if len(responseCode) != len(pattern) {
+		return false
+	}
+
+	for i, x := range responseCode {
+		// TODO(polsar): Unicode sucks. Fix this awkward conversion voodoo.
+		y := string(pattern[i])
+
+		if strings.EqualFold(y, string(ResponseCodeWildcard)) {
+			continue
+		}
+
+		if string(x) != y {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isErrorMatches(errorMsg string, errors []string) bool {
+	if errorMsg == "" {
+		return false
+	}
+
+	if len(errors) == 0 {
+		return true
+	}
+
+	for _, errorSubstr := range errors {
+		// TODO(polsar): Add support for regular expression matching.
+		if strings.Contains(errorMsg, errorSubstr) {
+			return true
+		}
+	}
+
+	return false
 }
