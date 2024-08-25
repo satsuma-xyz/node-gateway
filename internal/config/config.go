@@ -314,11 +314,11 @@ func (r *RoutingConfig) setDefaults() {
 	}
 
 	if r.DetectionWindow == nil {
-		r.DetectionWindow = newDuration(DefaultDetectionWindow)
+		r.DetectionWindow = NewDuration(DefaultDetectionWindow)
 	}
 
 	if r.BanWindow == nil {
-		r.BanWindow = newDuration(DefaultBanWindow)
+		r.BanWindow = NewDuration(DefaultBanWindow)
 	}
 }
 
@@ -374,7 +374,7 @@ func (r *RoutingConfig) isErrorRateValid() bool {
 	return isValid
 }
 
-func newDuration(d time.Duration) *time.Duration {
+func NewDuration(d time.Duration) *time.Duration {
 	return &d
 }
 

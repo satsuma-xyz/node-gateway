@@ -416,8 +416,8 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
 				MaxBlocksBehind: 33,
-				DetectionWindow: newDuration(10 * time.Minute),
-				BanWindow:       newDuration(50 * time.Minute),
+				DetectionWindow: NewDuration(10 * time.Minute),
+				BanWindow:       NewDuration(50 * time.Minute),
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 					HTTPCodes: []string{
@@ -481,8 +481,8 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefaultDetectionWindow),
-				BanWindow:       newDuration(DefaultBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 				},
@@ -653,8 +653,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefaultDetectionWindow),
-				BanWindow:       newDuration(DefaultBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
 						"getLogs":          2000 * time.Millisecond,
@@ -675,8 +675,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 		},
 
 		Chains: getCommonChainsConfig(&RoutingConfig{
-			DetectionWindow: newDuration(DefaultDetectionWindow),
-			BanWindow:       newDuration(DefaultBanWindow),
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
 				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":          4000 * time.Millisecond, // Top-level latency default
@@ -749,8 +749,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefaultDetectionWindow),
-				BanWindow:       newDuration(DefaultBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency:         &expectedLatencyConfig,
 			},
 		},
@@ -804,8 +804,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefaultDetectionWindow),
-				BanWindow:       newDuration(DefaultBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
 						"getLogs":          2000 * time.Millisecond,
@@ -826,8 +826,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 		},
 
 		Chains: getCommonChainsConfig(&RoutingConfig{
-			DetectionWindow: newDuration(DefaultDetectionWindow),
-			BanWindow:       newDuration(DefaultBanWindow),
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
 				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":          2000 * time.Millisecond, // Top-level latency for method
@@ -892,8 +892,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefaultDetectionWindow),
-				BanWindow:       newDuration(DefaultBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
 						"getLogs":           2000 * time.Millisecond,
@@ -918,8 +918,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 		},
 
 		Chains: getCommonChainsConfig(&RoutingConfig{
-			DetectionWindow: newDuration(DefaultDetectionWindow),
-			BanWindow:       newDuration(DefaultBanWindow),
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
 			Latency: &LatencyConfig{
 				MethodLatencyThresholds: map[string]time.Duration{
 					"getLogs":                    2000 * time.Millisecond, // Top-level latency for method
