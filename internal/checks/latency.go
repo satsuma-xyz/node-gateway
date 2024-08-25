@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type FailureCounts struct {
+type LatencyStats struct {
 	// TODO(polsar): Average out the latencies over the `detectionWindow`.
 	// For V2, add the minimum number of measurements required to make a decision,
 	// as well as other aggregation options.
@@ -22,24 +22,24 @@ type FailureCounts struct {
 	timeoutOrError uint64
 }
 
-func NewFailureCounts() *FailureCounts {
-	return &FailureCounts{
+func NewLatencyStats() *LatencyStats {
+	return &LatencyStats{
 		latencyTooHigh: 0,
 		timeoutOrError: 0,
 	}
 }
 
 type LatencyCheck struct {
-	client              client.EthClient
-	Err                 error
-	clientGetter        client.EthClientGetter
-	metricsContainer    *metrics.Container
-	logger              *zap.Logger
-	upstreamConfig      *conf.UpstreamConfig
-	routingConfig       *conf.RoutingConfig
-	methodFailureCounts map[string]*FailureCounts // RPC method -> FailureCounts
-	lock                sync.RWMutex
-	ShouldRun           bool
+	client             client.EthClient
+	Err                error
+	clientGetter       client.EthClientGetter
+	metricsContainer   *metrics.Container
+	logger             *zap.Logger
+	upstreamConfig     *conf.UpstreamConfig
+	routingConfig      *conf.RoutingConfig
+	methodLatencyStats map[string]*LatencyStats // RPC method -> LatencyStats
+	lock               sync.RWMutex
+	ShouldRun          bool
 }
 
 func NewLatencyChecker(
@@ -50,13 +50,13 @@ func NewLatencyChecker(
 	logger *zap.Logger,
 ) types.LatencyChecker {
 	c := &LatencyCheck{
-		upstreamConfig:      upstreamConfig,
-		routingConfig:       routingConfig,
-		clientGetter:        clientGetter,
-		metricsContainer:    metricsContainer,
-		logger:              logger,
-		methodFailureCounts: make(map[string]*FailureCounts),
-		ShouldRun:           routingConfig.Errors != nil || routingConfig.Latency != nil,
+		upstreamConfig:     upstreamConfig,
+		routingConfig:      routingConfig,
+		clientGetter:       clientGetter,
+		metricsContainer:   metricsContainer,
+		logger:             logger,
+		methodLatencyStats: make(map[string]*LatencyStats),
+		ShouldRun:          routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
 
 	if err := c.Initialize(); err != nil {
@@ -139,40 +139,49 @@ func (c *LatencyCheck) runCheck() {
 	}
 }
 
+// Returns the LatencyStats instance corresponding to the specified RPC method.
+// This method is thread-safe.
+func (c *LatencyCheck) getLatencyStats(method string) *LatencyStats {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	stats, exists := c.methodLatencyStats[method]
+
+	if !exists {
+		// This is the first time we are checking this method so initialize its LatencyStats instance.
+		//
+		// TODO(polsar): Initialize all (method, LatencyStats) pairs in the Initialize method instead.
+		// Once initialized, the map will only be read, eliminating the need for the lock.
+		//
+		// TODO(polsar): How do we want to keep track of methods that that don't have latency configuration?
+		// Since the top-level latency threshold is used for all these methods, it probably makes sense to
+		// keep track of all of them in the same LatencyStats instance. Note that this only applies if
+		// PassiveLatencyChecking is false, since we would not know about and therefore could not check
+		// these methods if PassiveLatencyChecking is true.
+		stats = NewLatencyStats()
+		c.methodLatencyStats[method] = stats
+	}
+
+	return stats
+}
+
 // This method runs the latency check for the specified method and latency threshold.
 func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
 
-	var val *FailureCounts
-
-	func() {
-		c.lock.Lock()
-		defer c.lock.Unlock()
-
-		var exists bool
-		val, exists = c.methodFailureCounts[method]
-
-		if !exists {
-			// This is the first time we are checking this method so initialize its failure counts.
-			//
-			// TODO(polsar): Initialize all (method, FailureCounts) pairs in the Initialize method instead.
-			// Once initialized, the map will only be read, eliminating the need for the lock.
-			val = NewFailureCounts()
-			c.methodFailureCounts[method] = val
-		}
-	}()
+	latencyStats := c.getLatencyStats(method)
 
 	// Make the request and increment the appropriate failure count if it takes too long or errors out.
 	var duration time.Duration
 	duration, c.Err = c.client.Latency(ctx, method)
 
 	if c.Err != nil {
-		val.timeoutOrError++
+		latencyStats.timeoutOrError++
 
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	} else if duration > latencyThreshold {
-		val.latencyTooHigh++
+		latencyStats.latencyTooHigh++
 
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	}
@@ -186,7 +195,7 @@ func (c *LatencyCheck) IsPassing() bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	for method, failures := range c.methodFailureCounts {
+	for method, failures := range c.methodLatencyStats {
 		if failures.latencyTooHigh > 0 {
 			c.logger.Debug(
 				"LatencyCheck is not passing.",
