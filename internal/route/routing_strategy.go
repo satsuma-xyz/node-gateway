@@ -53,7 +53,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 		if len(upstreams) > 0 {
 			atomic.AddUint64(&s.counter, 1)
 
-			return upstreams[int(s.counter)%len(upstreams)].ID, nil //nolint:gosec // Legacy
+			return upstreams[int(s.counter)%len(upstreams)].ID, nil //nolint:nolintlint,gosec // Legacy
 		}
 
 		s.logger.Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
