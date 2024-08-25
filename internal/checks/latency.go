@@ -246,7 +246,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 
 	for _, resp := range data.ResponseBody.GetSubResponses() {
 		if resp.Error != nil {
-			// TODO(polsar): Should we ignore this response if it does not correspond to a request.
+			// TODO(polsar): Should we ignore this response if it does not correspond to an RPC request?
 			c.processError(data.Method, "", strconv.Itoa(resp.Error.Code), resp.Error.Message)
 		}
 	}

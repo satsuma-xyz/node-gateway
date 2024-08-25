@@ -581,38 +581,6 @@ func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInGlobalConfig(t *te
 	}
 }
 
-func TestParseConfig_InvalidConfigLatencyRouting_InvalidMethodName(t *testing.T) {
-	config := `
-    global:
-      routing:
-        errors:
-          rate: 0.25
-        latency:
-          threshold: 1000ms
-          methods:
-            - method: eth_chainid
-              threshold: 2000ms
-
-    chains:
-      - chainName: ethereum
-        groups:
-          - id: primary
-            priority: 0
-        upstreams:
-          - id: alchemy-eth
-            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
-            group: primary
-            nodeType: full
-  `
-	configBytes := []byte(config)
-
-	_, err := parseConfig(configBytes)
-
-	if err == nil {
-		t.Errorf("Expected error parsing invalid YAML.")
-	}
-}
-
 func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySpecifiedBothPerChainAndGlobal(t *testing.T) {
 	config := `
     global:
@@ -860,7 +828,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
             - method: getLogs
               threshold: 2000ms
             - method: eth_getStorageAt
-            - method: eth_awesomeMethod
+            - method: eth_chainId
               threshold: 20ms
 
     chains:
@@ -896,9 +864,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
-						"getLogs":           2000 * time.Millisecond,
-						"eth_getStorageAt":  DefaultMaxLatency, // Top-level latency default
-						"eth_awesomeMethod": 20 * time.Millisecond,
+						"getLogs":          2000 * time.Millisecond,
+						"eth_getStorageAt": DefaultMaxLatency, // Top-level latency default
+						"eth_chainId":      20 * time.Millisecond,
 					},
 					Methods: []MethodConfig{
 						{
@@ -909,7 +877,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 							Name: "eth_getStorageAt",
 						},
 						{
-							Name:      "eth_awesomeMethod",
+							Name:      "eth_chainId",
 							Threshold: 20 * time.Millisecond,
 						},
 					},
@@ -925,7 +893,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					"getLogs":                    2000 * time.Millisecond, // Top-level latency for method
 					"eth_getStorageAt":           6000 * time.Millisecond,
 					"eth_doesSomethingImportant": DefaultMaxLatency,
-					"eth_awesomeMethod":          20 * time.Millisecond, // Inherited from global latency config
+					"eth_chainId":                20 * time.Millisecond, // Inherited from global latency config
 				},
 				Methods: []MethodConfig{
 					{

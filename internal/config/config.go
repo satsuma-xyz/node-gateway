@@ -209,12 +209,17 @@ type MethodConfig struct {
 	Threshold time.Duration `yaml:"threshold"`
 }
 
-func (c *MethodConfig) isMethodConfigValid() bool {
+func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
 	if c == nil {
 		return true
 	}
-	// TODO(polsar): Validate the method name.
-	return !strings.EqualFold(c.Name, LatencyCheckMethod)
+
+	if passiveLatencyChecking {
+		// TODO(polsar): Validate the method name: https://ethereum.org/en/developers/docs/apis/json-rpc/
+		return !strings.EqualFold(c.Name, LatencyCheckMethod)
+	}
+
+	return true
 }
 
 type LatencyConfig struct {
@@ -290,13 +295,13 @@ func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
 	}
 }
 
-func (c *LatencyConfig) isLatencyConfigValid() bool {
+func (c *LatencyConfig) isLatencyConfigValid(passiveLatencyChecking bool) bool {
 	if c == nil {
 		return true
 	}
 
 	for _, method := range c.Methods {
-		if !method.isMethodConfigValid() {
+		if !method.isMethodConfigValid(passiveLatencyChecking) {
 			return false
 		}
 	}
@@ -361,7 +366,7 @@ func (r *RoutingConfig) isRoutingConfigValid() bool {
 	latency := r.Latency
 
 	if latency != nil {
-		isValid = isValid && latency.isLatencyConfigValid()
+		isValid = isValid && latency.isLatencyConfigValid(r.PassiveLatencyChecking)
 	}
 
 	return isValid
