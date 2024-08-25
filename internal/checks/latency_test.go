@@ -120,6 +120,8 @@ func Test_isErrorMatches_True(t *testing.T) {
 	Assert.True(isErrorMatches("a", []string{"a", "b"}))
 	Assert.True(isErrorMatches("aa", []string{"a", "b"}))
 	Assert.True(isErrorMatches("some error", []string{"a", "err"}))
+	Assert.True(isErrorMatches("error string", []string{"error string"}))
+	Assert.True(isErrorMatches("prefix error string suffix", []string{"error string"}))
 
 	Assert.True(isErrorMatches("aba", []string{"ab"}))
 	Assert.True(isErrorMatches("aba", []string{"ba"}))
