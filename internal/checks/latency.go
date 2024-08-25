@@ -180,6 +180,21 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 }
 
 func (c *LatencyCheck) IsPassing() bool {
-	// TODO(polsar): Implement this method.
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	for method, failures := range c.methodFailureCounts {
+		if failures.latencyTooHigh > 0 {
+			c.logger.Debug(
+				"LatencyCheck is not passing.",
+				zap.String("upstreamID", c.upstreamConfig.ID),
+				zap.Any("method", method),
+				zap.Error(c.Err),
+			)
+
+			return false
+		}
+	}
+
 	return true
 }
