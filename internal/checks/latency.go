@@ -48,7 +48,7 @@ func NewLatencyChecker(
 	clientGetter client.EthClientGetter,
 	metricsContainer *metrics.Container,
 	logger *zap.Logger,
-) types.Checker {
+) types.LatencyChecker {
 	c := &LatencyCheck{
 		upstreamConfig:      upstreamConfig,
 		routingConfig:       routingConfig,
@@ -200,4 +200,8 @@ func (c *LatencyCheck) IsPassing() bool {
 	}
 
 	return true
+}
+
+func (c *LatencyCheck) RecordRequest(*types.RequestData) {
+	// TODO(polsar): Implement this.
 }

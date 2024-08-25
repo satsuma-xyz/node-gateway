@@ -31,6 +31,7 @@ type HealthCheckManager interface {
 	StartHealthChecks()
 	IsInitialized() bool
 	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
+	RecordRequest(upstreamID string, data *types.RequestData)
 }
 
 type healthCheckManager struct {
@@ -61,7 +62,7 @@ type healthCheckManager struct {
 		client.EthClientGetter,
 		*metrics.Container,
 		*zap.Logger,
-	) types.Checker
+	) types.LatencyChecker
 	ethClientGetter     client.EthClientGetter
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
@@ -115,6 +116,10 @@ func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.Upstrea
 
 	// Panic because an unknown upstream ID implies a bug in the code.
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
+}
+
+func (h *healthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
+	h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
 }
 
 func (h *healthCheckManager) setUpstreamStatus(upstreamID string, status *types.UpstreamStatus) {
@@ -183,7 +188,7 @@ func (h *healthCheckManager) initializeChecks() {
 				)
 			}()
 
-			var latencyCheck types.Checker
+			var latencyCheck types.LatencyChecker
 
 			innerWG.Add(1)
 
