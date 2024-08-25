@@ -28,7 +28,7 @@ type singleChainObjectGraph struct {
 }
 
 func wireSingleChainDependencies(
-	globalConfig config.GlobalConfig,
+	globalConfig config.GlobalConfig, //nolint:gocritic // Legacy
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
 	rpcCache *cache.RPCCache,

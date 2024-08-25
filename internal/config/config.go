@@ -23,6 +23,11 @@ const (
 	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
 	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
 	LatencyCheckMethod = "eth_chainId"
+	// PassiveLatencyChecking indicates whether to use live (active) requests as data for the LatencyChecker (false)
+	// or synthetic (passive) periodic requests (true).
+	// TODO(polsar): This setting is currently not configurable via the YAML config file.
+	// TODO(polsar): We may also consider a hybrid request latency/error checking using both active and passive requests.
+	PassiveLatencyChecking = false
 )
 
 type UpstreamConfig struct {
@@ -175,8 +180,8 @@ func IsGroupsValid(groups []GroupConfig) bool {
 }
 
 type GlobalConfig struct {
-	Routing RoutingConfig `yaml:"routing"`
 	Cache   CacheConfig   `yaml:"cache"`
+	Routing RoutingConfig `yaml:"routing"`
 	Port    int           `yaml:"port"`
 }
 
@@ -300,15 +305,18 @@ func (c *LatencyConfig) isLatencyConfigValid() bool {
 }
 
 type RoutingConfig struct {
-	AlwaysRoute     *bool          `yaml:"alwaysRoute"`
-	Errors          *ErrorsConfig  `yaml:"errors"`
-	Latency         *LatencyConfig `yaml:"latency"`
-	DetectionWindow *time.Duration `yaml:"detectionWindow"`
-	BanWindow       *time.Duration `yaml:"banWindow"`
-	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
+	AlwaysRoute            *bool          `yaml:"alwaysRoute"`
+	Errors                 *ErrorsConfig  `yaml:"errors"`
+	Latency                *LatencyConfig `yaml:"latency"`
+	DetectionWindow        *time.Duration `yaml:"detectionWindow"`
+	BanWindow              *time.Duration `yaml:"banWindow"`
+	MaxBlocksBehind        int            `yaml:"maxBlocksBehind"`
+	PassiveLatencyChecking bool
 }
 
 func (r *RoutingConfig) setDefaults() {
+	r.PassiveLatencyChecking = PassiveLatencyChecking
+
 	if r.Errors == nil && r.Latency == nil {
 		return
 	}
@@ -441,8 +449,8 @@ func isChainsValid(chainsConfig []SingleChainConfig) bool {
 }
 
 type Config struct {
-	Global GlobalConfig
 	Chains []SingleChainConfig
+	Global GlobalConfig
 }
 
 func (config *Config) setDefaults() {

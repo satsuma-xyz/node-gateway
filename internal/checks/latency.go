@@ -104,7 +104,7 @@ func (c *LatencyCheck) RunCheck() {
 }
 
 func (c *LatencyCheck) runCheck() {
-	if c.client == nil {
+	if c.client == nil || !c.routingConfig.PassiveLatencyChecking {
 		return
 	}
 
@@ -203,5 +203,7 @@ func (c *LatencyCheck) IsPassing() bool {
 }
 
 func (c *LatencyCheck) RecordRequest(*types.RequestData) {
-	// TODO(polsar): Implement this.
+	if !c.routingConfig.PassiveLatencyChecking { //nolint:revive,staticcheck // Will be implemented soon
+		// TODO(polsar): Implement this.
+	}
 }
