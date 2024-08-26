@@ -412,32 +412,36 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 		},
 	}
 
-	expectedConfig := Config{
-		Global: GlobalConfig{
-			Routing: RoutingConfig{
-				MaxBlocksBehind: 33,
-				DetectionWindow: NewDuration(10 * time.Minute),
-				BanWindow:       NewDuration(50 * time.Minute),
-				Errors: &ErrorsConfig{
-					Rate: 0.25,
-					HTTPCodes: []string{
-						"5xx",
-						"420",
-					},
-					JSONRPCCodes: []string{
-						"32xxx",
-					},
-					ErrorStrings: []string{
-						"internal server error",
-					},
-				},
-				Latency:     &expectedLatencyConfig,
-				AlwaysRoute: newBool(true),
+	expectedRoutingConfig := RoutingConfig{
+		MaxBlocksBehind: 33,
+		DetectionWindow: NewDuration(10 * time.Minute),
+		BanWindow:       NewDuration(50 * time.Minute),
+		Errors: &ErrorsConfig{
+			Rate: 0.25,
+			HTTPCodes: []string{
+				"420",
+				"5xx",
+			},
+			JSONRPCCodes: []string{
+				"32xxx",
+			},
+			ErrorStrings: []string{
+				"internal server error",
 			},
 		},
-		Chains: getCommonChainsConfig(&RoutingConfig{
-			Latency: &expectedLatencyConfig,
-		}),
+		Latency:       &expectedLatencyConfig,
+		AlwaysRoute:   newBool(true),
+		IsInitialized: true,
+	}
+
+	expectedRoutingChainConfig := expectedRoutingConfig
+	expectedRoutingChainConfig.MaxBlocksBehind = 0
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: expectedRoutingConfig,
+		},
+		Chains: getCommonChainsConfig(&expectedRoutingChainConfig),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -486,11 +490,18 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 				},
-				Latency: &expectedLatencyConfig,
+				Latency:       &expectedLatencyConfig,
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
 			},
 		},
 		Chains: getCommonChainsConfig(&RoutingConfig{
-			Latency: &expectedLatencyConfig,
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+			Latency:         &expectedLatencyConfig,
+			AlwaysRoute:     newBool(false),
+			IsInitialized:   true,
 		}),
 	}
 
@@ -639,6 +650,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 						},
 					},
 				},
+				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
 			},
 		},
 
@@ -661,6 +675,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 					},
 				},
 			},
+			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
 		}),
 	}
 
@@ -720,11 +737,19 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				DetectionWindow: NewDuration(DefaultDetectionWindow),
 				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency:         &expectedLatencyConfig,
+				Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:     newBool(false),
+				IsInitialized:   true,
 			},
 		},
 
 		Chains: getCommonChainsConfig(&RoutingConfig{
-			Latency: &expectedLatencyConfig,
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency:         &expectedLatencyConfig,
+			Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:     newBool(false),
+			IsInitialized:   true,
 		}),
 	}
 
@@ -790,6 +815,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 						},
 					},
 				},
+				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
 			},
 		},
 
@@ -811,6 +839,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySp
 					},
 				},
 			},
+			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
 		}),
 	}
 
@@ -882,6 +913,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 						},
 					},
 				},
+				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
 			},
 		},
 
@@ -908,6 +942,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					},
 				},
 			},
+			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
 		}),
 	}
 

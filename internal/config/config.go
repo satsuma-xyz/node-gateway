@@ -3,6 +3,7 @@ package config //nolint:nolintlint,typecheck // Legacy
 import (
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ const (
 	// DefaultMaxLatency is used when the latency threshold is not specified in the config.
 	// TODO(polsar): We should probably use a lower value.
 	DefaultMaxLatency          = 10 * time.Second
+	DefaultErrorRate           = 0.25
 	Archive           NodeType = "archive"
 	Full              NodeType = "full"
 	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
@@ -186,11 +188,7 @@ type GlobalConfig struct {
 }
 
 func (c *GlobalConfig) setDefaults() {
-	c.Routing.setDefaults()
-}
-
-func (c *GlobalConfig) initialize() {
-	c.Routing.initialize(nil)
+	c.Routing.setDefaults(nil, false)
 }
 
 type CacheConfig struct {
@@ -202,6 +200,43 @@ type ErrorsConfig struct {
 	JSONRPCCodes []string `yaml:"jsonRpcCodes"`
 	ErrorStrings []string `yaml:"errorStrings"`
 	Rate         float64  `yaml:"rate"`
+}
+
+func (c *ErrorsConfig) merge(globalConfig *ErrorsConfig) {
+	if globalConfig == nil {
+		return
+	}
+
+	// TODO(polsar): Can we somehow combine these three sections into one to avoid code duplication?
+	c.HTTPCodes = append(c.HTTPCodes, globalConfig.HTTPCodes...)
+	c.HTTPCodes = sortAndRemoveDuplicates(c.HTTPCodes)
+
+	c.JSONRPCCodes = append(c.JSONRPCCodes, globalConfig.JSONRPCCodes...)
+	c.JSONRPCCodes = sortAndRemoveDuplicates(c.JSONRPCCodes)
+
+	c.ErrorStrings = append(c.ErrorStrings, globalConfig.ErrorStrings...)
+	c.ErrorStrings = sortAndRemoveDuplicates(c.ErrorStrings)
+}
+
+func (c *ErrorsConfig) initialize(globalConfig *RoutingConfig) {
+	var globalErrorsConfig *ErrorsConfig
+	if globalConfig != nil {
+		globalErrorsConfig = globalConfig.Errors
+	}
+
+	if c.Rate == 0 {
+		if globalErrorsConfig == nil {
+			c.Rate = DefaultErrorRate
+		} else {
+			c.Rate = globalErrorsConfig.Rate
+		}
+	}
+}
+
+// Sorts in-place and removes duplicates from the specified slice.
+func sortAndRemoveDuplicates(s []string) []string {
+	slices.Sort(s)
+	return slices.Compact(s)
 }
 
 type MethodConfig struct {
@@ -268,24 +303,29 @@ func (c *LatencyConfig) getLatencyThresholdForMethod(method string, globalConfig
 	return latency
 }
 
-func (c *LatencyConfig) initialize(globalConfig *LatencyConfig) {
+func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
 	c.MethodLatencyThresholds = make(map[string]time.Duration)
 
 	if c.Methods == nil {
 		return
 	}
 
+	var globalLatencyConfig *LatencyConfig
+	if globalConfig != nil {
+		globalLatencyConfig = globalConfig.Latency
+	}
+
 	for _, method := range c.Methods {
 		var threshold time.Duration
 
 		if method.Threshold <= time.Duration(0) {
-			// The method's latency threshold is not configured or invalid
-			if c.Threshold <= time.Duration(0) && globalConfig != nil {
+			// The method's latency threshold is not configured or invalid.
+			if c.Threshold <= time.Duration(0) && globalLatencyConfig != nil {
 				// Use the top-level value.
-				threshold = globalConfig.getLatencyThresholdForMethod(method.Name, nil)
+				threshold = globalLatencyConfig.getLatencyThresholdForMethod(method.Name, nil)
 			} else {
 				// Use the global config latency value for the method.
-				threshold = c.getLatencyThreshold(globalConfig)
+				threshold = c.getLatencyThreshold(globalLatencyConfig)
 			}
 		} else {
 			threshold = method.Threshold
@@ -317,47 +357,85 @@ type RoutingConfig struct {
 	BanWindow              *time.Duration `yaml:"banWindow"`
 	MaxBlocksBehind        int            `yaml:"maxBlocksBehind"`
 	PassiveLatencyChecking bool
+	IsInitialized          bool
 }
 
-func (r *RoutingConfig) setDefaults() {
-	r.PassiveLatencyChecking = PassiveLatencyChecking
+func (r *RoutingConfig) IsEnhancedRoutingControlEnabled() bool {
+	// TODO(polsar): This is temporary. Eventually, we want to have enhanced routing control enabled by default even if
+	// none of these fields are specified in the config YAML.
+	return r.Errors != nil || r.Latency != nil || r.DetectionWindow != nil || r.BanWindow != nil || r.AlwaysRoute != nil
+}
 
-	if r.Errors == nil && r.Latency == nil {
+func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) {
+	if r.IsInitialized {
 		return
 	}
 
+	r.PassiveLatencyChecking = PassiveLatencyChecking
+
+	if !force && !r.IsEnhancedRoutingControlEnabled() && (globalConfig == nil || !globalConfig.IsEnhancedRoutingControlEnabled()) {
+		// Routing config is not specified at either this or global level, so there is nothing to do.
+		return
+	}
+
+	if globalConfig != nil && !globalConfig.IsInitialized {
+		globalConfig.setDefaults(nil, true)
+	}
+
+	// For each routing config value that is not specified, use the corresponding global config value if the global config
+	// is specified. Otherwise, use the default value. Note that if the global config is specified, it already has all
+	// defaults set.
+
 	if r.DetectionWindow == nil {
-		r.DetectionWindow = NewDuration(DefaultDetectionWindow)
+		if globalConfig == nil {
+			r.DetectionWindow = NewDuration(DefaultDetectionWindow)
+		} else {
+			r.DetectionWindow = globalConfig.DetectionWindow
+		}
 	}
 
 	if r.BanWindow == nil {
-		r.BanWindow = NewDuration(DefaultBanWindow)
+		if globalConfig == nil {
+			r.BanWindow = NewDuration(DefaultBanWindow)
+		} else {
+			r.BanWindow = globalConfig.BanWindow
+		}
 	}
-}
 
-func (r *RoutingConfig) initialize(globalConfig *RoutingConfig) {
-	// TODO(polsar): Analogous code should be used from ErrorsConfig.
-	var globalLatencyConfig *LatencyConfig
-
-	if globalConfig != nil {
-		globalLatencyConfig = globalConfig.Latency
+	if r.AlwaysRoute == nil {
+		if globalConfig == nil {
+			r.AlwaysRoute = new(bool) // &false
+		} else {
+			r.AlwaysRoute = globalConfig.AlwaysRoute
+		}
 	}
 
 	if r.Latency == nil {
-		if globalConfig != nil {
-			// Use global latency config which is already initialized.
-			r.Latency = globalLatencyConfig
+		if globalConfig == nil {
+			r.Latency = new(LatencyConfig)
+		} else {
+			r.Latency = globalConfig.Latency
 		}
-
-		return
 	}
 
-	r.Latency.initialize(globalLatencyConfig)
+	r.Latency.initialize(globalConfig)
+
+	if r.Errors == nil {
+		if globalConfig == nil {
+			r.Errors = new(ErrorsConfig)
+		} else {
+			r.Errors = globalConfig.Errors
+		}
+	}
+
+	r.Errors.initialize(globalConfig)
 
 	if globalConfig != nil {
-		// Merge global latency config into the chain latency config.
-		r.Latency.merge(globalLatencyConfig)
+		r.Latency.merge(globalConfig.Latency)
+		r.Errors.merge(globalConfig.Errors)
 	}
+
+	r.IsInitialized = true
 }
 
 func (r *RoutingConfig) isRoutingConfigValid() bool {
@@ -433,12 +511,8 @@ func (c *SingleChainConfig) isValid() bool {
 	return isChainConfigValid
 }
 
-func (c *SingleChainConfig) setDefaults() {
-	c.Routing.setDefaults()
-}
-
-func (c *SingleChainConfig) initialize(globalConfig *GlobalConfig) {
-	c.Routing.initialize(&globalConfig.Routing)
+func (c *SingleChainConfig) setDefaults(globalConfig *GlobalConfig) {
+	c.Routing.setDefaults(&globalConfig.Routing, false)
 }
 
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
@@ -463,16 +537,7 @@ func (config *Config) setDefaults() {
 
 	for chainIndex := range config.Chains {
 		chainConfig := &config.Chains[chainIndex]
-		chainConfig.setDefaults()
-	}
-}
-
-func (config *Config) initialize() {
-	config.Global.initialize()
-
-	for chainIndex := range config.Chains {
-		chainConfig := &config.Chains[chainIndex]
-		chainConfig.initialize(&config.Global)
+		chainConfig.setDefaults(&config.Global)
 	}
 }
 
@@ -508,7 +573,6 @@ func parseConfig(configBytes []byte) (Config, error) {
 	}
 
 	config.setDefaults()
-	config.initialize()
 
 	err = config.Validate()
 
