@@ -449,6 +449,114 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 	}
 }
 
+func TestParseConfig_ValidConfigLatencyRouting_ErrorsConfigOverridesAndMerges(t *testing.T) {
+	config := `
+    global:
+      routing:
+        errors:
+          rate: 0.28
+          httpCodes:
+            - 5xx
+            - 420
+          jsonRpcCodes:
+            - 32xxx
+            - 28282
+          errorStrings:
+            - "internal server error"
+            - "freaking out"
+
+    chains:
+      - chainName: ethereum
+
+        groups:
+          - id: primary
+            priority: 0
+
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+        routing:
+          errors:
+            rate: 0.82
+            httpCodes:
+              - 5xx
+              - 388
+              - 4X4
+            jsonRpcCodes:
+              - XXXX1
+              - 28282
+            errorStrings:
+              - "internal server error"
+              - "some weird error"
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedRoutingConfig := RoutingConfig{
+		DetectionWindow: NewDuration(DefaultDetectionWindow),
+		BanWindow:       NewDuration(DefaultBanWindow),
+		Errors: &ErrorsConfig{
+			Rate: 0.28,
+			HTTPCodes: []string{
+				"5xx",
+				"420",
+			},
+			JSONRPCCodes: []string{
+				"32xxx",
+				"28282",
+			},
+			ErrorStrings: []string{
+				"internal server error",
+				"freaking out",
+			},
+		},
+		Latency:       &LatencyConfig{MethodLatencyThresholds: map[string]time.Duration{}},
+		AlwaysRoute:   newBool(false),
+		IsInitialized: true,
+	}
+
+	expectedRoutingChainConfig := expectedRoutingConfig
+	expectedRoutingChainConfig.MaxBlocksBehind = 0
+	expectedRoutingChainConfig.Errors = &ErrorsConfig{
+		Rate: 0.82,
+		HTTPCodes: []string{
+			"388",
+			"420",
+			"4X4",
+			"5xx",
+		},
+		JSONRPCCodes: []string{
+			"28282",
+			"32xxx",
+			"XXXX1",
+		},
+		ErrorStrings: []string{
+			"freaking out",
+			"internal server error",
+			"some weird error",
+		},
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: expectedRoutingConfig,
+		},
+		Chains: getCommonChainsConfig(&expectedRoutingChainConfig),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
 func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows_Set(t *testing.T) {
 	config := `
     global:
@@ -861,6 +969,15 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
             - method: eth_getStorageAt
             - method: eth_chainId
               threshold: 20ms
+        errors:
+          rate: 0.88
+          httpCodes:
+            - 5xx
+            - 420
+          jsonRpcCodes:
+            - 32xxx
+          errorStrings:
+            - "internal server error"
 
     chains:
       - chainName: ethereum
@@ -888,6 +1005,20 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
+	expectedErrorsConfig := ErrorsConfig{
+		Rate: 0.88,
+		HTTPCodes: []string{
+			"420",
+			"5xx",
+		},
+		JSONRPCCodes: []string{
+			"32xxx",
+		},
+		ErrorStrings: []string{
+			"internal server error",
+		},
+	}
+
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
@@ -913,7 +1044,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 						},
 					},
 				},
-				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				Errors:        &expectedErrorsConfig,
 				AlwaysRoute:   newBool(false),
 				IsInitialized: true,
 			},
@@ -942,7 +1073,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					},
 				},
 			},
-			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			Errors:        &expectedErrorsConfig,
 			AlwaysRoute:   newBool(false),
 			IsInitialized: true,
 		}),
