@@ -19,34 +19,67 @@ const (
 	ResponseCodeWildcard = 'x'
 )
 
-type LatencyStats struct {
-	// TODO(polsar): Average out the latencies over the `detectionWindow`.
-	// For V2, add the minimum number of measurements required to make a decision,
-	// as well as other aggregation options.
-	// TODO(polsar): Replace these with sliding window counts (must be thread-safe).
-	// https://failsafe-go.dev/circuit-breaker/
-	latencyTooHigh uint64
+type ErrorCircuitBreaker interface {
+	AddError()
+	IsOpen() bool
+}
+
+type LatencyCircuitBreaker interface {
+	AddLatency()
+	IsOpen() bool
+}
+
+type ErrorStats struct {
 	timeoutOrError uint64
 }
 
-func NewLatencyStats() *LatencyStats {
-	return &LatencyStats{
-		latencyTooHigh: 0,
+func (e *ErrorStats) AddError() {
+	e.timeoutOrError++
+}
+
+func (e *ErrorStats) IsOpen() bool {
+	return e.timeoutOrError > 0
+}
+
+func NewErrorStats() ErrorCircuitBreaker {
+	return &ErrorStats{
 		timeoutOrError: 0,
 	}
 }
 
+type LatencyStats struct {
+	// TODO(polsar): Average out the latencies over the `detectionWindow`.
+	// For V2, add the minimum number of measurements required to make a decision,
+	// as well as other aggregation options.
+	latencyTooHigh uint64
+}
+
+func (l *LatencyStats) AddLatency() {
+	l.latencyTooHigh++
+}
+
+func (l *LatencyStats) IsOpen() bool {
+	return l.latencyTooHigh > 0
+}
+
+func NewLatencyStats() LatencyCircuitBreaker {
+	return &LatencyStats{
+		latencyTooHigh: 0,
+	}
+}
+
 type LatencyCheck struct {
-	client             client.EthClient
-	Err                error
-	clientGetter       client.EthClientGetter
-	metricsContainer   *metrics.Container
-	logger             *zap.Logger
-	upstreamConfig     *conf.UpstreamConfig
-	routingConfig      *conf.RoutingConfig
-	methodLatencyStats map[string]*LatencyStats // RPC method -> LatencyStats
-	lock               sync.RWMutex
-	ShouldRun          bool
+	client               client.EthClient
+	Err                  error
+	clientGetter         client.EthClientGetter
+	metricsContainer     *metrics.Container
+	logger               *zap.Logger
+	upstreamConfig       *conf.UpstreamConfig
+	routingConfig        *conf.RoutingConfig
+	errorCircuitBreaker  ErrorCircuitBreaker
+	methodLatencyBreaker map[string]LatencyCircuitBreaker // RPC method -> LatencyCircuitBreaker
+	lock                 sync.RWMutex
+	ShouldRun            bool
 }
 
 func NewLatencyChecker(
@@ -57,13 +90,14 @@ func NewLatencyChecker(
 	logger *zap.Logger,
 ) types.LatencyChecker {
 	c := &LatencyCheck{
-		upstreamConfig:     upstreamConfig,
-		routingConfig:      routingConfig,
-		clientGetter:       clientGetter,
-		metricsContainer:   metricsContainer,
-		logger:             logger,
-		methodLatencyStats: make(map[string]*LatencyStats),
-		ShouldRun:          routingConfig.Errors != nil || routingConfig.Latency != nil,
+		upstreamConfig:       upstreamConfig,
+		routingConfig:        routingConfig,
+		clientGetter:         clientGetter,
+		metricsContainer:     metricsContainer,
+		logger:               logger,
+		errorCircuitBreaker:  NewErrorStats(),
+		methodLatencyBreaker: make(map[string]LatencyCircuitBreaker),
+		ShouldRun:            routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
 
 	if err := c.Initialize(); err != nil {
@@ -148,11 +182,11 @@ func (c *LatencyCheck) runCheck() {
 
 // Returns the LatencyStats instance corresponding to the specified RPC method.
 // This method is thread-safe.
-func (c *LatencyCheck) getLatencyStats(method string) *LatencyStats {
+func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBreaker {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	stats, exists := c.methodLatencyStats[method]
+	stats, exists := c.methodLatencyBreaker[method]
 
 	if !exists {
 		// This is the first time we are checking this method so initialize its LatencyStats instance.
@@ -166,7 +200,7 @@ func (c *LatencyCheck) getLatencyStats(method string) *LatencyStats {
 		// PassiveLatencyChecking is false, since we would not know about and therefore could not check
 		// these methods if PassiveLatencyChecking is true.
 		stats = NewLatencyStats()
-		c.methodLatencyStats[method] = stats
+		c.methodLatencyBreaker[method] = stats
 	}
 
 	return stats
@@ -177,18 +211,18 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
 
-	latencyStats := c.getLatencyStats(method)
+	latencyBreaker := c.getLatencyCircuitBreaker(method)
 
 	// Make the request and increment the appropriate failure count if it takes too long or errors out.
 	var duration time.Duration
 	duration, c.Err = c.client.Latency(ctx, method)
 
 	if c.Err != nil {
-		latencyStats.timeoutOrError++
+		c.errorCircuitBreaker.AddError()
 
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	} else if duration > latencyThreshold {
-		latencyStats.latencyTooHigh++
+		latencyBreaker.AddLatency()
 
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	}
@@ -199,13 +233,24 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 }
 
 func (c *LatencyCheck) IsPassing() bool {
+	if c.errorCircuitBreaker.IsOpen() {
+		c.logger.Debug(
+			"LatencyCheck is not passing due to too many errors.",
+			zap.String("upstreamID", c.upstreamConfig.ID),
+			zap.Error(c.Err),
+		)
+
+		return false
+	}
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	for method, failures := range c.methodLatencyStats {
-		if failures.latencyTooHigh > 0 {
+	// TODO(polsar): If one method's latency check is failing, the check will fail for all other methods. Is this what we want?
+	for method, breaker := range c.methodLatencyBreaker {
+		if breaker.IsOpen() {
 			c.logger.Debug(
-				"LatencyCheck is not passing.",
+				"LatencyCheck is not passing due to high latency of an RPC method.",
 				zap.String("upstreamID", c.upstreamConfig.ID),
 				zap.Any("method", method),
 				zap.Error(c.Err),
