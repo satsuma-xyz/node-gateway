@@ -47,7 +47,7 @@ func (e *ErrorStats) IsOpen() bool {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
 
-	return e.slidingWindow.Sum() > 0
+	return float64(e.slidingWindow.Sum().Nanoseconds())/float64(e.slidingWindow.Count()) >= e.errorRate
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
