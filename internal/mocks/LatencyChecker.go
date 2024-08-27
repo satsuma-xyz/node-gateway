@@ -98,34 +98,34 @@ func (_c *LatencyChecker_RecordRequest_Call) RunAndReturn(run func(*types.Reques
 	return _c
 }
 
-// RunCheck provides a mock function with given fields:
-func (_m *LatencyChecker) RunCheck() {
+// RunPassiveCheck provides a mock function with given fields:
+func (_m *LatencyChecker) RunPassiveCheck() {
 	_m.Called()
 }
 
-// LatencyChecker_RunCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RunCheck'
-type LatencyChecker_RunCheck_Call struct {
+// LatencyChecker_RunPassiveCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RunPassiveCheck'
+type LatencyChecker_RunPassiveCheck_Call struct {
 	*mock.Call
 }
 
-// RunCheck is a helper method to define mock.On call
-func (_e *LatencyChecker_Expecter) RunCheck() *LatencyChecker_RunCheck_Call {
-	return &LatencyChecker_RunCheck_Call{Call: _e.mock.On("RunCheck")}
+// RunPassiveCheck is a helper method to define mock.On call
+func (_e *LatencyChecker_Expecter) RunPassiveCheck() *LatencyChecker_RunPassiveCheck_Call {
+	return &LatencyChecker_RunPassiveCheck_Call{Call: _e.mock.On("RunPassiveCheck")}
 }
 
-func (_c *LatencyChecker_RunCheck_Call) Run(run func()) *LatencyChecker_RunCheck_Call {
+func (_c *LatencyChecker_RunPassiveCheck_Call) Run(run func()) *LatencyChecker_RunPassiveCheck_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *LatencyChecker_RunCheck_Call) Return() *LatencyChecker_RunCheck_Call {
+func (_c *LatencyChecker_RunPassiveCheck_Call) Return() *LatencyChecker_RunPassiveCheck_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *LatencyChecker_RunCheck_Call) RunAndReturn(run func()) *LatencyChecker_RunCheck_Call {
+func (_c *LatencyChecker_RunPassiveCheck_Call) RunAndReturn(run func()) *LatencyChecker_RunPassiveCheck_Call {
 	_c.Call.Return(run)
 	return _c
 }

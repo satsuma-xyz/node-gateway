@@ -257,6 +257,13 @@ func (h *healthCheckManager) runChecksOnce() {
 			defer wg.Done()
 			c.RunCheck()
 		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
+
+		wg.Add(1)
+
+		go func(c types.LatencyChecker) {
+			defer wg.Done()
+			c.RunPassiveCheck()
+		}(h.GetUpstreamStatus(config.ID).LatencyCheck)
 	}
 
 	wg.Wait()

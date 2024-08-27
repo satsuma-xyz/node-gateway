@@ -122,14 +122,14 @@ func NewLatencyChecker(
 		ShouldRun:            routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
 
-	if err := c.Initialize(); err != nil {
+	if err := c.InitializePassiveCheck(); err != nil {
 		logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
 	}
 
 	return c
 }
 
-func (c *LatencyCheck) Initialize() error {
+func (c *LatencyCheck) InitializePassiveCheck() error {
 	// TODO(polsar): Set `c.ShouldRun` if active health checking is enabled.
 	c.logger.Debug("Initializing LatencyCheck.", zap.Any("config", c.upstreamConfig))
 
@@ -141,7 +141,7 @@ func (c *LatencyCheck) Initialize() error {
 
 	c.client = httpClient
 
-	c.runCheck()
+	c.runPassiveCheck()
 
 	// TODO(polsar): This check is in both PeerCheck and SyncingCheck implementations, so refactor this.
 	if isMethodNotSupportedErr(c.Err) {
@@ -153,20 +153,20 @@ func (c *LatencyCheck) Initialize() error {
 	return nil
 }
 
-func (c *LatencyCheck) RunCheck() {
+func (c *LatencyCheck) RunPassiveCheck() {
 	if c.client == nil {
-		if err := c.Initialize(); err != nil {
+		if err := c.InitializePassiveCheck(); err != nil {
 			c.logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 			c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
 		}
 	}
 
 	if c.ShouldRun {
-		c.runCheck()
+		c.runPassiveCheck()
 	}
 }
 
-func (c *LatencyCheck) runCheck() {
+func (c *LatencyCheck) runPassiveCheck() {
 	if c.client == nil || !c.routingConfig.PassiveLatencyChecking {
 		return
 	}
@@ -191,7 +191,7 @@ func (c *LatencyCheck) runCheck() {
 			defer wg.Done()
 
 			runCheck := func() {
-				c.runCheckForMethod(method, latencyThreshold)
+				c.runPassiveCheckForMethod(method, latencyThreshold)
 			}
 
 			runCheckWithMetrics(runCheck,
@@ -227,8 +227,8 @@ func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBre
 	return stats
 }
 
-// This method runs the latency check for the specified method and latency threshold.
-func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Duration) {
+// This method runs the passive latency check for the specified method and latency threshold.
+func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
 
