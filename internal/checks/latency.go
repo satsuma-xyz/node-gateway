@@ -211,15 +211,6 @@ func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBre
 
 	if !exists {
 		// This is the first time we are checking this method so initialize its LatencyStats instance.
-		//
-		// TODO(polsar): Initialize all (method, LatencyStats) pairs in the Initialize method instead.
-		// Once initialized, the map will only be read, eliminating the need for the lock.
-		//
-		// TODO(polsar): How do we want to keep track of methods that that don't have latency configuration?
-		// Since the top-level latency threshold is used for all these methods, it probably makes sense to
-		// keep track of all of them in the same LatencyStats instance. Note that this only applies if
-		// PassiveLatencyChecking is false, since we would not know about and therefore could not check
-		// these methods if PassiveLatencyChecking is true.
 		stats = NewLatencyStats(c.routingConfig, method)
 		c.methodLatencyBreaker[method] = stats
 	}
@@ -281,7 +272,7 @@ func (c *LatencyCheck) IsPassing() bool {
 	defer c.lock.Unlock()
 
 	// TODO(polsar): If one method's latency check is failing, the upstream will be marked as unhealthy,
-	//  which will affect all other methods. Is this what we want?
+	//  which will affect all other methods. We want to maintain the health status for each method separately.
 	for method, breaker := range c.methodLatencyBreaker {
 		if breaker.IsOpen() {
 			c.logger.Debug(
