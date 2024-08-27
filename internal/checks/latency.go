@@ -282,46 +282,43 @@ func (c *LatencyCheck) IsPassing() bool {
 	return true
 }
 
-func (c *LatencyCheck) recordError(method string) { //nolint:revive // Will be implemented soon
-	// TODO(polsar): Implement this.
-}
-
-func (c *LatencyCheck) recordLatency(method string, latency time.Duration) { //nolint:revive // Will be implemented soon
-	// TODO(polsar): Implement this.
-}
-
 func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 	if c.routingConfig.PassiveLatencyChecking {
 		return
 	}
 
-	c.recordLatency(data.Method, data.Latency)
+	c.getLatencyCircuitBreaker(data.Method).RecordLatency(data.Latency)
+
+	var isError bool // false
 
 	if data.HTTPResponseCode >= http.StatusBadRequest {
 		// No RPC responses are available since the HTTP request errored out.
-		c.processError(data.Method, strconv.Itoa(data.HTTPResponseCode), "", "")
-		return
-	}
-
-	if data.ResponseBody == nil {
-		// TODO(polsar): What does this even mean when no HTTP error occurred? How should we handle this case?
-		return
-	}
-
-	for _, resp := range data.ResponseBody.GetSubResponses() {
-		if resp.Error != nil {
-			// TODO(polsar): Should we ignore this response if it does not correspond to an RPC request?
-			c.processError(data.Method, "", strconv.Itoa(resp.Error.Code), resp.Error.Message)
+		isError = c.isError(strconv.Itoa(data.HTTPResponseCode), "", "")
+	} else if data.ResponseBody != nil {
+		for _, resp := range data.ResponseBody.GetSubResponses() {
+			if resp.Error != nil {
+				// TODO(polsar): Should we ignore this response if it does not correspond to an RPC request?
+				isError = c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message)
+				if isError {
+					break
+				}
+			}
 		}
 	}
+	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
+	//  How should we handle this case?
+
+	c.errorCircuitBreaker.RecordRequest(isError)
 }
 
-func (c *LatencyCheck) processError(method, httpCode, jsonRPCCode, errorMsg string) {
+func (c *LatencyCheck) isError(httpCode, jsonRPCCode, errorMsg string) bool {
 	if isMatchForPatterns(httpCode, c.routingConfig.Errors.HTTPCodes) ||
 		isMatchForPatterns(jsonRPCCode, c.routingConfig.Errors.JSONRPCCodes) ||
 		isErrorMatches(errorMsg, c.routingConfig.Errors.ErrorStrings) {
-		c.recordError(method)
+		return true
 	}
+
+	return false
 }
 
 func isMatchForPatterns(responseCode string, patterns []string) bool {
