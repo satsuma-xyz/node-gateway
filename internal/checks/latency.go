@@ -130,6 +130,7 @@ func NewLatencyChecker(
 }
 
 func (c *LatencyCheck) Initialize() error {
+	// TODO(polsar): Set `c.ShouldRun` if active health checking is enabled.
 	c.logger.Debug("Initializing LatencyCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
@@ -142,8 +143,7 @@ func (c *LatencyCheck) Initialize() error {
 
 	c.runCheck()
 
-	// TODO(polsar): This check is in both PeerCheck and SyncingCheck implementations, but I don't understand what it's supposed to be doing.
-	// The setup is exactly the same in each case, so which method is not supported if the `isMethodNotSupportedErr` call returns `true`?
+	// TODO(polsar): This check is in both PeerCheck and SyncingCheck implementations, so refactor this.
 	if isMethodNotSupportedErr(c.Err) {
 		c.logger.Debug("LatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
