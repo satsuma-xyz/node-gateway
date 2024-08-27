@@ -30,7 +30,10 @@ type LatencyCircuitBreaker interface {
 }
 
 type ErrorStats struct {
-	timeoutOrError uint64
+	detectionWindow *time.Duration
+	banWindow       *time.Duration
+	errorsConfig    *conf.ErrorsConfig
+	timeoutOrError  uint64
 }
 
 func (e *ErrorStats) AddError() {
@@ -41,13 +44,19 @@ func (e *ErrorStats) IsOpen() bool {
 	return e.timeoutOrError > 0
 }
 
-func NewErrorStats() ErrorCircuitBreaker {
+func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
 	return &ErrorStats{
-		timeoutOrError: 0,
+		detectionWindow: routingConfig.DetectionWindow,
+		banWindow:       routingConfig.BanWindow,
+		errorsConfig:    routingConfig.Errors,
+		timeoutOrError:  0,
 	}
 }
 
 type LatencyStats struct {
+	detectionWindow *time.Duration
+	banWindow       *time.Duration
+	latencyConfig   *conf.LatencyConfig
 	// TODO(polsar): Average out the latencies over the `detectionWindow`.
 	// For V2, add the minimum number of measurements required to make a decision,
 	// as well as other aggregation options.
@@ -62,9 +71,12 @@ func (l *LatencyStats) IsOpen() bool {
 	return l.latencyTooHigh > 0
 }
 
-func NewLatencyStats() LatencyCircuitBreaker {
+func NewLatencyStats(routingConfig *conf.RoutingConfig) LatencyCircuitBreaker {
 	return &LatencyStats{
-		latencyTooHigh: 0,
+		detectionWindow: routingConfig.DetectionWindow,
+		banWindow:       routingConfig.BanWindow,
+		latencyConfig:   routingConfig.Latency,
+		latencyTooHigh:  0,
 	}
 }
 
@@ -95,7 +107,7 @@ func NewLatencyChecker(
 		clientGetter:         clientGetter,
 		metricsContainer:     metricsContainer,
 		logger:               logger,
-		errorCircuitBreaker:  NewErrorStats(),
+		errorCircuitBreaker:  NewErrorStats(routingConfig),
 		methodLatencyBreaker: make(map[string]LatencyCircuitBreaker),
 		ShouldRun:            routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
@@ -199,7 +211,7 @@ func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBre
 		// keep track of all of them in the same LatencyStats instance. Note that this only applies if
 		// PassiveLatencyChecking is false, since we would not know about and therefore could not check
 		// these methods if PassiveLatencyChecking is true.
-		stats = NewLatencyStats()
+		stats = NewLatencyStats(c.routingConfig)
 		c.methodLatencyBreaker[method] = stats
 	}
 
