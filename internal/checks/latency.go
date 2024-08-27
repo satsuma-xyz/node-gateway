@@ -19,11 +19,15 @@ const (
 	ResponseCodeWildcard = 'x'
 )
 
+// ErrorCircuitBreaker
+// TODO(polsar): Make the implementation thread-safe.
 type ErrorCircuitBreaker interface {
-	RecordRequest()
+	RecordRequest(isError bool)
 	IsOpen() bool
 }
 
+// LatencyCircuitBreaker
+// TODO(polsar): Make the implementation thread-safe.
 type LatencyCircuitBreaker interface {
 	RecordLatency()
 	IsOpen() bool
@@ -35,12 +39,12 @@ type ErrorStats struct {
 	slidingWindow SlidingWindow
 }
 
-func (e *ErrorStats) RecordRequest() {
-	e.slidingWindow.AddValue(1)
+func (e *ErrorStats) RecordRequest(isError bool) {
+	e.slidingWindow.AddValue(time.Duration(boolToInt(isError)))
 }
 
 func (e *ErrorStats) IsOpen() bool {
-	return e.slidingWindow.Count() > 0
+	return e.slidingWindow.Sum() > 0
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
@@ -228,13 +232,15 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 
 	latencyBreaker := c.getLatencyCircuitBreaker(method)
 
-	// Make the request and increment the appropriate failure count if it takes too long or errors out.
+	// Make and record the request.
 	var duration time.Duration
 	duration, c.Err = c.client.Latency(ctx, method)
+	// TODO(polsar): The error must also pass the checks specified in the config
+	//  (i.e. match HTTP code, JSON RPC code, and error message).
+	isError := c.Err != nil
+	c.errorCircuitBreaker.RecordRequest(isError)
 
-	if c.Err != nil {
-		c.errorCircuitBreaker.RecordRequest()
-
+	if isError {
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	} else if duration > latencyThreshold {
 		latencyBreaker.RecordLatency()
@@ -244,7 +250,7 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 
 	c.metricsContainer.Latency.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(duration.Milliseconds()))
 
-	c.logger.Debug("Ran LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
+	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
 func (c *LatencyCheck) IsPassing() bool {
@@ -261,7 +267,8 @@ func (c *LatencyCheck) IsPassing() bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// TODO(polsar): If one method's latency check is failing, the check will fail for all other methods. Is this what we want?
+	// TODO(polsar): If one method's latency check is failing, the upstream will be marked as unhealthy,
+	//  which will affect all other methods. Is this what we want?
 	for method, breaker := range c.methodLatencyBreaker {
 		if breaker.IsOpen() {
 			c.logger.Debug(
@@ -377,4 +384,12 @@ func isErrorMatches(errorMsg string, errors []string) bool {
 	}
 
 	return false
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+
+	return 0
 }
