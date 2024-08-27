@@ -30,53 +30,56 @@ type LatencyCircuitBreaker interface {
 }
 
 type ErrorStats struct {
-	detectionWindow *time.Duration
-	banWindow       *time.Duration
-	errorsConfig    *conf.ErrorsConfig
-	timeoutOrError  uint64
+	banWindow     *time.Duration
+	errorsConfig  *conf.ErrorsConfig
+	slidingWindow SlidingWindow
 }
 
 func (e *ErrorStats) AddError() {
-	e.timeoutOrError++
+	e.slidingWindow.AddValue(1)
 }
 
 func (e *ErrorStats) IsOpen() bool {
-	return e.timeoutOrError > 0
+	return e.slidingWindow.Count() > 0
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
+	detectionWindow := conf.DefaultDetectionWindow
+	if routingConfig.DetectionWindow != nil {
+		detectionWindow = *routingConfig.DetectionWindow
+	}
+
 	return &ErrorStats{
-		detectionWindow: routingConfig.DetectionWindow,
-		banWindow:       routingConfig.BanWindow,
-		errorsConfig:    routingConfig.Errors,
-		timeoutOrError:  0,
+		banWindow:     routingConfig.BanWindow,
+		errorsConfig:  routingConfig.Errors,
+		slidingWindow: NewSimpleSlidingWindow(detectionWindow),
 	}
 }
 
 type LatencyStats struct {
-	detectionWindow *time.Duration
-	banWindow       *time.Duration
-	latencyConfig   *conf.LatencyConfig
-	// TODO(polsar): Average out the latencies over the `detectionWindow`.
-	// For V2, add the minimum number of measurements required to make a decision,
-	// as well as other aggregation options.
-	latencyTooHigh uint64
+	banWindow     *time.Duration
+	latencyConfig *conf.LatencyConfig
+	slidingWindow SlidingWindow
 }
 
 func (l *LatencyStats) AddLatency() {
-	l.latencyTooHigh++
+	l.slidingWindow.AddValue(1)
 }
 
 func (l *LatencyStats) IsOpen() bool {
-	return l.latencyTooHigh > 0
+	return l.slidingWindow.Count() > 0
 }
 
 func NewLatencyStats(routingConfig *conf.RoutingConfig) LatencyCircuitBreaker {
+	detectionWindow := conf.DefaultDetectionWindow
+	if routingConfig.DetectionWindow != nil {
+		detectionWindow = *routingConfig.DetectionWindow
+	}
+
 	return &LatencyStats{
-		detectionWindow: routingConfig.DetectionWindow,
-		banWindow:       routingConfig.BanWindow,
-		latencyConfig:   routingConfig.Latency,
-		latencyTooHigh:  0,
+		banWindow:     routingConfig.BanWindow,
+		latencyConfig: routingConfig.Latency,
+		slidingWindow: NewSimpleSlidingWindow(detectionWindow),
 	}
 }
 

@@ -195,6 +195,8 @@ type CacheConfig struct {
 	Redis string `yaml:"redis"`
 }
 
+// ErrorsConfig
+// TODO(polsar): Add the minimum number of requests in the detection window required to apply the error rate.
 type ErrorsConfig struct {
 	HTTPCodes    []string `yaml:"httpCodes"`
 	JSONRPCCodes []string `yaml:"jsonRpcCodes"`
@@ -257,6 +259,9 @@ func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
 	return true
 }
 
+// LatencyConfig
+// TODO(polsar): Add the minimum number of latencies in the detection window required to apply the threshold.
+// TODO(polsar): Add other aggregation options. Currently, the average of latencies in the detection windows is used.
 type LatencyConfig struct {
 	MethodLatencyThresholds map[string]time.Duration
 
