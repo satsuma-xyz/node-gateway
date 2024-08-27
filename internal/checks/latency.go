@@ -173,7 +173,6 @@ func (c *LatencyCheck) runCheck() {
 
 	latencyConfig := c.routingConfig.Latency
 	if latencyConfig == nil {
-		// TODO(polsar): We still want to check the latency of LatencyCheckMethod using the top-level latency threshold.
 		return
 	}
 
@@ -240,6 +239,7 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 	duration, c.Err = c.client.Latency(ctx, method)
 	// TODO(polsar): The error must also pass the checks specified in the config
 	//  (i.e. match HTTP code, JSON RPC code, and error message).
+	//  Fixing this is not a priority since we're not currently using passive health checking.
 	isError := c.Err != nil
 	c.errorCircuitBreaker.RecordRequest(isError)
 	latencyBreaker.RecordLatency(duration)
