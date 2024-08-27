@@ -227,7 +227,7 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 
 	// Make and record the request.
 	var duration time.Duration
-	duration, c.Err = c.client.Latency(ctx, method)
+	duration, c.Err = c.client.RecordLatency(ctx, method)
 	// TODO(polsar): The error must also pass the checks specified in the config
 	//  (i.e. match HTTP code, JSON RPC code, and error message).
 	//  Fixing this is not a priority since we're not currently using passive health checking.
@@ -307,12 +307,12 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 
 	if data.HTTPResponseCode >= http.StatusBadRequest {
 		// No RPC responses are available since the HTTP request errored out.
+		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 		c.errorCircuitBreaker.RecordRequest(c.isError(
 			strconv.Itoa(data.HTTPResponseCode),
 			"",
 			"",
 		)) // HTTP request error
-		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 	} else if data.ResponseBody != nil {
 		for _, resp := range data.ResponseBody.GetSubResponses() {
 			if resp.Error != nil {
@@ -335,7 +335,6 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 		c.errorCircuitBreaker.RecordRequest(false) // HTTP request OK
 	}
 	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
-	//  How should we handle this case?
 
 	c.metricsContainer.Latency.WithLabelValues(
 		c.upstreamConfig.ID,

@@ -16,8 +16,8 @@ import (
 func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, isPassing bool) {
 	t.Helper()
 	ethClient := mocks.NewEthClient(t)
-	ethClient.EXPECT().Latency(mock.Anything, "eth_call").Return(latency1, nil)
-	ethClient.EXPECT().Latency(mock.Anything, "eth_getLogs").Return(latency2, nil)
+	ethClient.EXPECT().RecordLatency(mock.Anything, "eth_call").Return(latency1, nil)
+	ethClient.EXPECT().RecordLatency(mock.Anything, "eth_getLogs").Return(latency2, nil)
 
 	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:nolintlint,revive // Legacy
 		return ethClient, nil
@@ -37,7 +37,7 @@ func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, is
 		assert.False(t, checker.IsPassing())
 	}
 
-	ethClient.AssertNumberOfCalls(t, "Latency", 2)
+	ethClient.AssertNumberOfCalls(t, "RecordLatency", 2)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesLessThanThreshold(t *testing.T) {
