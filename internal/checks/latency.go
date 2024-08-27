@@ -19,15 +19,11 @@ const (
 	ResponseCodeWildcard = 'x'
 )
 
-// ErrorCircuitBreaker
-// TODO(polsar): Make the implementation thread-safe.
 type ErrorCircuitBreaker interface {
 	RecordRequest(isError bool)
 	IsOpen() bool
 }
 
-// LatencyCircuitBreaker
-// TODO(polsar): Make the implementation thread-safe.
 type LatencyCircuitBreaker interface {
 	RecordLatency(latency time.Duration)
 	IsOpen() bool
@@ -37,13 +33,19 @@ type ErrorStats struct {
 	slidingWindow SlidingWindow
 	banWindow     time.Duration
 	errorRate     float64
+	lock          sync.RWMutex
 }
 
 func (e *ErrorStats) RecordRequest(isError bool) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.slidingWindow.AddValue(time.Duration(boolToInt(isError)))
 }
 
 func (e *ErrorStats) IsOpen() bool {
+	e.lock.RLock()
+	defer e.lock.RUnlock()
+
 	return e.slidingWindow.Sum() > 0
 }
 
@@ -59,13 +61,19 @@ type LatencyStats struct {
 	slidingWindow SlidingWindow
 	banWindow     time.Duration
 	threshold     time.Duration
+	lock          sync.RWMutex
 }
 
 func (l *LatencyStats) RecordLatency(latency time.Duration) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	l.slidingWindow.AddValue(latency)
 }
 
 func (l *LatencyStats) IsOpen() bool {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
 	return l.slidingWindow.Mean() >= l.threshold
 }
 
