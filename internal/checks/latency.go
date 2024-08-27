@@ -20,12 +20,12 @@ const (
 )
 
 type ErrorCircuitBreaker interface {
-	AddError()
+	RecordRequest()
 	IsOpen() bool
 }
 
 type LatencyCircuitBreaker interface {
-	AddLatency()
+	RecordLatency()
 	IsOpen() bool
 }
 
@@ -35,7 +35,7 @@ type ErrorStats struct {
 	slidingWindow SlidingWindow
 }
 
-func (e *ErrorStats) AddError() {
+func (e *ErrorStats) RecordRequest() {
 	e.slidingWindow.AddValue(1)
 }
 
@@ -62,7 +62,7 @@ type LatencyStats struct {
 	slidingWindow SlidingWindow
 }
 
-func (l *LatencyStats) AddLatency() {
+func (l *LatencyStats) RecordLatency() {
 	l.slidingWindow.AddValue(1)
 }
 
@@ -233,11 +233,11 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 	duration, c.Err = c.client.Latency(ctx, method)
 
 	if c.Err != nil {
-		c.errorCircuitBreaker.AddError()
+		c.errorCircuitBreaker.RecordRequest()
 
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	} else if duration > latencyThreshold {
-		latencyBreaker.AddLatency()
+		latencyBreaker.RecordLatency()
 
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	}

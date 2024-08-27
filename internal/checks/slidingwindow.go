@@ -16,6 +16,7 @@ type SlidingWindow interface {
 	Sum() time.Duration
 
 	// Mean returns the current sum of the values in the sliding window divided by the number of values.
+	// Returns `time.Duration(0)` if there are no values.
 	Mean() time.Duration
 }
 
