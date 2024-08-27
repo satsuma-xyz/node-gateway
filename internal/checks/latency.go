@@ -245,12 +245,23 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 	latencyBreaker.RecordLatency(duration)
 
 	if isError {
-		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+		c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+			c.upstreamConfig.ID,
+			c.upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+		).Inc()
 	} else if duration >= latencyThreshold {
-		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
+		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
+			c.upstreamConfig.ID,
+			c.upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+		).Inc()
 	}
 
-	c.metricsContainer.Latency.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL).Set(float64(duration.Milliseconds()))
+	c.metricsContainer.Latency.WithLabelValues(
+		c.upstreamConfig.ID,
+		c.upstreamConfig.HTTPURL,
+	).Set(float64(duration.Milliseconds()))
 
 	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
