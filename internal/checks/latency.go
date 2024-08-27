@@ -29,14 +29,14 @@ type ErrorCircuitBreaker interface {
 // LatencyCircuitBreaker
 // TODO(polsar): Make the implementation thread-safe.
 type LatencyCircuitBreaker interface {
-	RecordLatency()
+	RecordLatency(latency time.Duration)
 	IsOpen() bool
 }
 
 type ErrorStats struct {
-	banWindow     *time.Duration
-	errorsConfig  *conf.ErrorsConfig
 	slidingWindow SlidingWindow
+	banWindow     time.Duration
+	errorRate     float64
 }
 
 func (e *ErrorStats) RecordRequest(isError bool) {
@@ -48,42 +48,32 @@ func (e *ErrorStats) IsOpen() bool {
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
-	detectionWindow := conf.DefaultDetectionWindow
-	if routingConfig.DetectionWindow != nil {
-		detectionWindow = *routingConfig.DetectionWindow
-	}
-
 	return &ErrorStats{
-		banWindow:     routingConfig.BanWindow,
-		errorsConfig:  routingConfig.Errors,
-		slidingWindow: NewSimpleSlidingWindow(detectionWindow),
+		banWindow:     getBanWindow(routingConfig),
+		errorRate:     getErrorsRate(routingConfig),
+		slidingWindow: NewSimpleSlidingWindow(getDetectionWindow(routingConfig)),
 	}
 }
 
 type LatencyStats struct {
-	banWindow     *time.Duration
-	latencyConfig *conf.LatencyConfig
 	slidingWindow SlidingWindow
+	banWindow     time.Duration
+	threshold     time.Duration
 }
 
-func (l *LatencyStats) RecordLatency() {
-	l.slidingWindow.AddValue(1)
+func (l *LatencyStats) RecordLatency(latency time.Duration) {
+	l.slidingWindow.AddValue(latency)
 }
 
 func (l *LatencyStats) IsOpen() bool {
-	return l.slidingWindow.Count() > 0
+	return l.slidingWindow.Mean() >= l.threshold
 }
 
-func NewLatencyStats(routingConfig *conf.RoutingConfig) LatencyCircuitBreaker {
-	detectionWindow := conf.DefaultDetectionWindow
-	if routingConfig.DetectionWindow != nil {
-		detectionWindow = *routingConfig.DetectionWindow
-	}
-
+func NewLatencyStats(routingConfig *conf.RoutingConfig, method string) LatencyCircuitBreaker {
 	return &LatencyStats{
-		banWindow:     routingConfig.BanWindow,
-		latencyConfig: routingConfig.Latency,
-		slidingWindow: NewSimpleSlidingWindow(detectionWindow),
+		banWindow:     getBanWindow(routingConfig),
+		threshold:     getLatencyThreshold(routingConfig, method),
+		slidingWindow: NewSimpleSlidingWindow(getDetectionWindow(routingConfig)),
 	}
 }
 
@@ -218,7 +208,7 @@ func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBre
 		// keep track of all of them in the same LatencyStats instance. Note that this only applies if
 		// PassiveLatencyChecking is false, since we would not know about and therefore could not check
 		// these methods if PassiveLatencyChecking is true.
-		stats = NewLatencyStats(c.routingConfig)
+		stats = NewLatencyStats(c.routingConfig, method)
 		c.methodLatencyBreaker[method] = stats
 	}
 
@@ -239,12 +229,11 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 	//  (i.e. match HTTP code, JSON RPC code, and error message).
 	isError := c.Err != nil
 	c.errorCircuitBreaker.RecordRequest(isError)
+	latencyBreaker.RecordLatency(duration)
 
 	if isError {
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	} else if duration > latencyThreshold {
-		latencyBreaker.RecordLatency()
-
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	}
 
@@ -392,4 +381,38 @@ func boolToInt(b bool) int {
 	}
 
 	return 0
+}
+
+func getDetectionWindow(routingConfig *conf.RoutingConfig) time.Duration {
+	if routingConfig != nil && routingConfig.DetectionWindow != nil {
+		return *routingConfig.DetectionWindow
+	}
+
+	return conf.DefaultDetectionWindow
+}
+
+func getBanWindow(routingConfig *conf.RoutingConfig) time.Duration {
+	if routingConfig != nil && routingConfig.BanWindow != nil {
+		return *routingConfig.BanWindow
+	}
+
+	return conf.DefaultBanWindow
+}
+
+func getLatencyThreshold(routingConfig *conf.RoutingConfig, method string) time.Duration {
+	if routingConfig != nil && routingConfig.Latency != nil {
+		if latency, exists := routingConfig.Latency.MethodLatencyThresholds[method]; exists {
+			return latency
+		}
+	}
+
+	return conf.DefaultMaxLatency
+}
+
+func getErrorsRate(routingConfig *conf.RoutingConfig) float64 {
+	if routingConfig != nil && routingConfig.Errors != nil {
+		return routingConfig.Errors.Rate
+	}
+
+	return conf.DefaultErrorRate
 }

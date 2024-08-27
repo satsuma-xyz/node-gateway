@@ -45,15 +45,15 @@ func TestLatencyChecker_TwoMethods_BothLatenciesLessThanThreshold(t *testing.T) 
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesEqualToThreshold(t *testing.T) {
-	helperTestLatencyChecker(t, 10000*time.Millisecond, 2000*time.Millisecond, true)
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, (2000-1)*time.Millisecond, true)
 }
 
 func TestLatencyChecker_TwoMethods_FirstLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10001*time.Millisecond, 2000*time.Millisecond, false)
+	helperTestLatencyChecker(t, 10000*time.Millisecond, (2000-1)*time.Millisecond, false)
 }
 
 func TestLatencyChecker_TwoMethods_SecondLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10000*time.Millisecond, 2002*time.Millisecond, false)
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, 2000*time.Millisecond, false)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesTooHigh(t *testing.T) {
