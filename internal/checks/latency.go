@@ -305,32 +305,38 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 		).Inc()
 	}
 
-	var isError bool // false
-
 	if data.HTTPResponseCode >= http.StatusBadRequest {
 		// No RPC responses are available since the HTTP request errored out.
-		isError = c.isError(strconv.Itoa(data.HTTPResponseCode), "", "")
+		c.errorCircuitBreaker.RecordRequest(c.isError(
+			strconv.Itoa(data.HTTPResponseCode),
+			"",
+			"",
+		)) // HTTP request error
+		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 	} else if data.ResponseBody != nil {
 		for _, resp := range data.ResponseBody.GetSubResponses() {
 			if resp.Error != nil {
-				// TODO(polsar): Should we ignore this response if it does not correspond to an RPC request?
-				isError = c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message)
-				if isError {
+				// Do not ignore this response even if it does not correspond to an RPC request.
+				if c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message) {
 					c.metricsContainer.LatencyCheckErrors.WithLabelValues(
 						c.upstreamConfig.ID,
 						c.upstreamConfig.HTTPURL,
 						metrics.HTTPRequest,
 					).Inc()
 
-					break
+					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
+					c.errorCircuitBreaker.RecordRequest(true) // JSON RPC subrequest error
+				} else {
+					c.errorCircuitBreaker.RecordRequest(false) // JSON RPC subrequest OK
 				}
 			}
 		}
+
+		c.errorCircuitBreaker.RecordRequest(false) // HTTP request OK
 	}
 	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
 	//  How should we handle this case?
 
-	c.errorCircuitBreaker.RecordRequest(isError)
 	c.metricsContainer.Latency.WithLabelValues(
 		c.upstreamConfig.ID,
 		c.upstreamConfig.HTTPURL,
