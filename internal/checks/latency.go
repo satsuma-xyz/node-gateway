@@ -27,6 +27,7 @@ type ErrorCircuitBreaker interface {
 type LatencyCircuitBreaker interface {
 	RecordLatency(latency time.Duration)
 	IsOpen() bool
+	GetThreshold() time.Duration
 }
 
 type ErrorStats struct {
@@ -75,6 +76,10 @@ func (l *LatencyStats) IsOpen() bool {
 	defer l.lock.RUnlock()
 
 	return l.slidingWindow.Mean() >= l.threshold
+}
+
+func (l *LatencyStats) GetThreshold() time.Duration {
+	return l.threshold
 }
 
 func NewLatencyStats(routingConfig *conf.RoutingConfig, method string) LatencyCircuitBreaker {
@@ -241,7 +246,7 @@ func (c *LatencyCheck) runCheckForMethod(method string, latencyThreshold time.Du
 
 	if isError {
 		c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
-	} else if duration > latencyThreshold {
+	} else if duration >= latencyThreshold {
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPRequest).Inc()
 	}
 
@@ -287,7 +292,16 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 		return
 	}
 
-	c.getLatencyCircuitBreaker(data.Method).RecordLatency(data.Latency)
+	latencyCircuitBreaker := c.getLatencyCircuitBreaker(data.Method)
+	latencyCircuitBreaker.RecordLatency(data.Latency)
+
+	if data.Latency >= latencyCircuitBreaker.GetThreshold() {
+		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
+			c.upstreamConfig.ID,
+			c.upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+		).Inc()
+	}
 
 	var isError bool // false
 
@@ -300,6 +314,12 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 				// TODO(polsar): Should we ignore this response if it does not correspond to an RPC request?
 				isError = c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message)
 				if isError {
+					c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+						c.upstreamConfig.ID,
+						c.upstreamConfig.HTTPURL,
+						metrics.HTTPRequest,
+					).Inc()
+
 					break
 				}
 			}
@@ -309,6 +329,10 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 	//  How should we handle this case?
 
 	c.errorCircuitBreaker.RecordRequest(isError)
+	c.metricsContainer.Latency.WithLabelValues(
+		c.upstreamConfig.ID,
+		c.upstreamConfig.HTTPURL,
+	).Set(float64(data.Latency.Milliseconds()))
 }
 
 func (c *LatencyCheck) isError(httpCode, jsonRPCCode, errorMsg string) bool {
