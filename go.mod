@@ -6,6 +6,7 @@ toolchain go1.22.3
 
 require (
 	github.com/ethereum/go-ethereum v1.12.0
+	github.com/failsafe-go/failsafe-go v0.6.8
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/go-redis/redismock/v9 v9.0.3
 	github.com/google/go-cmp v0.6.0
