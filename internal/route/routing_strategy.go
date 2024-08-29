@@ -19,14 +19,16 @@ type RoutingStrategy interface {
 	) (string, error)
 }
 type PriorityRoundRobinStrategy struct {
-	logger  *zap.Logger
-	counter uint64
+	logger      *zap.Logger
+	counter     uint64
+	alwaysRoute bool
 }
 
-func NewPriorityRoundRobinStrategy(logger *zap.Logger) *PriorityRoundRobinStrategy {
+func NewPriorityRoundRobinStrategy(logger *zap.Logger, alwaysRoute bool) *PriorityRoundRobinStrategy {
 	return &PriorityRoundRobinStrategy{
-		logger:  logger,
-		counter: 0,
+		logger:      logger,
+		counter:     0,
+		alwaysRoute: alwaysRoute,
 	}
 }
 
@@ -55,6 +57,8 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 
 			return upstreams[int(s.counter)%len(upstreams)].ID, nil //nolint:nolintlint,gosec // Legacy
 		}
+
+		// TODO(polsar): If `alwaysRoute` is true, find an unhealthy upstream to route to anyway.
 
 		s.logger.Debug("Did not find any healthy nodes in priority.", zap.Int("priority", priority))
 	}
