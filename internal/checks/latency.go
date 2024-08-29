@@ -68,14 +68,15 @@ type LatencyStats struct {
 func (l *LatencyStats) RecordLatency(latency time.Duration) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	l.slidingWindow.AddValue(latency)
+
+	l.slidingWindow.AddValue(time.Duration(boolToInt(latency >= l.GetThreshold())))
 }
 
 func (l *LatencyStats) IsOpen() bool {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	return l.slidingWindow.Mean() >= l.threshold
+	return float64(l.slidingWindow.Sum().Nanoseconds())/float64(l.slidingWindow.Count()) >= conf.DefaultLatencyTooHighRate
 }
 
 func (l *LatencyStats) GetThreshold() time.Duration {

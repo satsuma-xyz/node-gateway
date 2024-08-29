@@ -18,10 +18,11 @@ const (
 	DefaultDetectionWindow = time.Minute
 	// DefaultMaxLatency is used when the latency threshold is not specified in the config.
 	// TODO(polsar): We should probably use a lower value.
-	DefaultMaxLatency          = 10 * time.Second
-	DefaultErrorRate           = 0.25
-	Archive           NodeType = "archive"
-	Full              NodeType = "full"
+	DefaultMaxLatency                  = 10 * time.Second
+	DefaultErrorRate                   = 0.25
+	DefaultLatencyTooHighRate          = 0.5 // TODO(polsar): Expose this parameter in the config.
+	Archive                   NodeType = "archive"
+	Full                      NodeType = "full"
 	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
 	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
 	LatencyCheckMethod = "eth_chainId"
