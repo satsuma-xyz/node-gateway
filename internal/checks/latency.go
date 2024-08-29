@@ -257,7 +257,7 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
-func (c *LatencyCheck) IsPassing() bool {
+func (c *LatencyCheck) IsPassing(methods []string) bool {
 	if c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
 			"LatencyCheck is not passing due to too many errors.",
@@ -271,10 +271,14 @@ func (c *LatencyCheck) IsPassing() bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// TODO(polsar): If one method's latency check is failing, the upstream will be marked as unhealthy,
-	//  which will affect all other methods. We want to maintain the health status for each method separately.
-	for method, breaker := range c.methodLatencyBreaker {
-		if breaker.IsOpen() {
+	// Only consider the passed methods, even if other methods' circuit breakers might be open.
+	//
+	// TODO(polsar): If the circuit breaker for any of the passed methods is open, we consider this upstream
+	//  as unhealthy for all the other passed methods, even if their circuit breakers are closed. This might
+	//  be undesirable, though since all the methods are part of the same request, we would have to somehow
+	//  modify the request to only contain the healthy methods. This seems like more trouble than is worth.
+	for _, method := range methods {
+		if breaker, exists := c.methodLatencyBreaker[method]; exists && breaker.IsOpen() {
 			c.logger.Debug(
 				"LatencyCheck is not passing due to high latency of an RPC method.",
 				zap.String("upstreamID", c.upstreamConfig.ID),

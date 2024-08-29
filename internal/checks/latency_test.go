@@ -15,9 +15,12 @@ import (
 
 func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, isPassing bool) {
 	t.Helper()
+
+	methods := []string{"eth_call", "eth_getLogs"}
+
 	ethClient := mocks.NewEthClient(t)
-	ethClient.EXPECT().RecordLatency(mock.Anything, "eth_call").Return(latency1, nil)
-	ethClient.EXPECT().RecordLatency(mock.Anything, "eth_getLogs").Return(latency2, nil)
+	ethClient.EXPECT().RecordLatency(mock.Anything, methods[0]).Return(latency1, nil)
+	ethClient.EXPECT().RecordLatency(mock.Anything, methods[1]).Return(latency2, nil)
 
 	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:nolintlint,revive // Legacy
 		return ethClient, nil
@@ -32,9 +35,9 @@ func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, is
 	)
 
 	if isPassing {
-		assert.True(t, checker.IsPassing())
+		assert.True(t, checker.IsPassing(methods))
 	} else {
-		assert.False(t, checker.IsPassing())
+		assert.False(t, checker.IsPassing(methods))
 	}
 
 	ethClient.AssertNumberOfCalls(t, "RecordLatency", 2)

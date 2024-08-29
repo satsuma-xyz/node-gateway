@@ -112,13 +112,13 @@ type IsLatencyAcceptable struct {
 	logger             *zap.Logger
 }
 
-func (f *IsLatencyAcceptable) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
+func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
 	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.LatencyCheck)
 
 	if latencyCheck.ShouldRun {
-		return latencyCheck.IsPassing()
+		return latencyCheck.IsPassing(requestMetadata.Methods)
 	}
 
 	return true
