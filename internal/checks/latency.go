@@ -95,7 +95,7 @@ func NewLatencyStats(routingConfig *conf.RoutingConfig, method string) LatencyCi
 	}
 }
 
-// NewCircuitBreaker abstracts away the rather complex API of the `failsafe-go` package.
+// NewCircuitBreaker abstracts away the rather complex circuitbreaker.Builder API.
 // https://pkg.go.dev/github.com/failsafe-go/failsafe-go/circuitbreaker
 // https://failsafe-go.dev/circuit-breaker/
 func NewCircuitBreaker(
