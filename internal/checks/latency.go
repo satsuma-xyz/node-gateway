@@ -36,30 +36,29 @@ type LatencyCircuitBreaker interface {
 }
 
 type ErrorStats struct {
-	slidingWindow SlidingWindow
-	banWindow     time.Duration
-	errorRate     float64
-	lock          sync.RWMutex
+	circuitBreaker circuitbreaker.CircuitBreaker[bool]
 }
 
 func (e *ErrorStats) RecordRequest(isError bool) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	e.slidingWindow.AddValue(time.Duration(boolToInt(isError)))
+	if isError {
+		e.circuitBreaker.RecordFailure()
+	} else {
+		e.circuitBreaker.RecordSuccess()
+	}
 }
 
 func (e *ErrorStats) IsOpen() bool {
-	e.lock.RLock()
-	defer e.lock.RUnlock()
-
-	return float64(e.slidingWindow.Sum().Nanoseconds())/float64(e.slidingWindow.Count()) >= e.errorRate
+	// TODO(polsar): Dedup with LatencyStats.IsOpen.
+	return e.circuitBreaker.IsOpen() || e.circuitBreaker.IsHalfOpen()
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
 	return &ErrorStats{
-		banWindow:     getBanWindow(routingConfig),
-		errorRate:     getErrorsRate(routingConfig),
-		slidingWindow: NewSimpleSlidingWindow(getDetectionWindow(routingConfig)),
+		circuitBreaker: NewCircuitBreaker(
+			getErrorsRate(routingConfig),
+			getDetectionWindow(routingConfig),
+			getBanWindow(routingConfig),
+		),
 	}
 }
 
@@ -77,6 +76,7 @@ func (l *LatencyStats) RecordLatency(latency time.Duration) {
 }
 
 func (l *LatencyStats) IsOpen() bool {
+	// TODO(polsar): Dedup with ErrorStats.IsOpen.
 	return l.circuitBreaker.IsOpen() || l.circuitBreaker.IsHalfOpen()
 }
 
