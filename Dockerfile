@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 
-FROM golang:1.21-alpine3.20 as builder
+FROM golang:1.22.6-alpine3.20 as builder
 
 RUN apk add --no-cache make libc6-compat build-base
 
