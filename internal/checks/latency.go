@@ -36,7 +36,7 @@ type LatencyCircuitBreaker interface {
 }
 
 type ErrorStats struct {
-	circuitBreaker circuitbreaker.CircuitBreaker[bool]
+	circuitBreaker circuitbreaker.CircuitBreaker[any]
 }
 
 func (e *ErrorStats) RecordRequest(isError bool) {
@@ -63,7 +63,7 @@ func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
 }
 
 type LatencyStats struct {
-	circuitBreaker circuitbreaker.CircuitBreaker[bool]
+	circuitBreaker circuitbreaker.CircuitBreaker[any]
 	threshold      time.Duration
 }
 
@@ -102,9 +102,9 @@ func NewCircuitBreaker(
 	errorRate float64,
 	detectionWindow time.Duration,
 	banWindow time.Duration,
-) circuitbreaker.CircuitBreaker[bool] {
+) circuitbreaker.CircuitBreaker[any] {
 	// TODO(polsar): Check that `0.0 < errorRate <= 1.0` holds.
-	return circuitbreaker.Builder[bool]().
+	return circuitbreaker.Builder[any]().
 		HandleResult(false). // The false return value of the wrapped call will be interpreted as a failure.
 		WithFailureRateThreshold(
 			uint(math.Floor(errorRate*PercentPerFrac)), // Minimum percentage of failed requests to open the breaker.
