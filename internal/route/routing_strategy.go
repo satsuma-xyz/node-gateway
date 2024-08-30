@@ -12,21 +12,23 @@ import (
 
 //go:generate mockery --output ../mocks --name RoutingStrategy --structname MockRoutingStrategy --with-expecter
 type RoutingStrategy interface {
-	// Returns the next UpstreamID a request should route to.
+	// RouteNextRequest returns the next UpstreamID a request should route to.
 	RouteNextRequest(
 		upstreamsByPriority types.PriorityToUpstreamsMap,
 		requestMetadata metadata.RequestMetadata,
 	) (string, error)
 }
 type PriorityRoundRobinStrategy struct {
-	logger  *zap.Logger
-	counter uint64
+	logger      *zap.Logger
+	counter     uint64
+	alwaysRoute bool
 }
 
-func NewPriorityRoundRobinStrategy(logger *zap.Logger) *PriorityRoundRobinStrategy {
+func NewPriorityRoundRobinStrategy(logger *zap.Logger, alwaysRoute bool) *PriorityRoundRobinStrategy {
 	return &PriorityRoundRobinStrategy{
-		logger:  logger,
-		counter: 0,
+		logger:      logger,
+		counter:     0,
+		alwaysRoute: alwaysRoute,
 	}
 }
 

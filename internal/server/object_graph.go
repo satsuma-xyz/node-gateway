@@ -27,17 +27,38 @@ type singleChainObjectGraph struct {
 	chainName string
 }
 
-func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *zap.Logger, rpcCache *cache.RPCCache) singleChainObjectGraph {
+func wireSingleChainDependencies(
+	globalConfig config.GlobalConfig, //nolint:gocritic // Legacy
+	chainConfig *config.SingleChainConfig,
+	logger *zap.Logger,
+	rpcCache *cache.RPCCache,
+) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
 	ticker := time.NewTicker(checks.PeriodicHealthCheckInterval)
-	healthCheckManager := checks.NewHealthCheckManager(client.NewEthClient, chainConfig.Upstreams, chainMetadataStore, ticker, metricContainer, logger)
+	healthCheckManager := checks.NewHealthCheckManager(
+		client.NewEthClient,
+		chainConfig.Upstreams,
+		chainConfig.Routing,
+		globalConfig.Routing,
+		chainMetadataStore,
+		ticker,
+		metricContainer,
+		logger,
+	)
 
+	alwaysRoute := false
+	if chainConfig.Routing.AlwaysRoute != nil {
+		alwaysRoute = *chainConfig.Routing.AlwaysRoute
+	}
+
+	// TODO(polsar): Here, the HealthCheckManager is wired into the primary FilteringRoutingStrategy.
+	// We may need to wire it into the secondary PriorityRoundRobinStrategy as well.
 	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.MethodsAllowed, route.NearGlobalMaxHeight}
 	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &chainConfig.Routing)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,
-		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger),
+		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger, alwaysRoute),
 		Logger:          logger,
 	}
 
@@ -72,7 +93,12 @@ func WireDependenciesForAllChains(
 		currentChainConfig := &gatewayConfig.Chains[chainIndex]
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
-		dependencyContainer := wireSingleChainDependencies(currentChainConfig, childLogger, rpcCache)
+		dependencyContainer := wireSingleChainDependencies(
+			gatewayConfig.Global,
+			currentChainConfig,
+			childLogger,
+			rpcCache,
+		)
 
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)
 		routers = append(routers, dependencyContainer.router)

@@ -31,18 +31,44 @@ type HealthCheckManager interface {
 	StartHealthChecks()
 	IsInitialized() bool
 	GetUpstreamStatus(upstreamID string) *types.UpstreamStatus
+	RecordRequest(upstreamID string, data *types.RequestData)
 }
 
 type healthCheckManager struct {
-	upstreamIDToStatus  map[string]*types.UpstreamStatus
-	ethClientGetter     client.EthClientGetter
-	newBlockHeightCheck func(*conf.UpstreamConfig, client.EthClientGetter, BlockHeightObserver, *metrics.Container, *zap.Logger) types.BlockHeightChecker
-	newPeerCheck        func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
-	newSyncingCheck     func(*conf.UpstreamConfig, client.EthClientGetter, *metrics.Container, *zap.Logger) types.Checker
 	blockHeightObserver BlockHeightObserver
+	newPeerCheck        func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.Checker
+	newBlockHeightCheck func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		BlockHeightObserver,
+		*metrics.Container,
+		*zap.Logger,
+	) types.BlockHeightChecker
+	upstreamIDToStatus map[string]*types.UpstreamStatus
+	newSyncingCheck    func(
+		*conf.UpstreamConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.Checker
+	newLatencyCheck func(
+		*conf.UpstreamConfig,
+		*conf.RoutingConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.LatencyChecker
+	ethClientGetter     client.EthClientGetter
 	healthCheckTicker   *time.Ticker
 	metricsContainer    *metrics.Container
 	logger              *zap.Logger
+	globalRoutingConfig conf.RoutingConfig
+	routingConfig       conf.RoutingConfig
 	configs             []conf.UpstreamConfig
 	isInitialized       atomic.Bool
 }
@@ -50,6 +76,8 @@ type healthCheckManager struct {
 func NewHealthCheckManager(
 	ethClientGetter client.EthClientGetter,
 	config []conf.UpstreamConfig,
+	routingConfig conf.RoutingConfig,
+	globalRoutingConfig conf.RoutingConfig,
 	blockHeightObserver BlockHeightObserver,
 	healthCheckTicker *time.Ticker,
 	metricsContainer *metrics.Container,
@@ -59,9 +87,12 @@ func NewHealthCheckManager(
 		upstreamIDToStatus:  make(map[string]*types.UpstreamStatus),
 		ethClientGetter:     ethClientGetter,
 		configs:             config,
+		routingConfig:       routingConfig,
+		globalRoutingConfig: globalRoutingConfig,
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
+		newLatencyCheck:     NewLatencyChecker,
 		blockHeightObserver: blockHeightObserver,
 		healthCheckTicker:   healthCheckTicker,
 		metricsContainer:    metricsContainer,
@@ -85,6 +116,10 @@ func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.Upstrea
 
 	// Panic because an unknown upstream ID implies a bug in the code.
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
+}
+
+func (h *healthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
+	h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
 }
 
 func (h *healthCheckManager) setUpstreamStatus(upstreamID string, status *types.UpstreamStatus) {
@@ -114,7 +149,13 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				blockHeightCheck = h.newBlockHeightCheck(&config, client.NewEthClient, h.blockHeightObserver, h.metricsContainer, h.logger)
+				blockHeightCheck = h.newBlockHeightCheck(
+					&config,
+					client.NewEthClient,
+					h.blockHeightObserver,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			var peerCheck types.Checker
@@ -124,7 +165,12 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				peerCheck = h.newPeerCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
+				peerCheck = h.newPeerCheck(
+					&config,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			var syncingCheck types.Checker
@@ -134,7 +180,28 @@ func (h *healthCheckManager) initializeChecks() {
 			go func() {
 				defer innerWG.Done()
 
-				syncingCheck = h.newSyncingCheck(&config, client.NewEthClient, h.metricsContainer, h.logger)
+				syncingCheck = h.newSyncingCheck(
+					&config,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
+			}()
+
+			var latencyCheck types.LatencyChecker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				latencyCheck = h.newLatencyCheck(
+					&config,
+					&h.routingConfig,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
 			}()
 
 			innerWG.Wait()
@@ -146,6 +213,7 @@ func (h *healthCheckManager) initializeChecks() {
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
 				SyncingCheck:     syncingCheck,
+				LatencyCheck:     latencyCheck,
 			})
 			mutex.Unlock()
 		}()
@@ -189,6 +257,13 @@ func (h *healthCheckManager) runChecksOnce() {
 			defer wg.Done()
 			c.RunCheck()
 		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
+
+		wg.Add(1)
+
+		go func(c types.LatencyChecker) {
+			defer wg.Done()
+			c.RunPassiveCheck()
+		}(h.GetUpstreamStatus(config.ID).LatencyCheck)
 	}
 
 	wg.Wait()

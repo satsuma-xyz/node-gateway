@@ -36,13 +36,24 @@ func TestHealthCheckManager(t *testing.T) {
 			HealthCheckConfig: config.HealthCheckConfig{UseWSForBlockHeight: new(bool)},
 		},
 	}
+	routingConfig := config.RoutingConfig{}
+	globalRoutingConfig := config.RoutingConfig{}
 
 	tickerChan := make(chan time.Time)
 	ticker := &time.Ticker{C: tickerChan}
 
 	metricsContainer := metrics.NewContainer(config.TestChainName)
 
-	manager := NewHealthCheckManager(mockEthClientGetter, configs, nil, ticker, metricsContainer, zap.L())
+	manager := NewHealthCheckManager(
+		mockEthClientGetter,
+		configs,
+		routingConfig,
+		globalRoutingConfig,
+		nil,
+		ticker,
+		metricsContainer,
+		zap.L(),
+	)
 	manager.(*healthCheckManager).newBlockHeightCheck = func(
 		*config.UpstreamConfig,
 		client.EthClientGetter,

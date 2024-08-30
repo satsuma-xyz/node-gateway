@@ -49,6 +49,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 
 func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
+	managerMock.EXPECT().RecordRequest(mock.Anything, mock.Anything)
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpResp := &http.Response{
@@ -124,6 +125,7 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 
 func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	managerMock := mocks.NewHealthCheckManager(t)
+	managerMock.EXPECT().RecordRequest(mock.Anything, mock.Anything)
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpResp := &http.Response{
