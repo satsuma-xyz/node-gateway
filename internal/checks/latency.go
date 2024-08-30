@@ -2,11 +2,14 @@ package checks
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/failsafe-go/failsafe-go/circuitbreaker"
 
 	"github.com/satsuma-data/node-gateway/internal/client"
 	conf "github.com/satsuma-data/node-gateway/internal/config"
@@ -16,7 +19,9 @@ import (
 )
 
 const (
-	ResponseCodeWildcard = 'x'
+	ResponseCodeWildcard  = 'x'
+	PercentPerFrac        = 100
+	MinNumRequestsForRate = 1 // The minimum number of requests required to compute the error rate.
 )
 
 type ErrorCircuitBreaker interface {
@@ -59,24 +64,20 @@ func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
 }
 
 type LatencyStats struct {
-	slidingWindow SlidingWindow
-	banWindow     time.Duration
-	threshold     time.Duration
-	lock          sync.RWMutex
+	circuitBreaker circuitbreaker.CircuitBreaker[bool]
+	threshold      time.Duration
 }
 
 func (l *LatencyStats) RecordLatency(latency time.Duration) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.slidingWindow.AddValue(time.Duration(boolToInt(latency >= l.GetThreshold())))
+	if latency >= l.threshold {
+		l.circuitBreaker.RecordFailure()
+	} else {
+		l.circuitBreaker.RecordSuccess()
+	}
 }
 
 func (l *LatencyStats) IsOpen() bool {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	return float64(l.slidingWindow.Sum().Nanoseconds())/float64(l.slidingWindow.Count()) >= conf.DefaultLatencyTooHighRate
+	return l.circuitBreaker.IsOpen() || l.circuitBreaker.IsHalfOpen()
 }
 
 func (l *LatencyStats) GetThreshold() time.Duration {
@@ -85,10 +86,33 @@ func (l *LatencyStats) GetThreshold() time.Duration {
 
 func NewLatencyStats(routingConfig *conf.RoutingConfig, method string) LatencyCircuitBreaker {
 	return &LatencyStats{
-		banWindow:     getBanWindow(routingConfig),
-		threshold:     getLatencyThreshold(routingConfig, method),
-		slidingWindow: NewSimpleSlidingWindow(getDetectionWindow(routingConfig)),
+		threshold: getLatencyThreshold(routingConfig, method),
+		circuitBreaker: NewCircuitBreaker(
+			conf.DefaultLatencyTooHighRate,
+			getDetectionWindow(routingConfig),
+			getBanWindow(routingConfig),
+		),
 	}
+}
+
+// NewCircuitBreaker abstracts away the rather complex API of the `failsafe-go` package.
+// https://pkg.go.dev/github.com/failsafe-go/failsafe-go/circuitbreaker
+// https://failsafe-go.dev/circuit-breaker/
+func NewCircuitBreaker(
+	errorRate float64,
+	detectionWindow time.Duration,
+	banWindow time.Duration,
+) circuitbreaker.CircuitBreaker[bool] {
+	// TODO(polsar): Check that `0.0 < errorRate <= 1.0` holds.
+	return circuitbreaker.Builder[bool]().
+		HandleResult(false). // The false return value of the wrapped call will be interpreted as a failure.
+		WithFailureRateThreshold(
+			uint(math.Floor(errorRate*PercentPerFrac)), // Minimum percentage of failed requests to open the breaker.
+			MinNumRequestsForRate,
+			detectionWindow,
+		).
+		WithDelay(banWindow).
+		Build()
 }
 
 type LatencyCheck struct {
