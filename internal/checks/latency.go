@@ -258,7 +258,7 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
-func (c *LatencyCheck) IsPassing(methods []string) bool {
+func (c *LatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
 	if c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
 			"LatencyCheck is not passing due to too many errors.",
@@ -266,7 +266,7 @@ func (c *LatencyCheck) IsPassing(methods []string) bool {
 			zap.Error(c.Err),
 		)
 
-		return false
+		return conf.ReasonErrorRate
 	}
 
 	c.lock.Lock()
@@ -287,11 +287,11 @@ func (c *LatencyCheck) IsPassing(methods []string) bool {
 				zap.Error(c.Err),
 			)
 
-			return false
+			return conf.ReasonLatencyTooHighRate
 		}
 	}
 
-	return true
+	return conf.ReasonUnknownOrHealthy
 }
 
 func (c *LatencyCheck) RecordRequest(data *types.RequestData) {

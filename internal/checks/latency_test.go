@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, isPassing bool) {
+func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, reason config.UnhealthyReason) {
 	t.Helper()
 
 	methods := []string{"eth_call", "eth_getLogs"}
@@ -34,33 +34,29 @@ func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, is
 		zap.L(),
 	)
 
-	if isPassing {
-		assert.True(t, checker.IsPassing(methods))
-	} else {
-		assert.False(t, checker.IsPassing(methods))
-	}
+	assert.Equal(t, reason, checker.GetUnhealthyReason(methods))
 
 	ethClient.AssertNumberOfCalls(t, "RecordLatency", 2)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesLessThanThreshold(t *testing.T) {
-	helperTestLatencyChecker(t, 2*time.Millisecond, 3*time.Millisecond, true)
+	helperTestLatencyChecker(t, 2*time.Millisecond, 3*time.Millisecond, config.ReasonUnknownOrHealthy)
 }
 
-func TestLatencyChecker_TwoMethods_BothLatenciesEqualToThreshold(t *testing.T) {
-	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, (2000-1)*time.Millisecond, true)
+func TestLatencyChecker_TwoMethods_BothLatenciesJustBelowThreshold(t *testing.T) {
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, (2000-1)*time.Millisecond, config.ReasonUnknownOrHealthy)
 }
 
 func TestLatencyChecker_TwoMethods_FirstLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10000*time.Millisecond, (2000-1)*time.Millisecond, false)
+	helperTestLatencyChecker(t, 10000*time.Millisecond, (2000-1)*time.Millisecond, config.ReasonLatencyTooHighRate)
 }
 
 func TestLatencyChecker_TwoMethods_SecondLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, 2000*time.Millisecond, false)
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, 2000*time.Millisecond, config.ReasonLatencyTooHighRate)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10002*time.Millisecond, 2003*time.Millisecond, false)
+	helperTestLatencyChecker(t, 10002*time.Millisecond, 2003*time.Millisecond, config.ReasonLatencyTooHighRate)
 }
 
 func Test_isMatchForPatterns_True(t *testing.T) {

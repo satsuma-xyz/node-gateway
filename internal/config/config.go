@@ -33,6 +33,16 @@ const (
 	PassiveLatencyChecking = false
 )
 
+// UnhealthyReason is the reason why a health check failed. We use it to select the most appropriate upstream to route to
+// if all upstreams are unhealthy and the `alwaysRoute` option is true.
+type UnhealthyReason int
+
+const (
+	ReasonUnknownOrHealthy = iota
+	ReasonErrorRate
+	ReasonLatencyTooHighRate
+)
+
 type UpstreamConfig struct {
 	Methods              MethodsConfig         `yaml:"methods"`
 	HealthCheckConfig    HealthCheckConfig     `yaml:"healthCheck"`
@@ -43,6 +53,7 @@ type UpstreamConfig struct {
 	GroupID              string                `yaml:"group"`
 	NodeType             NodeType              `yaml:"nodeType"`
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
+	HealthStatus         UnhealthyReason       // The default value of this field is 0 (ReasonUnknownOrHealthy).
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
