@@ -234,6 +234,57 @@ var (
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
+
+	latencyStatus = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency",
+			Help:      "Latency of upstream.",
+		},
+		[]string{"chain_name", "upstream_id", "url"},
+	)
+
+	latencyStatusCheckRequests = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_requests",
+			Help:      "Total latency check requests made.",
+		},
+		[]string{"chain_name", "upstream_id", "url"},
+	)
+
+	latencyStatusCheckDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_duration_seconds",
+			Help:      "Latency of latency check requests.",
+			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
+		},
+		[]string{"chain_name", "upstream_id", "url"},
+	)
+
+	latencyStatusCheckErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_errors",
+			Help:      "Errors when checking latency of upstream.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
+	)
+
+	latencyStatusHighLatencies = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_high_latency",
+			Help:      "Latency of upstream too high.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
+	)
 )
 
 type Container struct {
@@ -260,6 +311,12 @@ type Container struct {
 	SyncStatusCheckRequests *prometheus.CounterVec
 	SyncStatusCheckDuration prometheus.ObserverVec
 	SyncStatusCheckErrors   *prometheus.CounterVec
+
+	Latency                   *prometheus.GaugeVec
+	LatencyCheckRequests      *prometheus.CounterVec
+	LatencyCheckDuration      prometheus.ObserverVec
+	LatencyCheckErrors        *prometheus.CounterVec
+	LatencyCheckHighLatencies *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -291,6 +348,12 @@ func NewContainer(chainName string) *Container {
 	result.SyncStatusCheckRequests = syncStatusCheckRequests.MustCurryWith(presetLabels)
 	result.SyncStatusCheckDuration = syncStatusCheckDuration.MustCurryWith(presetLabels)
 	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
+
+	result.Latency = latencyStatus.MustCurryWith(presetLabels)
+	result.LatencyCheckRequests = latencyStatusCheckRequests.MustCurryWith(presetLabels)
+	result.LatencyCheckDuration = latencyStatusCheckDuration.MustCurryWith(presetLabels)
+	result.LatencyCheckErrors = latencyStatusCheckErrors.MustCurryWith(presetLabels)
+	result.LatencyCheckHighLatencies = latencyStatusHighLatencies.MustCurryWith(presetLabels)
 
 	return result
 }
