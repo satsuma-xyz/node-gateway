@@ -295,12 +295,18 @@ func (c *LatencyConfig) merge(globalConfig *LatencyConfig) {
 
 func (c *LatencyConfig) getLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
 	if c.Threshold <= time.Duration(0) {
+		var threshold time.Duration
+
 		// The latency threshold is not configured or invalid, so use the global config's value or the default.
 		if globalConfig != nil {
-			return globalConfig.getLatencyThreshold(nil)
+			threshold = globalConfig.getLatencyThreshold(nil)
+		} else {
+			threshold = DefaultMaxLatency
 		}
 
-		return DefaultMaxLatency
+		c.Threshold = threshold
+
+		return threshold
 	}
 
 	return c.Threshold
