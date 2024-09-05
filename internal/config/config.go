@@ -44,9 +44,7 @@ const (
 )
 
 // UpstreamConfig
-// TODO(polsar): Move the HealthStatus field to a new struct and embed this struct in it.
-//
-//	Asana task: https://app.asana.com/0/1207397277805097/1208232039997185/f
+// TODO(polsar): Move the HealthStatus field to a new struct and embed this struct in it. Asana task: https://app.asana.com/0/1207397277805097/1208232039997185/f
 type UpstreamConfig struct {
 	Methods              MethodsConfig         `yaml:"methods"`
 	HealthCheckConfig    HealthCheckConfig     `yaml:"healthCheck"`
@@ -279,6 +277,8 @@ func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
 // TODO(polsar): Add the minimum number of latencies in the detection window required to apply the threshold.
 // TODO(polsar): Add other aggregation options. Currently, the average of latencies in the detection windows is used.
 type LatencyConfig struct {
+	// This field allows us to quickly look up the latency of a method, rather than doing so by traversing the Methods slice.
+	//
 	// TODO(polsar): Move this field to a new struct and embed this struct in it.
 	//  Asana task: https://app.asana.com/0/1207397277805097/1208232039997185/f
 	MethodLatencyThresholds map[string]time.Duration
