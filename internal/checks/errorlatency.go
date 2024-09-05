@@ -115,7 +115,7 @@ func NewCircuitBreaker(
 		Build()
 }
 
-type LatencyCheck struct {
+type ErrorLatencyCheck struct {
 	client                       client.EthClient
 	Err                          error
 	clientGetter                 client.EthClientGetter
@@ -129,14 +129,14 @@ type LatencyCheck struct {
 	ShouldRunPassiveHealthChecks bool
 }
 
-func NewLatencyChecker(
+func NewErrorLatencyChecker(
 	upstreamConfig *conf.UpstreamConfig,
 	routingConfig *conf.RoutingConfig,
 	clientGetter client.EthClientGetter,
 	metricsContainer *metrics.Container,
 	logger *zap.Logger,
-) types.LatencyChecker {
-	c := &LatencyCheck{
+) types.ErrorLatencyChecker {
+	c := &ErrorLatencyCheck{
 		upstreamConfig:               upstreamConfig,
 		routingConfig:                routingConfig,
 		clientGetter:                 clientGetter,
@@ -148,14 +148,14 @@ func NewLatencyChecker(
 	}
 
 	if err := c.InitializePassiveCheck(); err != nil {
-		logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
+		logger.Error("Error initializing ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig), zap.Error(err))
 	}
 
 	return c
 }
 
-func (c *LatencyCheck) InitializePassiveCheck() error {
-	c.logger.Debug("Initializing LatencyCheck.", zap.Any("config", c.upstreamConfig))
+func (c *ErrorLatencyCheck) InitializePassiveCheck() error {
+	c.logger.Debug("Initializing ErrorLatencyCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *LatencyCheck) InitializePassiveCheck() error {
 
 	// TODO(polsar): This check is in both PeerCheck and SyncingCheck implementations, so refactor this.
 	if isMethodNotSupportedErr(c.Err) {
-		c.logger.Debug("LatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
+		c.logger.Debug("ErrorLatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
 		c.ShouldRunPassiveHealthChecks = false
 	}
@@ -177,14 +177,14 @@ func (c *LatencyCheck) InitializePassiveCheck() error {
 	return nil
 }
 
-func (c *LatencyCheck) RunPassiveCheck() {
+func (c *ErrorLatencyCheck) RunPassiveCheck() {
 	if !c.ShouldRunPassiveHealthChecks {
 		return
 	}
 
 	if c.client == nil {
 		if err := c.InitializePassiveCheck(); err != nil {
-			c.logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
+			c.logger.Error("Error initializing ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
 			c.metricsContainer.LatencyCheckErrors.WithLabelValues(
 				c.upstreamConfig.ID,
 				c.upstreamConfig.HTTPURL,
@@ -197,7 +197,7 @@ func (c *LatencyCheck) RunPassiveCheck() {
 	c.runPassiveCheck()
 }
 
-func (c *LatencyCheck) runPassiveCheck() {
+func (c *ErrorLatencyCheck) runPassiveCheck() {
 	if c.client == nil || !c.routingConfig.PassiveLatencyChecking {
 		return
 	}
@@ -234,7 +234,7 @@ func (c *LatencyCheck) runPassiveCheck() {
 
 // Returns the LatencyStats instance corresponding to the specified RPC method.
 // This method is thread-safe.
-func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBreaker {
+func (c *ErrorLatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBreaker {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -250,7 +250,7 @@ func (c *LatencyCheck) getLatencyCircuitBreaker(method string) LatencyCircuitBre
 }
 
 // This method runs the passive latency check for the specified method and latency threshold.
-func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold time.Duration) {
+func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), RPCRequestTimeout)
 	defer cancel()
 
@@ -288,13 +288,13 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 		method,
 	).Set(float64(duration.Milliseconds()))
 
-	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
+	c.logger.Debug("Ran passive ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
-func (c *LatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
+func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
 	if c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
-			"LatencyCheck is not passing due to too many errors.",
+			"ErrorLatencyCheck is not passing due to too many errors.",
 			zap.String("upstreamID", c.upstreamConfig.ID),
 			zap.Error(c.Err),
 		)
@@ -314,7 +314,7 @@ func (c *LatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason
 	for _, method := range methods {
 		if breaker, exists := c.methodLatencyBreaker[method]; exists && breaker.IsOpen() {
 			c.logger.Debug(
-				"LatencyCheck is not passing due to high latency of an RPC method.",
+				"ErrorLatencyCheck is not passing due to high latency of an RPC method.",
 				zap.String("upstreamID", c.upstreamConfig.ID),
 				zap.Any("method", method),
 				zap.Error(c.Err),
@@ -327,7 +327,7 @@ func (c *LatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason
 	return conf.ReasonUnknownOrHealthy
 }
 
-func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
+func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	if c.routingConfig.PassiveLatencyChecking {
 		return
 	}
@@ -382,7 +382,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 	).Set(float64(data.Latency.Milliseconds()))
 }
 
-func (c *LatencyCheck) isError(httpCode, jsonRPCCode, errorMsg string) bool {
+func (c *ErrorLatencyCheck) isError(httpCode, jsonRPCCode, errorMsg string) bool {
 	if isMatchForPatterns(httpCode, c.routingConfig.Errors.HTTPCodes) ||
 		isMatchForPatterns(jsonRPCCode, c.routingConfig.Errors.JSONRPCCodes) ||
 		isErrorMatches(errorMsg, c.routingConfig.Errors.ErrorStrings) {

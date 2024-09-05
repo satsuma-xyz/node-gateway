@@ -11,7 +11,7 @@ type UpstreamStatus struct {
 	BlockHeightCheck BlockHeightChecker
 	PeerCheck        Checker
 	SyncingCheck     Checker
-	LatencyCheck     LatencyChecker
+	LatencyCheck     ErrorLatencyChecker
 	ID               string
 	GroupID          string
 }
@@ -37,8 +37,8 @@ type Checker interface {
 	IsPassing() bool
 }
 
-//go:generate mockery --output ../mocks --name LatencyChecker --with-expecter
-type LatencyChecker interface {
+//go:generate mockery --output ../mocks --name ErrorLatencyChecker --with-expecter
+type ErrorLatencyChecker interface {
 	RunPassiveCheck()
 	GetUnhealthyReason(methods []string) config.UnhealthyReason
 	RecordRequest(data *RequestData)

@@ -115,7 +115,7 @@ type IsLatencyAcceptable struct {
 func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 
-	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.LatencyCheck)
+	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.ErrorLatencyCheck)
 
 	// TODO(polsar): If unhealthy, set the delta by which the check failed.
 	//  For example, if the configured rate is 0.25 and the current error rate is 0.27,
@@ -124,7 +124,7 @@ func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, up
 	//  route to if all upstreams are unhealthy AND `alwaysRoute` config option is true.
 	upstreamConfig.HealthStatus = latencyCheck.GetUnhealthyReason(requestMetadata.Methods)
 
-	// TODO(polsar): Note that for LatencyCheck only, we always return true. The health status
+	// TODO(polsar): Note that for ErrorLatencyCheck only, we always return true. The health status
 	//  of the upstream is instead contained in the struct's HealthStatus field. This is a bit
 	//  clunky. Eventually, we want to change the signature of the Apply method. This will require
 	//  significant refactoring.
