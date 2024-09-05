@@ -369,8 +369,6 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 				}
 			}
 		}
-
-		c.errorCircuitBreaker.RecordRequest(false) // HTTP request OK
 	}
 	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
 	//  Log this strange case as an error.
