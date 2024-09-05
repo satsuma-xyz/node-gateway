@@ -144,7 +144,7 @@ func NewLatencyChecker(
 		logger:                       logger,
 		errorCircuitBreaker:          NewErrorStats(routingConfig),
 		methodLatencyBreaker:         make(map[string]LatencyCircuitBreaker),
-		ShouldRunPassiveHealthChecks: routingConfig.Errors != nil || routingConfig.Latency != nil,
+		ShouldRunPassiveHealthChecks: routingConfig.PassiveLatencyChecking && (routingConfig.Errors != nil || routingConfig.Latency != nil),
 	}
 
 	if err := c.InitializePassiveCheck(); err != nil {
