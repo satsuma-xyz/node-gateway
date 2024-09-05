@@ -116,17 +116,17 @@ func NewCircuitBreaker(
 }
 
 type LatencyCheck struct {
-	client               client.EthClient
-	Err                  error
-	clientGetter         client.EthClientGetter
-	metricsContainer     *metrics.Container
-	logger               *zap.Logger
-	upstreamConfig       *conf.UpstreamConfig
-	routingConfig        *conf.RoutingConfig
-	errorCircuitBreaker  ErrorCircuitBreaker
-	methodLatencyBreaker map[string]LatencyCircuitBreaker // RPC method -> LatencyCircuitBreaker
-	lock                 sync.RWMutex
-	ShouldRun            bool
+	client                       client.EthClient
+	Err                          error
+	clientGetter                 client.EthClientGetter
+	metricsContainer             *metrics.Container
+	logger                       *zap.Logger
+	upstreamConfig               *conf.UpstreamConfig
+	routingConfig                *conf.RoutingConfig
+	errorCircuitBreaker          ErrorCircuitBreaker
+	methodLatencyBreaker         map[string]LatencyCircuitBreaker // RPC method -> LatencyCircuitBreaker
+	lock                         sync.RWMutex
+	ShouldRunPassiveHealthChecks bool
 }
 
 func NewLatencyChecker(
@@ -137,14 +137,14 @@ func NewLatencyChecker(
 	logger *zap.Logger,
 ) types.LatencyChecker {
 	c := &LatencyCheck{
-		upstreamConfig:       upstreamConfig,
-		routingConfig:        routingConfig,
-		clientGetter:         clientGetter,
-		metricsContainer:     metricsContainer,
-		logger:               logger,
-		errorCircuitBreaker:  NewErrorStats(routingConfig),
-		methodLatencyBreaker: make(map[string]LatencyCircuitBreaker),
-		ShouldRun:            routingConfig.Errors != nil || routingConfig.Latency != nil,
+		upstreamConfig:               upstreamConfig,
+		routingConfig:                routingConfig,
+		clientGetter:                 clientGetter,
+		metricsContainer:             metricsContainer,
+		logger:                       logger,
+		errorCircuitBreaker:          NewErrorStats(routingConfig),
+		methodLatencyBreaker:         make(map[string]LatencyCircuitBreaker),
+		ShouldRunPassiveHealthChecks: routingConfig.Errors != nil || routingConfig.Latency != nil,
 	}
 
 	if err := c.InitializePassiveCheck(); err != nil {
@@ -155,7 +155,6 @@ func NewLatencyChecker(
 }
 
 func (c *LatencyCheck) InitializePassiveCheck() error {
-	// TODO(polsar): Set `c.ShouldRun` if active health checking is enabled.
 	c.logger.Debug("Initializing LatencyCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
@@ -172,7 +171,7 @@ func (c *LatencyCheck) InitializePassiveCheck() error {
 	if isMethodNotSupportedErr(c.Err) {
 		c.logger.Debug("LatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
-		c.ShouldRun = false
+		c.ShouldRunPassiveHealthChecks = false
 	}
 
 	return nil
@@ -186,7 +185,7 @@ func (c *LatencyCheck) RunPassiveCheck() {
 		}
 	}
 
-	if c.ShouldRun {
+	if c.ShouldRunPassiveHealthChecks {
 		c.runPassiveCheck()
 	}
 }
