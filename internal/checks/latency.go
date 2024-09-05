@@ -181,7 +181,12 @@ func (c *LatencyCheck) RunPassiveCheck() {
 	if c.client == nil {
 		if err := c.InitializePassiveCheck(); err != nil {
 			c.logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			c.metricsContainer.LatencyCheckErrors.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, metrics.HTTPInit).Inc()
+			c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+				c.upstreamConfig.ID,
+				c.upstreamConfig.HTTPURL,
+				metrics.HTTPInit,
+				conf.LatencyCheckMethod,
+			).Inc()
 		}
 	}
 
@@ -219,8 +224,8 @@ func (c *LatencyCheck) runPassiveCheck() {
 			}
 
 			runCheckWithMetrics(runCheck,
-				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL),
-				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL))
+				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.LatencyCheckMethod),
+				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.LatencyCheckMethod))
 		}(method, latencyThreshold)
 	}
 }
@@ -264,18 +269,21 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
+			method,
 		).Inc()
 	} else if duration >= latencyThreshold {
 		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
+			method,
 		).Inc()
 	}
 
 	c.metricsContainer.Latency.WithLabelValues(
 		c.upstreamConfig.ID,
 		c.upstreamConfig.HTTPURL,
+		method,
 	).Set(float64(duration.Milliseconds()))
 
 	c.logger.Debug("Ran passive LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
@@ -330,6 +338,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
+			data.Method,
 		).Inc()
 	}
 
@@ -350,6 +359,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 						c.upstreamConfig.ID,
 						c.upstreamConfig.HTTPURL,
 						metrics.HTTPRequest,
+						data.Method,
 					).Inc()
 
 					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
@@ -368,6 +378,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 	c.metricsContainer.Latency.WithLabelValues(
 		c.upstreamConfig.ID,
 		c.upstreamConfig.HTTPURL,
+		data.Method,
 	).Set(float64(data.Latency.Milliseconds()))
 }
 
