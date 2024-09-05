@@ -304,6 +304,8 @@ func (c *LatencyConfig) getLatencyThreshold(globalConfig *LatencyConfig) time.Du
 			threshold = DefaultMaxLatency
 		}
 
+		// The next time this method is called on the same LatencyConfig instance, this field will be set, and
+		// we simply return its value.
 		c.Threshold = threshold
 
 		return threshold
@@ -312,18 +314,12 @@ func (c *LatencyConfig) getLatencyThreshold(globalConfig *LatencyConfig) time.Du
 	return c.Threshold
 }
 
-func (c *LatencyConfig) getLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
-	latency, exists := c.MethodLatencyThresholds[method]
-	if !exists {
-		// Use the global config's latency value or the default.
-		if globalConfig != nil {
-			return globalConfig.getLatencyThresholdForMethod(method, nil)
-		}
-
-		return DefaultMaxLatency
+func (c *LatencyConfig) getLatencyThresholdForMethod(method string) time.Duration {
+	if latency, exists := c.MethodLatencyThresholds[method]; exists {
+		return latency
 	}
 
-	return latency
+	return DefaultMaxLatency
 }
 
 func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
@@ -345,7 +341,7 @@ func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
 			// The method's latency threshold is not configured or invalid.
 			if c.Threshold <= time.Duration(0) && globalLatencyConfig != nil {
 				// Use the top-level value.
-				threshold = globalLatencyConfig.getLatencyThresholdForMethod(method.Name, nil)
+				threshold = globalLatencyConfig.getLatencyThresholdForMethod(method.Name)
 			} else {
 				// Use the global config latency value for the method.
 				threshold = c.getLatencyThreshold(globalLatencyConfig)
