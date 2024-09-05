@@ -117,14 +117,12 @@ func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, up
 
 	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.LatencyCheck)
 
-	if latencyCheck.ShouldRun {
-		// TODO(polsar): If unhealthy, set the delta by which the check failed.
-		//  For example, if the configured rate is 0.25 and the current error rate is 0.27,
-		//  the delta is 0.27 - 0.25 = 0.02. This value can be used to rank upstreams by the
-		//  degree to which they are unhealthy. This would help us choose the upstream to
-		//  route to if all upstreams are unhealthy AND `alwaysRoute` config option is true.
-		upstreamConfig.HealthStatus = latencyCheck.GetUnhealthyReason(requestMetadata.Methods)
-	}
+	// TODO(polsar): If unhealthy, set the delta by which the check failed.
+	//  For example, if the configured rate is 0.25 and the current error rate is 0.27,
+	//  the delta is 0.27 - 0.25 = 0.02. This value can be used to rank upstreams by the
+	//  degree to which they are unhealthy. This would help us choose the upstream to
+	//  route to if all upstreams are unhealthy AND `alwaysRoute` config option is true.
+	upstreamConfig.HealthStatus = latencyCheck.GetUnhealthyReason(requestMetadata.Methods)
 
 	// TODO(polsar): Note that for LatencyCheck only, we always return true. The health status
 	//  of the upstream is instead contained in the struct's HealthStatus field. This is a bit
