@@ -23,9 +23,9 @@ const (
 	DefaultLatencyTooHighRate          = 0.5 // TODO(polsar): Expose this parameter in the config.
 	Archive                   NodeType = "archive"
 	Full                      NodeType = "full"
-	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
+	// PassiveLatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
 	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
-	LatencyCheckMethod = "eth_chainId"
+	PassiveLatencyCheckMethod = "eth_chainId" //nolint:gosec // No hardcoded credentials here.
 	// PassiveLatencyChecking indicates whether to use live (active) requests as data for the LatencyChecker (false)
 	// or synthetic (passive) periodic requests (true).
 	// TODO(polsar): This setting is currently not configurable via the YAML config file.
@@ -265,7 +265,7 @@ func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
 
 	if passiveLatencyChecking {
 		// TODO(polsar): Validate the method name: https://ethereum.org/en/developers/docs/apis/json-rpc/
-		return !strings.EqualFold(c.Name, LatencyCheckMethod)
+		return !strings.EqualFold(c.Name, PassiveLatencyCheckMethod)
 	}
 
 	return true
@@ -295,29 +295,31 @@ func (c *LatencyConfig) merge(globalConfig *LatencyConfig) {
 
 func (c *LatencyConfig) getLatencyThreshold(globalConfig *LatencyConfig) time.Duration {
 	if c.Threshold <= time.Duration(0) {
+		var threshold time.Duration
+
 		// The latency threshold is not configured or invalid, so use the global config's value or the default.
 		if globalConfig != nil {
-			return globalConfig.getLatencyThreshold(nil)
+			threshold = globalConfig.getLatencyThreshold(nil)
+		} else {
+			threshold = DefaultMaxLatency
 		}
 
-		return DefaultMaxLatency
+		// The next time this method is called on the same LatencyConfig instance, this field will be set, and
+		// we simply return its value.
+		c.Threshold = threshold
+
+		return threshold
 	}
 
 	return c.Threshold
 }
 
-func (c *LatencyConfig) getLatencyThresholdForMethod(method string, globalConfig *LatencyConfig) time.Duration {
-	latency, exists := c.MethodLatencyThresholds[method]
-	if !exists {
-		// Use the global config's latency value or the default.
-		if globalConfig != nil {
-			return globalConfig.getLatencyThresholdForMethod(method, nil)
-		}
-
-		return DefaultMaxLatency
+func (c *LatencyConfig) getLatencyThresholdForMethod(method string) time.Duration {
+	if latency, exists := c.MethodLatencyThresholds[method]; exists {
+		return latency
 	}
 
-	return latency
+	return DefaultMaxLatency
 }
 
 func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
@@ -339,7 +341,7 @@ func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
 			// The method's latency threshold is not configured or invalid.
 			if c.Threshold <= time.Duration(0) && globalLatencyConfig != nil {
 				// Use the top-level value.
-				threshold = globalLatencyConfig.getLatencyThresholdForMethod(method.Name, nil)
+				threshold = globalLatencyConfig.getLatencyThresholdForMethod(method.Name)
 			} else {
 				// Use the global config latency value for the method.
 				threshold = c.getLatencyThreshold(globalLatencyConfig)
