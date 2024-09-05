@@ -84,18 +84,30 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 
 		// If available, return an upstream that's unhealthy due to high latency rate.
 		if upstreamsByPriorityLatencyUnhealthy, ok := statusToUpstreamsByPriority[conf.ReasonLatencyTooHighRate]; ok {
-			// TODO(polsar): Should we include more information in the log message?
-			s.logger.Info("Routing to an upstream with high latency.")
+			upstream := getHighestPriorityUpstream(upstreamsByPriorityLatencyUnhealthy)
+			s.logger.Info(
+				"Routing to an upstream with high latency.",
+				zap.String("ID", upstream.ID),
+				zap.String("GroupID", upstream.GroupID),
+				zap.String("HTTPURL", upstream.HTTPURL),
+				zap.String("WSURL", upstream.WSURL),
+			)
 			// TODO(polsar): The call can return nil, but it shouldn't be possible. Should we still check?
-			return getHighestPriorityUpstream(upstreamsByPriorityLatencyUnhealthy).ID, nil
+			return upstream.ID, nil
 		}
 
 		// If available, return an upstream that's unhealthy due to high error rate.
 		if upstreamsByPriorityErrorUnhealthy, ok := statusToUpstreamsByPriority[conf.ReasonErrorRate]; ok {
-			// TODO(polsar): Should we include more information in the log message?
-			s.logger.Info("Routing to an upstream with high error rate.")
+			upstream := getHighestPriorityUpstream(upstreamsByPriorityErrorUnhealthy)
+			s.logger.Info(
+				"Routing to an upstream with high error rate.",
+				zap.String("ID", upstream.ID),
+				zap.String("GroupID", upstream.GroupID),
+				zap.String("HTTPURL", upstream.HTTPURL),
+				zap.String("WSURL", upstream.WSURL),
+			)
 			// TODO(polsar): The call can return nil, but it shouldn't be possible. Should we still check?
-			return getHighestPriorityUpstream(upstreamsByPriorityErrorUnhealthy).ID, nil
+			return upstream.ID, nil
 		}
 
 		// TODO(polsar): If we get here, that means all the upstreams are unhealthy, but they are all unhealthy
