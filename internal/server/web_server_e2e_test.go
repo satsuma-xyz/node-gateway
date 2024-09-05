@@ -414,7 +414,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 	case "net_peerCount":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(10).String())}
 
-	case config.LatencyCheckMethod:
+	case config.PassiveLatencyCheckMethod:
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(11).String())}
 
 	case "eth_getBlockByNumber":
@@ -454,7 +454,7 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 		switch r := requestBody.(type) {
 		case *jsonrpc.SingleRequestBody:
 			switch requestBody.GetMethod() {
-			case "eth_syncing", "net_peerCount", config.LatencyCheckMethod, "eth_getBlockByNumber":
+			case "eth_syncing", "net_peerCount", config.PassiveLatencyCheckMethod, "eth_getBlockByNumber":
 				responseBody = &jsonrpc.SingleResponseBody{Error: &jsonrpc.Error{Message: "This is a failing fake node!"}}
 				writeResponseBody(t, writer, responseBody)
 			default:

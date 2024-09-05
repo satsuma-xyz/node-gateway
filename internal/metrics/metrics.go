@@ -242,7 +242,7 @@ var (
 			Name:      "latency",
 			Help:      "Latency of upstream.",
 		},
-		[]string{"chain_name", "upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url", "method"},
 	)
 
 	latencyStatusCheckRequests = promauto.NewCounterVec(
@@ -252,7 +252,7 @@ var (
 			Name:      "latency_check_requests",
 			Help:      "Total latency check requests made.",
 		},
-		[]string{"chain_name", "upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url", "method"},
 	)
 
 	latencyStatusCheckDuration = promauto.NewHistogramVec(
@@ -263,7 +263,7 @@ var (
 			Help:      "Latency of latency check requests.",
 			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
 		},
-		[]string{"chain_name", "upstream_id", "url"},
+		[]string{"chain_name", "upstream_id", "url", "method"},
 	)
 
 	latencyStatusCheckErrors = promauto.NewCounterVec(
@@ -273,7 +273,7 @@ var (
 			Name:      "latency_check_errors",
 			Help:      "Errors when checking latency of upstream.",
 		},
-		[]string{"chain_name", "upstream_id", "url", "errorType"},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
 	latencyStatusHighLatencies = promauto.NewCounterVec(
@@ -283,7 +283,7 @@ var (
 			Name:      "latency_check_high_latency",
 			Help:      "Latency of upstream too high.",
 		},
-		[]string{"chain_name", "upstream_id", "url", "errorType"},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 )
 

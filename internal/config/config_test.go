@@ -837,6 +837,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				Name: "eth_getStorageAt",
 			},
 		},
+		Threshold: DefaultMaxLatency,
 	}
 
 	expectedConfig := Config{
@@ -1043,6 +1044,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 							Threshold: 20 * time.Millisecond,
 						},
 					},
+					Threshold: DefaultMaxLatency,
 				},
 				Errors:        &expectedErrorsConfig,
 				AlwaysRoute:   newBool(false),
