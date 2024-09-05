@@ -23,9 +23,9 @@ const (
 	DefaultLatencyTooHighRate          = 0.5 // TODO(polsar): Expose this parameter in the config.
 	Archive                   NodeType = "archive"
 	Full                      NodeType = "full"
-	// LatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
+	// PassiveLatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
 	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
-	LatencyCheckMethod = "eth_chainId"
+	PassiveLatencyCheckMethod = "eth_chainId" //nolint:gosec // No hardcoded credentials here.
 	// PassiveLatencyChecking indicates whether to use live (active) requests as data for the LatencyChecker (false)
 	// or synthetic (passive) periodic requests (true).
 	// TODO(polsar): This setting is currently not configurable via the YAML config file.
@@ -265,7 +265,7 @@ func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
 
 	if passiveLatencyChecking {
 		// TODO(polsar): Validate the method name: https://ethereum.org/en/developers/docs/apis/json-rpc/
-		return !strings.EqualFold(c.Name, LatencyCheckMethod)
+		return !strings.EqualFold(c.Name, PassiveLatencyCheckMethod)
 	}
 
 	return true
