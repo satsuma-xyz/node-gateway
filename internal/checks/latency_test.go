@@ -26,7 +26,7 @@ func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, re
 		return ethClient, nil
 	}
 
-	checker := NewLatencyChecker(
+	checker := NewErrorLatencyChecker(
 		defaultUpstreamConfig,
 		defaultRoutingConfig,
 		mockEthClientGetter,
