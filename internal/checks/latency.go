@@ -189,7 +189,7 @@ func (c *LatencyCheck) RunPassiveCheck() {
 				c.upstreamConfig.ID,
 				c.upstreamConfig.HTTPURL,
 				metrics.HTTPInit,
-				conf.LatencyCheckMethod,
+				conf.PassiveLatencyCheckMethod,
 			).Inc()
 		}
 	}
@@ -226,8 +226,8 @@ func (c *LatencyCheck) runPassiveCheck() {
 			}
 
 			runCheckWithMetrics(runCheck,
-				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.LatencyCheckMethod),
-				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.LatencyCheckMethod))
+				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod),
+				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod))
 		}(method, latencyThreshold)
 	}
 }
