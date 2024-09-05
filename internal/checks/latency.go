@@ -178,6 +178,10 @@ func (c *LatencyCheck) InitializePassiveCheck() error {
 }
 
 func (c *LatencyCheck) RunPassiveCheck() {
+	if !c.ShouldRunPassiveHealthChecks {
+		return
+	}
+
 	if c.client == nil {
 		if err := c.InitializePassiveCheck(); err != nil {
 			c.logger.Error("Error initializing LatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
@@ -190,9 +194,7 @@ func (c *LatencyCheck) RunPassiveCheck() {
 		}
 	}
 
-	if c.ShouldRunPassiveHealthChecks {
-		c.runPassiveCheck()
-	}
+	c.runPassiveCheck()
 }
 
 func (c *LatencyCheck) runPassiveCheck() {
