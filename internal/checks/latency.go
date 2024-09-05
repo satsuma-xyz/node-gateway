@@ -25,7 +25,7 @@ const (
 )
 
 type ErrorCircuitBreaker interface {
-	RecordRequest(isError bool)
+	RecordResponse(isError bool)
 	IsOpen() bool
 }
 
@@ -39,7 +39,7 @@ type ErrorStats struct {
 	circuitBreaker circuitbreaker.CircuitBreaker[any]
 }
 
-func (e *ErrorStats) RecordRequest(isError bool) {
+func (e *ErrorStats) RecordResponse(isError bool) {
 	if isError {
 		e.circuitBreaker.RecordFailure()
 	} else {
@@ -261,7 +261,7 @@ func (c *LatencyCheck) runPassiveCheckForMethod(method string, latencyThreshold 
 	//  (i.e. match HTTP code, JSON RPC code, and error message).
 	//  Fixing this is not a priority since we're not currently using passive health checking.
 	isError := c.Err != nil
-	c.errorCircuitBreaker.RecordRequest(isError)
+	c.errorCircuitBreaker.RecordResponse(isError)
 	latencyBreaker.RecordLatency(duration)
 
 	if isError {
@@ -345,7 +345,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 	if data.HTTPResponseCode >= http.StatusBadRequest {
 		// No RPC responses are available since the HTTP request errored out.
 		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
-		c.errorCircuitBreaker.RecordRequest(c.isError(
+		c.errorCircuitBreaker.RecordResponse(c.isError(
 			strconv.Itoa(data.HTTPResponseCode),
 			"",
 			"",
@@ -363,9 +363,9 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 					).Inc()
 
 					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
-					c.errorCircuitBreaker.RecordRequest(true) // JSON RPC subrequest error
+					c.errorCircuitBreaker.RecordResponse(true) // JSON RPC subrequest error
 				} else {
-					c.errorCircuitBreaker.RecordRequest(false) // JSON RPC subrequest OK
+					c.errorCircuitBreaker.RecordResponse(false) // JSON RPC subrequest OK
 				}
 			}
 		}
