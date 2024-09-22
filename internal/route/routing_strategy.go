@@ -92,6 +92,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 				zap.String("HTTPURL", upstream.HTTPURL),
 				zap.String("WSURL", upstream.WSURL),
 			)
+
 			return upstream.ID, nil
 		}
 
@@ -105,6 +106,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 				zap.String("HTTPURL", upstream.HTTPURL),
 				zap.String("WSURL", upstream.WSURL),
 			)
+
 			return upstream.ID, nil
 		}
 
