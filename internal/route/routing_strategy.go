@@ -108,7 +108,7 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 			return upstream.ID, nil
 		}
 
-		// TODO(polsar): If we get here, that means all the upstreams are unhealthy, but they are all unhealthy
+		// TODO(polsar): If we get here, that means all upstreams are unhealthy, but they are all unhealthy
 		//  due to a reason other than high latency or error rate. We should still be able to route to one of those.
 		//  Asana task: https://app.asana.com/0/1207397277805097/1208186611173034/f
 		s.logger.Error("All upstreams are unhealthy due to reasons other than high latency or error rate.")
