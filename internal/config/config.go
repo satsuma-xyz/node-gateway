@@ -201,8 +201,8 @@ type GlobalConfig struct {
 	Port    int           `yaml:"port"`
 }
 
-func (c *GlobalConfig) setDefaults() {
-	c.Routing.setDefaults(nil, false)
+func (c *GlobalConfig) setDefaults() bool {
+	return c.Routing.setDefaults(nil, false)
 }
 
 type CacheConfig struct {
@@ -391,16 +391,18 @@ func (r *RoutingConfig) IsEnhancedRoutingControlEnabled() bool {
 	return r.Errors != nil || r.Latency != nil || r.DetectionWindow != nil || r.BanWindow != nil || r.AlwaysRoute != nil
 }
 
-func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) {
+// setDefaults sets the default values for and initializes the routing config, and returns true.
+// If enhanced routing control is disabled, it does nothing and returns false.
+func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) bool {
 	if r.IsInitialized {
-		return
+		return true
 	}
 
 	r.PassiveLatencyChecking = PassiveLatencyChecking
 
 	if !force && !r.IsEnhancedRoutingControlEnabled() && (globalConfig == nil || !globalConfig.IsEnhancedRoutingControlEnabled()) {
 		// Routing config is not specified at either this or global level, so there is nothing to do.
-		return
+		return false
 	}
 
 	if globalConfig != nil && !globalConfig.IsInitialized {
@@ -461,6 +463,8 @@ func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) {
 	}
 
 	r.IsInitialized = true
+
+	return true
 }
 
 func (r *RoutingConfig) isRoutingConfigValid() bool {
@@ -536,7 +540,12 @@ func (c *SingleChainConfig) isValid() bool {
 	return isChainConfigValid
 }
 
-func (c *SingleChainConfig) setDefaults(globalConfig *GlobalConfig) {
+func (c *SingleChainConfig) setDefaults(globalConfig *GlobalConfig, isGlobalRoutingConfigSpecified bool) {
+	if !isGlobalRoutingConfigSpecified && !c.Routing.IsEnhancedRoutingControlEnabled() {
+		c.Routing.PassiveLatencyChecking = PassiveLatencyChecking
+		return
+	}
+
 	c.Routing.setDefaults(&globalConfig.Routing, false)
 }
 
@@ -558,11 +567,11 @@ type Config struct {
 }
 
 func (config *Config) setDefaults() {
-	config.Global.setDefaults()
+	isGlobalRoutingConfigSpecified := config.Global.setDefaults()
 
 	for chainIndex := range config.Chains {
 		chainConfig := &config.Chains[chainIndex]
-		chainConfig.setDefaults(&config.Global)
+		chainConfig.setDefaults(&config.Global, isGlobalRoutingConfigSpecified)
 	}
 }
 
