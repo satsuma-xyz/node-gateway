@@ -190,7 +190,7 @@ func (c *ErrorLatencyCheck) RunPassiveCheck() {
 	if c.client == nil {
 		if err := c.InitializePassiveCheck(); err != nil {
 			c.logger.Error("Error initializing ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Error(err))
-			c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+			c.metricsContainer.ErrorLatencyCheckErrors.WithLabelValues(
 				c.upstreamConfig.ID,
 				c.upstreamConfig.HTTPURL,
 				metrics.HTTPInit,
@@ -231,8 +231,8 @@ func (c *ErrorLatencyCheck) runPassiveCheck() {
 			}
 
 			runCheckWithMetrics(runCheck,
-				c.metricsContainer.LatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod),
-				c.metricsContainer.LatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod))
+				c.metricsContainer.ErrorLatencyCheckRequests.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod),
+				c.metricsContainer.ErrorLatencyCheckDuration.WithLabelValues(c.upstreamConfig.ID, c.upstreamConfig.HTTPURL, conf.PassiveLatencyCheckMethod))
 		}(method, latencyThreshold)
 	}
 }
@@ -272,14 +272,14 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 	latencyBreaker.RecordLatency(duration)
 
 	if isError {
-		c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+		c.metricsContainer.ErrorLatencyCheckErrors.WithLabelValues(
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
 			method,
 		).Inc()
 	} else if duration >= latencyThreshold {
-		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
+		c.metricsContainer.ErrorLatencyCheckHighLatencies.WithLabelValues(
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
@@ -287,7 +287,7 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 		).Inc()
 	}
 
-	c.metricsContainer.Latency.WithLabelValues(
+	c.metricsContainer.ErrorLatency.WithLabelValues(
 		c.upstreamConfig.ID,
 		c.upstreamConfig.HTTPURL,
 		method,
@@ -341,7 +341,7 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	latencyCircuitBreaker.RecordLatency(data.Latency)
 
 	if data.Latency >= latencyCircuitBreaker.GetThreshold() {
-		c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
+		c.metricsContainer.ErrorLatencyCheckHighLatencies.WithLabelValues(
 			c.upstreamConfig.ID,
 			c.upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
@@ -362,7 +362,7 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 			if resp.Error != nil {
 				// Do not ignore this response even if it does not correspond to an RPC request.
 				if c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message) {
-					c.metricsContainer.LatencyCheckErrors.WithLabelValues(
+					c.metricsContainer.ErrorLatencyCheckErrors.WithLabelValues(
 						c.upstreamConfig.ID,
 						c.upstreamConfig.HTTPURL,
 						metrics.HTTPRequest,
@@ -380,7 +380,7 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
 	//  Log this strange case as an error.
 
-	c.metricsContainer.Latency.WithLabelValues(
+	c.metricsContainer.ErrorLatency.WithLabelValues(
 		c.upstreamConfig.ID,
 		c.upstreamConfig.HTTPURL,
 		data.Method,
