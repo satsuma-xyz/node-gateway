@@ -85,6 +85,11 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 		// If available, return an upstream that's unhealthy due to high latency rate.
 		if upstreamsByPriorityLatencyUnhealthy, ok := statusToUpstreamsByPriority[conf.ReasonLatencyTooHighRate]; ok {
 			upstream := getHighestPriorityUpstream(upstreamsByPriorityLatencyUnhealthy)
+			if upstream == nil {
+				// This indicates a non-recoverable bug in the code.
+				panic("Upstream not found!")
+			}
+
 			s.logger.Info(
 				"Routing to an upstream with high latency.",
 				zap.String("ID", upstream.ID),
@@ -99,6 +104,11 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 		// If available, return an upstream that's unhealthy due to high error rate.
 		if upstreamsByPriorityErrorUnhealthy, ok := statusToUpstreamsByPriority[conf.ReasonErrorRate]; ok {
 			upstream := getHighestPriorityUpstream(upstreamsByPriorityErrorUnhealthy)
+			if upstream == nil {
+				// This indicates a non-recoverable bug in the code.
+				panic("Upstream not found!")
+			}
+
 			s.logger.Info(
 				"Routing to an upstream with high error rate.",
 				zap.String("ID", upstream.ID),
@@ -163,9 +173,8 @@ func getHighestPriorityUpstream(upstreamsByPriority types.PriorityToUpstreamsMap
 	upstreams := upstreamsByPriority[maxPriority]
 
 	if len(upstreams) == 0 {
-		// TODO(polsar): This is really an error. If a priority is a key in the passed map,
-		//  there should be at least one upstream for it.
-		return nil
+		// If a priority is a key in the passed map, there must be at least one upstream for it.
+		panic("No upstreams found!")
 	}
 
 	return upstreams[0]
