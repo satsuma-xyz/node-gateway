@@ -261,10 +261,6 @@ type MethodConfig struct {
 }
 
 func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
-	if c == nil {
-		return true
-	}
-
 	if passiveLatencyChecking {
 		// TODO(polsar): Validate the method name: https://ethereum.org/en/developers/docs/apis/json-rpc/
 		return !strings.EqualFold(c.Name, PassiveLatencyCheckMethod)
