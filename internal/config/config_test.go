@@ -1099,6 +1099,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 }
 
 func TestParseConfig_ValidConfigLatencyRouting_NoGlobalRoutingConfig_TwoChains_OnlyOneHasRoutingConfig(t *testing.T) {
+	Assert := assert.New(t)
+
 	config := `
     chains:
       - chainName: ethereum
@@ -1200,6 +1202,10 @@ func TestParseConfig_ValidConfigLatencyRouting_NoGlobalRoutingConfig_TwoChains_O
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
 		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
 	}
+
+	Assert.True(parsedConfig.Chains[0].Routing.IsEnhancedRoutingControlEnabled())
+	Assert.True(parsedConfig.Chains[1].Routing.IsEnhancedRoutingControlEnabled())
+	Assert.False(parsedConfig.Chains[2].Routing.IsEnhancedRoutingControlEnabled())
 }
 
 func TestParseConfig_InvalidYaml(t *testing.T) {
