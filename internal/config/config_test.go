@@ -970,6 +970,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
             - method: eth_getStorageAt
             - method: eth_chainId
               threshold: 20ms
+            - method: eth_yetAnotherMethod
+              threshold: 218ms
         errors:
           rate: 0.88
           httpCodes:
@@ -989,6 +991,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
               - method: eth_getStorageAt
                 threshold: 6000ms
               - method: eth_doesSomethingImportant
+              - method: eth_yetAnotherMethod
         groups:
           - id: primary
             priority: 0
@@ -1027,9 +1030,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
-						"getLogs":          2000 * time.Millisecond,
-						"eth_getStorageAt": DefaultMaxLatency, // Top-level latency default
-						"eth_chainId":      20 * time.Millisecond,
+						"getLogs":              2000 * time.Millisecond,
+						"eth_getStorageAt":     DefaultMaxLatency, // Top-level latency default
+						"eth_chainId":          20 * time.Millisecond,
+						"eth_yetAnotherMethod": 218 * time.Millisecond,
 					},
 					Methods: []MethodConfig{
 						{
@@ -1042,6 +1046,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 						{
 							Name:      "eth_chainId",
 							Threshold: 20 * time.Millisecond,
+						},
+						{
+							Name:      "eth_yetAnotherMethod",
+							Threshold: 218 * time.Millisecond,
 						},
 					},
 					Threshold: DefaultMaxLatency,
@@ -1061,6 +1069,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					"eth_getStorageAt":           6000 * time.Millisecond,
 					"eth_doesSomethingImportant": DefaultMaxLatency,
 					"eth_chainId":                20 * time.Millisecond, // Inherited from global latency config
+					"eth_yetAnotherMethod":       218 * time.Millisecond,
 				},
 				Methods: []MethodConfig{
 					{
@@ -1073,6 +1082,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					{
 						Name: "eth_doesSomethingImportant",
 					},
+					{
+						Name: "eth_yetAnotherMethod",
+					},
 				},
 			},
 			Errors:        &expectedErrorsConfig,
@@ -1084,6 +1096,116 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
 		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
 	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_NoGlobalRoutingConfig_TwoChains_OnlyOneHasRoutingConfig(t *testing.T) {
+	Assert := assert.New(t)
+
+	config := `
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+                threshold: 210ms
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodLatencyThresholds: map[string]time.Duration{},
+				},
+				Errors:        &ErrorsConfig{Rate: 0.25},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
+			},
+		},
+		Chains: append(getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs": 10 * time.Second,
+				},
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: 0.25},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}), append(getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs": 210 * time.Millisecond,
+				},
+				Methods: []MethodConfig{
+					{
+						Name:      "getLogs",
+						Threshold: 210 * time.Millisecond,
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: 0.25},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}), getCommonChainsConfig(&RoutingConfig{})...)...),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+
+	Assert.True(parsedConfig.Chains[0].Routing.IsEnhancedRoutingControlEnabled())
+	Assert.True(parsedConfig.Chains[1].Routing.IsEnhancedRoutingControlEnabled())
+	Assert.False(parsedConfig.Chains[2].Routing.IsEnhancedRoutingControlEnabled())
 }
 
 func TestParseConfig_InvalidYaml(t *testing.T) {
