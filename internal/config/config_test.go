@@ -970,6 +970,8 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
             - method: eth_getStorageAt
             - method: eth_chainId
               threshold: 20ms
+            - method: eth_yetAnotherMethod
+              threshold: 218ms
         errors:
           rate: 0.88
           httpCodes:
@@ -989,6 +991,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
               - method: eth_getStorageAt
                 threshold: 6000ms
               - method: eth_doesSomethingImportant
+              - method: eth_yetAnotherMethod
         groups:
           - id: primary
             priority: 0
@@ -1027,9 +1030,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 				BanWindow:       NewDuration(DefaultBanWindow),
 				Latency: &LatencyConfig{
 					MethodLatencyThresholds: map[string]time.Duration{
-						"getLogs":          2000 * time.Millisecond,
-						"eth_getStorageAt": DefaultMaxLatency, // Top-level latency default
-						"eth_chainId":      20 * time.Millisecond,
+						"getLogs":              2000 * time.Millisecond,
+						"eth_getStorageAt":     DefaultMaxLatency, // Top-level latency default
+						"eth_chainId":          20 * time.Millisecond,
+						"eth_yetAnotherMethod": 218 * time.Millisecond,
 					},
 					Methods: []MethodConfig{
 						{
@@ -1042,6 +1046,10 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 						{
 							Name:      "eth_chainId",
 							Threshold: 20 * time.Millisecond,
+						},
+						{
+							Name:      "eth_yetAnotherMethod",
+							Threshold: 218 * time.Millisecond,
 						},
 					},
 					Threshold: DefaultMaxLatency,
@@ -1061,6 +1069,7 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					"eth_getStorageAt":           6000 * time.Millisecond,
 					"eth_doesSomethingImportant": DefaultMaxLatency,
 					"eth_chainId":                20 * time.Millisecond, // Inherited from global latency config
+					"eth_yetAnotherMethod":       218 * time.Millisecond,
 				},
 				Methods: []MethodConfig{
 					{
@@ -1072,6 +1081,9 @@ func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNo
 					},
 					{
 						Name: "eth_doesSomethingImportant",
+					},
+					{
+						Name: "eth_yetAnotherMethod",
 					},
 				},
 			},
