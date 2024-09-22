@@ -92,7 +92,6 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 				zap.String("HTTPURL", upstream.HTTPURL),
 				zap.String("WSURL", upstream.WSURL),
 			)
-			// TODO(polsar): The call can return nil, but it shouldn't be possible. Should we still check?
 			return upstream.ID, nil
 		}
 
@@ -106,7 +105,6 @@ func (s *PriorityRoundRobinStrategy) RouteNextRequest(
 				zap.String("HTTPURL", upstream.HTTPURL),
 				zap.String("WSURL", upstream.WSURL),
 			)
-			// TODO(polsar): The call can return nil, but it shouldn't be possible. Should we still check?
 			return upstream.ID, nil
 		}
 
