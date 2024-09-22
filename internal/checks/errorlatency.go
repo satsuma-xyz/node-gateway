@@ -155,6 +155,10 @@ func NewErrorLatencyChecker(
 }
 
 func (c *ErrorLatencyCheck) InitializePassiveCheck() error {
+	if !c.ShouldRunPassiveHealthChecks {
+		return nil
+	}
+
 	c.logger.Debug("Initializing ErrorLatencyCheck.", zap.Any("config", c.upstreamConfig))
 
 	httpClient, err := c.clientGetter(c.upstreamConfig.HTTPURL, &c.upstreamConfig.BasicAuthConfig, &c.upstreamConfig.RequestHeadersConfig)
@@ -171,6 +175,7 @@ func (c *ErrorLatencyCheck) InitializePassiveCheck() error {
 	if isMethodNotSupportedErr(c.Err) {
 		c.logger.Debug("ErrorLatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
+		// Turn off passive health checks for this upstream.
 		c.ShouldRunPassiveHealthChecks = false
 	}
 
