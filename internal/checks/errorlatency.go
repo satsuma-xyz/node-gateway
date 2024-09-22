@@ -297,6 +297,10 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 }
 
 func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
+	if !c.routingConfig.IsEnhancedRoutingControlEnabled() {
+		return conf.ReasonUnknownOrHealthy
+	}
+
 	if c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
 			"ErrorLatencyCheck is not passing due to too many errors.",
@@ -334,6 +338,10 @@ func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyR
 
 func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	if c.routingConfig.PassiveLatencyChecking {
+		return
+	}
+
+	if !c.routingConfig.IsEnhancedRoutingControlEnabled() {
 		return
 	}
 
