@@ -175,7 +175,7 @@ func (c *ErrorLatencyCheck) InitializePassiveCheck() error {
 	if isMethodNotSupportedErr(c.Err) {
 		c.logger.Debug("ErrorLatencyCheck is not supported by upstream, not running check.", zap.String("upstreamID", c.upstreamConfig.ID))
 
-		// Turn off passive health checks for this upstream.
+		// Turn off the passive health check for this upstream.
 		c.ShouldRunPassiveHealthChecks = false
 	}
 
