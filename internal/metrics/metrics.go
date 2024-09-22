@@ -271,7 +271,7 @@ var (
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_errors",
-			Help:      "Errors when checking latency of upstream.",
+			Help:      "Errors of upstream requests.",
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
