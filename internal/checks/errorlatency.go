@@ -430,7 +430,6 @@ func isMatch(responseCode, pattern string) bool {
 	}
 
 	for i, x := range responseCode {
-		// TODO(polsar): Unicode sucks. Fix this awkward conversion voodoo.
 		y := string(pattern[i])
 
 		if strings.EqualFold(y, string(ResponseCodeWildcard)) {
