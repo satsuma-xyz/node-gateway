@@ -201,6 +201,8 @@ type GlobalConfig struct {
 	Port    int           `yaml:"port"`
 }
 
+// setDefaults sets the default values for the global config if global enhanced routing is specified in the YAML,
+// and returns true. Otherwise, it does nothing and returns false.
 func (c *GlobalConfig) setDefaults() bool {
 	return c.Routing.setDefaults(nil, false)
 }
