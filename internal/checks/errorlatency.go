@@ -297,7 +297,7 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 }
 
 func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
-	if !c.routingConfig.IsEnhancedRoutingControlEnabled() {
+	if !c.routingConfig.HasEnhancedRoutingControlDefined() {
 		return conf.ReasonUnknownOrHealthy
 	}
 
@@ -341,7 +341,7 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 		return
 	}
 
-	if !c.routingConfig.IsEnhancedRoutingControlEnabled() {
+	if !c.routingConfig.HasEnhancedRoutingControlDefined() {
 		return
 	}
 

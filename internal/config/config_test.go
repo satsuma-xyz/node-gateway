@@ -1203,9 +1203,9 @@ func TestParseConfig_ValidConfigLatencyRouting_NoGlobalRoutingConfig_TwoChains_O
 		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
 	}
 
-	Assert.True(parsedConfig.Chains[0].Routing.IsEnhancedRoutingControlEnabled())
-	Assert.True(parsedConfig.Chains[1].Routing.IsEnhancedRoutingControlEnabled())
-	Assert.False(parsedConfig.Chains[2].Routing.IsEnhancedRoutingControlEnabled())
+	Assert.True(parsedConfig.Chains[0].Routing.HasEnhancedRoutingControlDefined())
+	Assert.True(parsedConfig.Chains[1].Routing.HasEnhancedRoutingControlDefined())
+	Assert.False(parsedConfig.Chains[2].Routing.HasEnhancedRoutingControlDefined())
 }
 
 func TestParseConfig_InvalidYaml(t *testing.T) {

@@ -383,7 +383,11 @@ type RoutingConfig struct {
 	IsInitialized          bool
 }
 
-func (r *RoutingConfig) IsEnhancedRoutingControlEnabled() bool {
+// HasEnhancedRoutingControlDefined returns true iff any of the enhanced routing control fields are specified
+// in the config. Note that for the global routing config only, this method may return true even if global
+// enhanced routing control is not defined in the YAML. This is because initializing per-chain routing config
+// requires the global routing config to be initialized first.
+func (r *RoutingConfig) HasEnhancedRoutingControlDefined() bool {
 	// TODO(polsar): This is temporary. Eventually, we want to have enhanced routing control enabled by default even if
 	// none of these fields are specified in the config YAML.
 	return r.Errors != nil || r.Latency != nil || r.DetectionWindow != nil || r.BanWindow != nil || r.AlwaysRoute != nil
@@ -398,7 +402,7 @@ func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) boo
 
 	r.PassiveLatencyChecking = PassiveLatencyChecking
 
-	if !force && !r.IsEnhancedRoutingControlEnabled() && (globalConfig == nil || !globalConfig.IsEnhancedRoutingControlEnabled()) {
+	if !force && !r.HasEnhancedRoutingControlDefined() && (globalConfig == nil || !globalConfig.HasEnhancedRoutingControlDefined()) {
 		// Routing config is not specified at either this or global level, so there is nothing to do.
 		return false
 	}
@@ -539,7 +543,7 @@ func (c *SingleChainConfig) isValid() bool {
 }
 
 func (c *SingleChainConfig) setDefaults(globalConfig *GlobalConfig, isGlobalRoutingConfigSpecified bool) {
-	if !isGlobalRoutingConfigSpecified && !c.Routing.IsEnhancedRoutingControlEnabled() {
+	if !isGlobalRoutingConfigSpecified && !c.Routing.HasEnhancedRoutingControlDefined() {
 		c.Routing.PassiveLatencyChecking = PassiveLatencyChecking
 		return
 	}
