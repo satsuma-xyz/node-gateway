@@ -321,8 +321,15 @@ func TestParseConfig_ValidConfig(t *testing.T) {
 	}
 }
 
-func getCommonChainsConfig() []SingleChainConfig {
+func getCommonChainsConfig(routingConfig *RoutingConfig) []SingleChainConfig {
+	c := RoutingConfig{}
+
+	if routingConfig != nil {
+		c = *routingConfig
+	}
+
 	return []SingleChainConfig{{
+		Routing: c,
 		Upstreams: []UpstreamConfig{
 			{
 				ID:       "alchemy-eth",
@@ -387,42 +394,162 @@ func TestParseConfig_ValidConfigLatencyRouting_AllFieldsSet(t *testing.T) {
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
-	expectedConfig := Config{
-		Global: GlobalConfig{
-			Routing: RoutingConfig{
-				MaxBlocksBehind: 33,
-				DetectionWindow: newDuration(10 * time.Minute),
-				BanWindow:       newDuration(50 * time.Minute),
-				Errors: &ErrorsConfig{
-					Rate: 0.25,
-					HTTPCodes: []string{
-						"5xx",
-						"420",
-					},
-					JSONRPCCodes: []string{
-						"32xxx",
-					},
-					ErrorStrings: []string{
-						"internal server error",
-					},
-				},
-				Latency: &LatencyConfig{
-					Threshold: 1000 * time.Millisecond,
-					Methods: []MethodConfig{
-						{
-							Name:      "eth_getLogs",
-							Threshold: 2000 * time.Millisecond,
-						},
-						{
-							Name:      "eth_call",
-							Threshold: 10000 * time.Millisecond,
-						},
-					},
-				},
-				AlwaysRoute: newBool(true),
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{
+			"eth_call":    10000 * time.Millisecond,
+			"eth_getLogs": 2000 * time.Millisecond,
+		},
+		Threshold: 1000 * time.Millisecond,
+		Methods: []MethodConfig{
+			{
+				Name:      "eth_getLogs",
+				Threshold: 2000 * time.Millisecond,
+			},
+			{
+				Name:      "eth_call",
+				Threshold: 10000 * time.Millisecond,
 			},
 		},
-		Chains: getCommonChainsConfig(),
+	}
+
+	expectedRoutingConfig := RoutingConfig{
+		MaxBlocksBehind: 33,
+		DetectionWindow: NewDuration(10 * time.Minute),
+		BanWindow:       NewDuration(50 * time.Minute),
+		Errors: &ErrorsConfig{
+			Rate: 0.25,
+			HTTPCodes: []string{
+				"420",
+				"5xx",
+			},
+			JSONRPCCodes: []string{
+				"32xxx",
+			},
+			ErrorStrings: []string{
+				"internal server error",
+			},
+		},
+		Latency:       &expectedLatencyConfig,
+		AlwaysRoute:   newBool(true),
+		IsInitialized: true,
+	}
+
+	expectedRoutingChainConfig := expectedRoutingConfig
+	expectedRoutingChainConfig.MaxBlocksBehind = 0
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: expectedRoutingConfig,
+		},
+		Chains: getCommonChainsConfig(&expectedRoutingChainConfig),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_ErrorsConfigOverridesAndMerges(t *testing.T) {
+	config := `
+    global:
+      routing:
+        errors:
+          rate: 0.28
+          httpCodes:
+            - 5xx
+            - 420
+          jsonRpcCodes:
+            - 32xxx
+            - 28282
+          errorStrings:
+            - "internal server error"
+            - "freaking out"
+
+    chains:
+      - chainName: ethereum
+
+        groups:
+          - id: primary
+            priority: 0
+
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+        routing:
+          errors:
+            rate: 0.82
+            httpCodes:
+              - 5xx
+              - 388
+              - 4X4
+            jsonRpcCodes:
+              - XXXX1
+              - 28282
+            errorStrings:
+              - "internal server error"
+              - "some weird error"
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedRoutingConfig := RoutingConfig{
+		DetectionWindow: NewDuration(DefaultDetectionWindow),
+		BanWindow:       NewDuration(DefaultBanWindow),
+		Errors: &ErrorsConfig{
+			Rate: 0.28,
+			HTTPCodes: []string{
+				"5xx",
+				"420",
+			},
+			JSONRPCCodes: []string{
+				"32xxx",
+				"28282",
+			},
+			ErrorStrings: []string{
+				"internal server error",
+				"freaking out",
+			},
+		},
+		Latency:       &LatencyConfig{MethodLatencyThresholds: map[string]time.Duration{}},
+		AlwaysRoute:   newBool(false),
+		IsInitialized: true,
+	}
+
+	expectedRoutingChainConfig := expectedRoutingConfig
+	expectedRoutingChainConfig.MaxBlocksBehind = 0
+	expectedRoutingChainConfig.Errors = &ErrorsConfig{
+		Rate: 0.82,
+		HTTPCodes: []string{
+			"388",
+			"420",
+			"4X4",
+			"5xx",
+		},
+		JSONRPCCodes: []string{
+			"28282",
+			"32xxx",
+			"XXXX1",
+		},
+		ErrorStrings: []string{
+			"freaking out",
+			"internal server error",
+			"some weird error",
+		},
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: expectedRoutingConfig,
+		},
+		Chains: getCommonChainsConfig(&expectedRoutingChainConfig),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -458,20 +585,32 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 		t.Errorf("ParseConfig returned error: %v.", err)
 	}
 
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{},
+		Threshold:               1000 * time.Millisecond,
+	}
+
 	expectedConfig := Config{
 		Global: GlobalConfig{
 			Routing: RoutingConfig{
-				DetectionWindow: newDuration(DefDetectionWindow),
-				BanWindow:       newDuration(DefBanWindow),
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
 				Errors: &ErrorsConfig{
 					Rate: 0.25,
 				},
-				Latency: &LatencyConfig{
-					Threshold: 1000 * time.Millisecond,
-				},
+				Latency:       &expectedLatencyConfig,
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
 			},
 		},
-		Chains: getCommonChainsConfig(),
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+			Latency:         &expectedLatencyConfig,
+			AlwaysRoute:     newBool(false),
+			IsInitialized:   true,
+		}),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -501,7 +640,7 @@ func TestParseConfig_ValidConfigLatencyRouting_DefaultsForDetectionAndBanWindows
 	}
 
 	expectedConfig := Config{
-		Chains: getCommonChainsConfig(),
+		Chains: getCommonChainsConfig(nil),
 	}
 
 	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
@@ -559,6 +698,514 @@ func TestParseConfig_InvalidConfigLatencyRouting_InvalidRateInGlobalConfig(t *te
 	if err == nil {
 		t.Errorf("Expected error parsing invalid YAML.")
 	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySpecifiedBothPerChainAndGlobal(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          threshold: 1000ms
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            threshold: 4000ms
+            methods:
+              - method: getLogs
+              - method: eth_getStorageAt
+                threshold: 6000ms
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodLatencyThresholds: map[string]time.Duration{
+						"getLogs":          2000 * time.Millisecond,
+						"eth_getStorageAt": 1000 * time.Millisecond, // Top-level latency default
+					},
+					Threshold: 1000 * time.Millisecond,
+					Methods: []MethodConfig{
+						{
+							Name:      "getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name: "eth_getStorageAt",
+						},
+					},
+				},
+				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
+			},
+		},
+
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs":          4000 * time.Millisecond, // Top-level latency default
+					"eth_getStorageAt": 6000 * time.Millisecond,
+				},
+				Threshold: 4000 * time.Millisecond,
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+					{
+						Name:      "eth_getStorageAt",
+						Threshold: 6000 * time.Millisecond,
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNotSpecifiedGlobalConfig(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+
+    chains:
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedLatencyConfig := LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{
+			"getLogs":          2000 * time.Millisecond,
+			"eth_getStorageAt": DefaultMaxLatency, // Global default
+		},
+		Methods: []MethodConfig{
+			{
+				Name:      "getLogs",
+				Threshold: 2000 * time.Millisecond,
+			},
+			{
+				Name: "eth_getStorageAt",
+			},
+		},
+		Threshold: DefaultMaxLatency,
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency:         &expectedLatencyConfig,
+				Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:     newBool(false),
+				IsInitialized:   true,
+			},
+		},
+
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency:         &expectedLatencyConfig,
+			Errors:          &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:     newBool(false),
+			IsInitialized:   true,
+		}),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencySpecifiedInGlobalConfigOnly(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          threshold: 1000ms
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+              - method: eth_getStorageAt
+                threshold: 6000ms
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodLatencyThresholds: map[string]time.Duration{
+						"getLogs":          2000 * time.Millisecond,
+						"eth_getStorageAt": 1000 * time.Millisecond, // Top-level latency default
+					},
+					Threshold: 1000 * time.Millisecond,
+					Methods: []MethodConfig{
+						{
+							Name:      "getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name: "eth_getStorageAt",
+						},
+					},
+				},
+				Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
+			},
+		},
+
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs":          2000 * time.Millisecond, // Top-level latency for method
+					"eth_getStorageAt": 6000 * time.Millisecond,
+				},
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+					{
+						Name:      "eth_getStorageAt",
+						Threshold: 6000 * time.Millisecond,
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: DefaultErrorRate},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_MethodLatencies_TopLevelLatencyNotSpecifiedNeitherGlobalNotChain(t *testing.T) {
+	config := `
+    global:
+      routing:
+        latency:
+          methods:
+            - method: getLogs
+              threshold: 2000ms
+            - method: eth_getStorageAt
+            - method: eth_chainId
+              threshold: 20ms
+            - method: eth_yetAnotherMethod
+              threshold: 218ms
+        errors:
+          rate: 0.88
+          httpCodes:
+            - 5xx
+            - 420
+          jsonRpcCodes:
+            - 32xxx
+          errorStrings:
+            - "internal server error"
+
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+              - method: eth_getStorageAt
+                threshold: 6000ms
+              - method: eth_doesSomethingImportant
+              - method: eth_yetAnotherMethod
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedErrorsConfig := ErrorsConfig{
+		Rate: 0.88,
+		HTTPCodes: []string{
+			"420",
+			"5xx",
+		},
+		JSONRPCCodes: []string{
+			"32xxx",
+		},
+		ErrorStrings: []string{
+			"internal server error",
+		},
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodLatencyThresholds: map[string]time.Duration{
+						"getLogs":              2000 * time.Millisecond,
+						"eth_getStorageAt":     DefaultMaxLatency, // Top-level latency default
+						"eth_chainId":          20 * time.Millisecond,
+						"eth_yetAnotherMethod": 218 * time.Millisecond,
+					},
+					Methods: []MethodConfig{
+						{
+							Name:      "getLogs",
+							Threshold: 2000 * time.Millisecond,
+						},
+						{
+							Name: "eth_getStorageAt",
+						},
+						{
+							Name:      "eth_chainId",
+							Threshold: 20 * time.Millisecond,
+						},
+						{
+							Name:      "eth_yetAnotherMethod",
+							Threshold: 218 * time.Millisecond,
+						},
+					},
+					Threshold: DefaultMaxLatency,
+				},
+				Errors:        &expectedErrorsConfig,
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
+			},
+		},
+
+		Chains: getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs":                    2000 * time.Millisecond, // Top-level latency for method
+					"eth_getStorageAt":           6000 * time.Millisecond,
+					"eth_doesSomethingImportant": DefaultMaxLatency,
+					"eth_chainId":                20 * time.Millisecond, // Inherited from global latency config
+					"eth_yetAnotherMethod":       218 * time.Millisecond,
+				},
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+					{
+						Name:      "eth_getStorageAt",
+						Threshold: 6000 * time.Millisecond,
+					},
+					{
+						Name: "eth_doesSomethingImportant",
+					},
+					{
+						Name: "eth_yetAnotherMethod",
+					},
+				},
+			},
+			Errors:        &expectedErrorsConfig,
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+}
+
+func TestParseConfig_ValidConfigLatencyRouting_NoGlobalRoutingConfig_TwoChains_OnlyOneHasRoutingConfig(t *testing.T) {
+	Assert := assert.New(t)
+
+	config := `
+    chains:
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+      - chainName: ethereum
+        routing:
+          latency:
+            methods:
+              - method: getLogs
+                threshold: 210ms
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+
+      - chainName: ethereum
+        groups:
+          - id: primary
+            priority: 0
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            group: primary
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+
+	if err != nil {
+		t.Errorf("ParseConfig returned error: %v.", err)
+	}
+
+	expectedConfig := Config{
+		Global: GlobalConfig{
+			Routing: RoutingConfig{
+				DetectionWindow: NewDuration(DefaultDetectionWindow),
+				BanWindow:       NewDuration(DefaultBanWindow),
+				Latency: &LatencyConfig{
+					MethodLatencyThresholds: map[string]time.Duration{},
+				},
+				Errors:        &ErrorsConfig{Rate: 0.25},
+				AlwaysRoute:   newBool(false),
+				IsInitialized: true,
+			},
+		},
+		Chains: append(getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs": 10 * time.Second,
+				},
+				Methods: []MethodConfig{
+					{
+						Name: "getLogs",
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: 0.25},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}), append(getCommonChainsConfig(&RoutingConfig{
+			DetectionWindow: NewDuration(DefaultDetectionWindow),
+			BanWindow:       NewDuration(DefaultBanWindow),
+			Latency: &LatencyConfig{
+				MethodLatencyThresholds: map[string]time.Duration{
+					"getLogs": 210 * time.Millisecond,
+				},
+				Methods: []MethodConfig{
+					{
+						Name:      "getLogs",
+						Threshold: 210 * time.Millisecond,
+					},
+				},
+			},
+			Errors:        &ErrorsConfig{Rate: 0.25},
+			AlwaysRoute:   newBool(false),
+			IsInitialized: true,
+		}), getCommonChainsConfig(&RoutingConfig{})...)...),
+	}
+
+	if diff := cmp.Diff(expectedConfig, parsedConfig); diff != "" {
+		t.Errorf("ParseConfig returned unexpected config - diff:\n%s", diff)
+	}
+
+	Assert.True(parsedConfig.Chains[0].Routing.IsEnhancedRoutingControlDefined())
+	Assert.True(parsedConfig.Chains[1].Routing.IsEnhancedRoutingControlDefined())
+	Assert.False(parsedConfig.Chains[2].Routing.IsEnhancedRoutingControlDefined())
 }
 
 func TestParseConfig_InvalidYaml(t *testing.T) {

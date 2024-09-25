@@ -113,6 +113,40 @@ func (_c *HealthCheckManager_IsInitialized_Call) RunAndReturn(run func() bool) *
 	return _c
 }
 
+// RecordRequest provides a mock function with given fields: upstreamID, data
+func (_m *HealthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
+	_m.Called(upstreamID, data)
+}
+
+// HealthCheckManager_RecordRequest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecordRequest'
+type HealthCheckManager_RecordRequest_Call struct {
+	*mock.Call
+}
+
+// RecordRequest is a helper method to define mock.On call
+//   - upstreamID string
+//   - data *types.RequestData
+func (_e *HealthCheckManager_Expecter) RecordRequest(upstreamID interface{}, data interface{}) *HealthCheckManager_RecordRequest_Call {
+	return &HealthCheckManager_RecordRequest_Call{Call: _e.mock.On("RecordRequest", upstreamID, data)}
+}
+
+func (_c *HealthCheckManager_RecordRequest_Call) Run(run func(upstreamID string, data *types.RequestData)) *HealthCheckManager_RecordRequest_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(*types.RequestData))
+	})
+	return _c
+}
+
+func (_c *HealthCheckManager_RecordRequest_Call) Return() *HealthCheckManager_RecordRequest_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *HealthCheckManager_RecordRequest_Call) RunAndReturn(run func(string, *types.RequestData)) *HealthCheckManager_RecordRequest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // StartHealthChecks provides a mock function with given fields:
 func (_m *HealthCheckManager) StartHealthChecks() {
 	_m.Called()
