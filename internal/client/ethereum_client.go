@@ -24,12 +24,45 @@ type NewHeadHandler struct {
 	OnError   func(failure string)
 }
 
+type Client ethclient.Client
+
 //go:generate mockery --output ../mocks --name EthClient --with-expecter
 type EthClient interface {
 	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	PeerCount(ctx context.Context) (uint64, error)
 	SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error)
+	RecordLatency(ctx context.Context, method string) (time.Duration, error)
+}
+
+func (c *Client) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+	return (*ethclient.Client)(c).SubscribeNewHead(ctx, ch)
+}
+
+func (c *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return (*ethclient.Client)(c).HeaderByNumber(ctx, number)
+}
+
+func (c *Client) PeerCount(ctx context.Context) (uint64, error) {
+	return (*ethclient.Client)(c).PeerCount(ctx)
+}
+
+func (c *Client) SyncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
+	return (*ethclient.Client)(c).SyncProgress(ctx)
+}
+
+// RecordLatency calls the specified RPC method using the given context and returns the duration of the call,
+// as well as the error if one occurred. No arguments are passed to the RPC method.
+//
+// TODO(polsar): If the given method expects one or more arguments, it will return an error that will be passed
+//
+//	to the caller. We should detect this type of error and not return it, since the call has otherwise succeeded,
+//	which is the only thing the caller cares about.
+func (c *Client) RecordLatency(ctx context.Context, method string) (time.Duration, error) {
+	start := time.Now()
+	err := (*ethclient.Client)(c).Client().CallContext(ctx, nil, method)
+
+	return time.Since(start), err
 }
 
 type EthClientGetter func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (EthClient, error)
@@ -42,7 +75,7 @@ func NewEthClient(url string, credentials *config.BasicAuthConfig, additionalReq
 
 	setAdditionalRequestHeaders(rpcClient, additionalRequestHeaders)
 
-	return ethclient.NewClient(rpcClient), nil
+	return (*Client)(ethclient.NewClient(rpcClient)), nil
 }
 
 func getRPCClientWithAuthHeader(url string, credentials *config.BasicAuthConfig) (*rpc.Client, error) {

@@ -16,10 +16,9 @@ type SyncingCheck struct {
 	clientGetter     client.EthClientGetter
 	metricsContainer *metrics.Container
 	logger           *zap.Logger
-
-	upstreamConfig *conf.UpstreamConfig
-	IsSyncing      bool
-	ShouldRun      bool
+	upstreamConfig   *conf.UpstreamConfig
+	IsSyncing        bool
+	ShouldRun        bool
 }
 
 func NewSyncingChecker(upstreamConfig *conf.UpstreamConfig, clientGetter client.EthClientGetter, metricsContainer *metrics.Container, logger *zap.Logger) types.Checker {
@@ -55,7 +54,7 @@ func (c *SyncingCheck) Initialize() error {
 	c.runCheck()
 
 	if isMethodNotSupportedErr(c.Err) {
-		c.logger.Debug("PeerCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig.ID))
+		c.logger.Debug("SyncingCheck is not supported by upstream, not running check.", zap.Any("upstreamID", c.upstreamConfig.ID))
 
 		c.ShouldRun = false
 	}
@@ -109,6 +108,8 @@ func (c *SyncingCheck) runCheck() {
 }
 
 func (c *SyncingCheck) IsPassing() bool {
+	// TODO(polsar): This method is unused. Instead, the decision whether this check is passing is made here:
+	//  https://github.com/satsuma-xyz/node-gateway/blob/b7f20aa2ad97f53772e9fa1565a300be7c0fff78/internal/route/node_filter.go#L98
 	if c.ShouldRun && (c.IsSyncing || c.Err != nil) {
 		c.logger.Error("SyncingCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("isSyncing", c.IsSyncing), zap.Error(c.Err))
 
