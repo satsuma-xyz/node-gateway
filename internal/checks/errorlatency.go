@@ -492,6 +492,8 @@ func getLatencyThreshold(routingConfig *conf.RoutingConfig, method string) time.
 		if latency, exists := routingConfig.Latency.MethodLatencyThresholds[method]; exists {
 			return latency
 		}
+
+		return routingConfig.Latency.Threshold
 	}
 
 	return conf.DefaultMaxLatency
