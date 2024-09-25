@@ -20,7 +20,7 @@ type RPCServer struct {
 	routerCollection route.RouterCollection
 }
 
-func NewHTTPServer(config conf.Config, handler *http.ServeMux) *http.Server {
+func NewHTTPServer(config conf.Config, handler *http.ServeMux) *http.Server { //nolint:gocritic // Legacy
 	port := defaultServerPort
 	if config.Global.Port > 0 {
 		port = config.Global.Port
