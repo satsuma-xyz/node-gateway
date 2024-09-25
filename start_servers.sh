@@ -13,6 +13,10 @@ function shutdown_servers {
 
 # Trap Ctrl+C (SIGINT) and run shutdown_servers function
 # TODO(polsar): This does not work currently. The servers are not killed.
+#  You need to find the PID of the Python processes and kill them manually:
+#    lsof -i :3333
+#    kill <PID>
+#  (Repeat for all ports.)
 trap shutdown_servers SIGINT
 
 # Start the servers on different ports
