@@ -20,3 +20,5 @@ build/
 # Editor stuff
 .vscode
 .idea
+
+/__pycache__/
