@@ -53,16 +53,38 @@ func wireSingleChainDependencies(
 	}
 
 	// TODO(polsar): Here, the HealthCheckManager is wired into the primary FilteringRoutingStrategy.
-	// We may need to wire it into the secondary PriorityRoundRobinStrategy as well.
-	enabledNodeFilters := []route.NodeFilterType{route.Healthy, route.MaxHeightForGroup, route.MethodsAllowed, route.NearGlobalMaxHeight}
-	nodeFilter := route.CreateNodeFilter(enabledNodeFilters, healthCheckManager, chainMetadataStore, logger, &chainConfig.Routing)
+	//  We may need to wire it into the secondary PriorityRoundRobinStrategy as well.
+	enabledNodeFilters := []route.NodeFilterType{
+		route.Healthy,
+		route.MaxHeightForGroup,
+		route.MethodsAllowed,
+		route.NearGlobalMaxHeight,
+	}
+	nodeFilter := route.CreateNodeFilter(
+		enabledNodeFilters,
+		healthCheckManager,
+		chainMetadataStore,
+		logger,
+		&chainConfig.Routing,
+	)
 	routingStrategy := route.FilteringRoutingStrategy{
 		NodeFilter:      nodeFilter,
 		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger, alwaysRoute),
 		Logger:          logger,
 	}
 
-	router := route.NewRouter(chainConfig.ChainName, chainConfig.Cache, chainConfig.Upstreams, chainConfig.Groups, chainMetadataStore, healthCheckManager, &routingStrategy, metricContainer, logger, rpcCache)
+	router := route.NewRouter(
+		chainConfig.ChainName,
+		chainConfig.Cache,
+		chainConfig.Upstreams,
+		chainConfig.Groups,
+		chainMetadataStore,
+		healthCheckManager,
+		&routingStrategy,
+		metricContainer,
+		logger,
+		rpcCache,
+	)
 
 	path := "/" + chainConfig.ChainName
 	handler := &RPCHandler{

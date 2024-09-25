@@ -297,6 +297,10 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 }
 
 func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
+	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
+		return conf.ReasonUnknownOrHealthy
+	}
+
 	if c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
 			"ErrorLatencyCheck is not passing due to too many errors.",
@@ -334,6 +338,10 @@ func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyR
 
 func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	if c.routingConfig.PassiveLatencyChecking {
+		return
+	}
+
+	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
 		return
 	}
 
@@ -422,7 +430,6 @@ func isMatch(responseCode, pattern string) bool {
 	}
 
 	for i, x := range responseCode {
-		// TODO(polsar): Unicode sucks. Fix this awkward conversion voodoo.
 		y := string(pattern[i])
 
 		if strings.EqualFold(y, string(ResponseCodeWildcard)) {
