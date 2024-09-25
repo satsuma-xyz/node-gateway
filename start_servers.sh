@@ -12,6 +12,7 @@ function shutdown_servers {
 }
 
 # Trap Ctrl+C (SIGINT) and run shutdown_servers function
+# TODO(polsar): This does not work currently. The servers are not killed.
 trap shutdown_servers SIGINT
 
 # Start the servers on different ports
