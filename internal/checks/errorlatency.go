@@ -21,7 +21,7 @@ import (
 const (
 	ResponseCodeWildcard  = 'x'
 	PercentPerFrac        = 100
-	MinNumRequestsForRate = 4 // The minimum number (- 1) of requests required to compute the error rate.
+	MinNumRequestsForRate = 4 - 1 // The minimum number (- 1) of requests required to compute the error rate.
 )
 
 type ErrorCircuitBreaker interface {
