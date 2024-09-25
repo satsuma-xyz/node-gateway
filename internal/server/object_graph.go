@@ -60,7 +60,7 @@ func wireSingleChainDependencies(chainConfig *config.SingleChainConfig, logger *
 }
 
 func WireDependenciesForAllChains(
-	gatewayConfig config.Config, //nolint:gocritic // Legacy
+	gatewayConfig config.Config,
 	rootLogger *zap.Logger,
 ) ObjectGraph {
 	rpcCache := cache.NewRPCCache(gatewayConfig.Global.Cache.Redis)

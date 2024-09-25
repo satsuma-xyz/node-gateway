@@ -21,7 +21,7 @@ chains:
     groups:
       # Each group must have the following keys
       #
-      # id - Unique identifier for the group.
+      # id - Unique identifer for the group.
       # priority - Defines the routing priority for nodes in the group.
       #            The lower the number, the higher the priority.
       #            Priority routing works by identifying the highest priority group with at least

@@ -84,7 +84,7 @@ By default, Prometheus metrics are exposed on port 9090. See
 
 #### Running locally
 
-1. Install Go 1.22.
+1. Install Go 1.19.
 2. Install dependencies: `go mod download`.
 3. Run `go run cmd/gateway/main.go`.
 
@@ -98,18 +98,11 @@ go generate ./...
 
 This command will generate mocks for interfaces/types annotated with `go:generate mockery ...` and place them in the `mocks` folder
 
-If you get a `command not found` error, make sure `~/go/bin` is in your `PATH`.
-
 Run tests with:
 
 ```sh
 go build -v ./...
 go test -v ./...
-```
-
-To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
-```sh
-go get golang.org/x/tools/cmd/cover
 ```
 
 #### Linting

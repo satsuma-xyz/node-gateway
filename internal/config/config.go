@@ -1,4 +1,4 @@
-package config //nolint:nolintlint,typecheck // Legacy
+package config
 
 import (
 	"errors"
@@ -11,9 +11,6 @@ import (
 )
 
 type NodeType string
-
-const DefDetectionWindow = time.Minute
-const DefBanWindow = 5 * time.Minute
 
 const (
 	Archive NodeType = "archive"
@@ -30,10 +27,6 @@ type UpstreamConfig struct {
 	GroupID              string                `yaml:"group"`
 	NodeType             NodeType              `yaml:"nodeType"`
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
-}
-
-func newDuration(d time.Duration) *time.Duration {
-	return &d
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -63,7 +56,7 @@ func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
 			zap.L().Error("A Group must be specified on upstreams since groups are defined.", zap.Any("config", c), zap.String("upstreamId", c.ID))
 		} else {
 			groupIsValid := false
-			for _, group := range groups { //nolint:nolintlint,wsl // Legacy
+			for _, group := range groups {
 				if group.ID == c.GroupID {
 					groupIsValid = true
 				}
@@ -174,77 +167,16 @@ func IsGroupsValid(groups []GroupConfig) bool {
 }
 
 type GlobalConfig struct {
-	Routing RoutingConfig `yaml:"routing"`
-	Cache   CacheConfig   `yaml:"cache"`
-	Port    int           `yaml:"port"`
-}
-
-func (c *GlobalConfig) setDefaults() {
-	c.Routing.setDefaults()
+	Cache CacheConfig `yaml:"cache"`
+	Port  int         `yaml:"port"`
 }
 
 type CacheConfig struct {
 	Redis string `yaml:"redis"`
 }
 
-type ErrorsConfig struct {
-	HTTPCodes    []string `yaml:"httpCodes"`
-	JSONRPCCodes []string `yaml:"jsonRpcCodes"`
-	ErrorStrings []string `yaml:"errorStrings"`
-	Rate         float64  `yaml:"rate"`
-}
-
-type MethodConfig struct {
-	Name      string        `yaml:"method"`
-	Threshold time.Duration `yaml:"threshold"`
-}
-
-type LatencyConfig struct {
-	Methods   []MethodConfig `yaml:"methods"`
-	Threshold time.Duration  `yaml:"threshold"`
-}
-
 type RoutingConfig struct {
-	AlwaysRoute     *bool          `yaml:"alwaysRoute"`
-	Errors          *ErrorsConfig  `yaml:"errors"`
-	Latency         *LatencyConfig `yaml:"latency"`
-	DetectionWindow *time.Duration `yaml:"detectionWindow"`
-	BanWindow       *time.Duration `yaml:"banWindow"`
-	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
-}
-
-func (r *RoutingConfig) setDefaults() {
-	if r.Errors == nil && r.Latency == nil {
-		return
-	}
-
-	if r.DetectionWindow == nil {
-		r.DetectionWindow = newDuration(DefDetectionWindow)
-	}
-
-	if r.BanWindow == nil {
-		r.BanWindow = newDuration(DefBanWindow)
-	}
-}
-
-func (r *RoutingConfig) isRoutingConfigValid() bool {
-	// TODO(polsar): Validate the HTTP and JSON RPC codes, and potentially methods as well.
-	return r.isErrorRateValid()
-}
-
-func (r *RoutingConfig) isErrorRateValid() bool {
-	if r.Errors == nil {
-		return true
-	}
-
-	rate := r.Errors.Rate
-	isValid := 0.0 <= rate && rate <= 1.0
-
-	if !isValid {
-		zap.L().Error("Rate is not in range [0.0, 1.0]", zap.Any("rate", rate))
-	}
-
-	return isValid
+	MaxBlocksBehind int `yaml:"maxBlocksBehind"`
 }
 
 type ChainCacheConfig struct {
@@ -263,18 +195,18 @@ func (c *ChainCacheConfig) isValid() bool {
 }
 
 type SingleChainConfig struct {
-	Routing   RoutingConfig
 	ChainName string `yaml:"chainName"`
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
+	Routing   RoutingConfig
 	Cache     ChainCacheConfig
 }
 
 func (c *SingleChainConfig) isValid() bool {
-	isChainConfigValid := IsGroupsValid(c.Groups)
+	isChainConfigValid := true
+	isChainConfigValid = isChainConfigValid && IsGroupsValid(c.Groups)
 	isChainConfigValid = isChainConfigValid && IsUpstreamsValid(c.Upstreams)
 	isChainConfigValid = isChainConfigValid && c.Cache.isValid()
-	isChainConfigValid = isChainConfigValid && c.Routing.isRoutingConfigValid()
 
 	for idx := range c.Upstreams {
 		isChainConfigValid = isChainConfigValid && c.Upstreams[idx].isValid(c.Groups)
@@ -287,10 +219,6 @@ func (c *SingleChainConfig) isValid() bool {
 	}
 
 	return isChainConfigValid
-}
-
-func (c *SingleChainConfig) setDefaults() {
-	c.Routing.setDefaults()
 }
 
 func isChainsValid(chainsConfig []SingleChainConfig) bool {
@@ -310,20 +238,8 @@ type Config struct {
 	Chains []SingleChainConfig
 }
 
-func (config *Config) setDefaults() {
-	config.Global.setDefaults()
-
-	for chainIndex := range config.Chains {
-		chainConfig := &config.Chains[chainIndex]
-		chainConfig.setDefaults()
-	}
-}
-
 func (config *Config) Validate() error {
 	isValid := isChainsValid(config.Chains)
-
-	// Validate global config.
-	isValid = isValid && config.Global.Routing.isRoutingConfigValid()
 
 	if !isValid {
 		return errors.New("invalid config found")
@@ -349,8 +265,6 @@ func parseConfig(configBytes []byte) (Config, error) {
 	if err != nil {
 		return config, err
 	}
-
-	config.setDefaults()
 
 	err = config.Validate()
 

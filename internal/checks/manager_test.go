@@ -16,7 +16,7 @@ import (
 
 func TestHealthCheckManager(t *testing.T) {
 	ethereumClient := mocks.NewEthClient(t)
-	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) { //nolint:gocritic,nolintlint,revive
+	mockEthClientGetter := func(url string, credentials *config.BasicAuthConfig, additionalRequestHeaders *[]config.RequestHeaderConfig) (client.EthClient, error) {
 		return ethereumClient, nil
 	}
 
@@ -53,18 +53,18 @@ func TestHealthCheckManager(t *testing.T) {
 		return mockBlockHeightChecker
 	}
 	manager.(*healthCheckManager).newPeerCheck = func(
-		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
-		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
-		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
-		logger *zap.Logger, //nolint:nolintlint,revive // Legacy
+		upstreamConfig *config.UpstreamConfig,
+		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
+		logger *zap.Logger,
 	) types.Checker {
 		return mockPeerChecker
 	}
 	manager.(*healthCheckManager).newSyncingCheck = func(
-		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
-		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
-		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
-		logger *zap.Logger, //nolint:nolintlint,revive // Legacy
+		upstreamConfig *config.UpstreamConfig,
+		clientGetter client.EthClientGetter,
+		metricsContainer *metrics.Container,
+		logger *zap.Logger,
 	) types.Checker {
 		return mockSyncingChecker
 	}
