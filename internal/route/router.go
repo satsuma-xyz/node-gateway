@@ -128,10 +128,18 @@ func (r *SimpleRouter) Route(
 
 	start := time.Now()
 	jsonRPCResponse, httpResponse, cached, err := r.requestExecutor.routeToConfig(ctx, requestBody, &configToRoute)
-	HTTPReponseCode := ""
+	statusCode := 0
+	HTTPResponseCode := ""
+	r.healthCheckManager.RecordRequest(upstreamID, &types.RequestData{
+		Method:           requestBody.GetMethod(),
+		HTTPResponseCode: statusCode,
+		ResponseBody:     jsonRPCResponse,
+		Latency:          time.Since(start),
+	})
 
 	if httpResponse != nil {
-		HTTPReponseCode = strconv.Itoa(httpResponse.StatusCode)
+		statusCode = httpResponse.StatusCode
+		HTTPResponseCode = strconv.Itoa(statusCode)
 	}
 
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(
@@ -142,13 +150,13 @@ func (r *SimpleRouter) Route(
 		strconv.FormatBool(cached),
 	).Inc()
 
-	if err != nil || httpResponse.StatusCode >= http.StatusBadRequest {
+	if err != nil || statusCode == 0 || statusCode >= http.StatusBadRequest {
 		r.metricsContainer.UpstreamRPCRequestErrorsTotal.WithLabelValues(
 			util.GetClientFromContext(ctx),
 			upstreamID,
 			configToRoute.HTTPURL,
 			requestBody.GetMethod(),
-			HTTPReponseCode,
+			HTTPResponseCode,
 		).Inc()
 	}
 
@@ -194,7 +202,7 @@ func (r *SimpleRouter) Route(
 		configToRoute.ID,
 		configToRoute.HTTPURL,
 		requestBody.GetMethod(),
-		HTTPReponseCode,
+		HTTPResponseCode,
 	).Observe(time.Since(start).Seconds())
 
 	return upstreamID, jsonRPCResponse, err

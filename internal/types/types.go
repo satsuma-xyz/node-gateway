@@ -1,15 +1,26 @@
 package types
 
 import (
+	"time"
+
 	"github.com/satsuma-data/node-gateway/internal/config"
+	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 )
 
 type UpstreamStatus struct {
 	BlockHeightCheck BlockHeightChecker
 	PeerCheck        Checker
 	SyncingCheck     Checker
+	LatencyCheck     ErrorLatencyChecker
 	ID               string
 	GroupID          string
+}
+
+type RequestData struct {
+	ResponseBody     jsonrpc.ResponseBody
+	Method           string
+	HTTPResponseCode int
+	Latency          time.Duration
 }
 
 //go:generate mockery --output ../mocks --name BlockHeightChecker --with-expecter
@@ -24,6 +35,13 @@ type BlockHeightChecker interface {
 type Checker interface {
 	RunCheck()
 	IsPassing() bool
+}
+
+//go:generate mockery --output ../mocks --name ErrorLatencyChecker --with-expecter
+type ErrorLatencyChecker interface {
+	RunPassiveCheck()
+	GetUnhealthyReason(methods []string) config.UnhealthyReason
+	RecordRequest(data *RequestData)
 }
 
 type PriorityToUpstreamsMap map[int][]*config.UpstreamConfig
