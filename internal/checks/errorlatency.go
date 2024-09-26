@@ -48,8 +48,15 @@ func (e *ErrorStats) RecordResponse(isError bool) {
 }
 
 func (e *ErrorStats) IsOpen() bool {
-	// TODO(polsar): Dedup with LatencyStats.IsOpen.
-	return e.circuitBreaker.IsOpen() || e.circuitBreaker.IsHalfOpen()
+	// TODO(polsar): We should be able to check `e.circuitBreaker.IsOpen()`,
+	//  but it appears to remain open forever, regardless of the configured delay.
+	//  We also must reset the circuit breaker manually if it is not supposed to be open.
+	isOpen := e.circuitBreaker.RemainingDelay() > 0
+	if !isOpen {
+		e.circuitBreaker.Close()
+	}
+
+	return isOpen
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
@@ -76,8 +83,15 @@ func (l *LatencyStats) RecordLatency(latency time.Duration) {
 }
 
 func (l *LatencyStats) IsOpen() bool {
-	// TODO(polsar): Dedup with ErrorStats.IsOpen.
-	return l.circuitBreaker.IsOpen() || l.circuitBreaker.IsHalfOpen()
+	// TODO(polsar): We should be able to check `l.circuitBreaker.IsOpen()`,
+	//  but it appears to remain open forever, regardless of the configured delay.
+	//  We also must reset the circuit breaker manually if it is not supposed to be open.
+	isOpen := l.circuitBreaker.RemainingDelay() > 0
+	if !isOpen {
+		l.circuitBreaker.Close()
+	}
+
+	return isOpen
 }
 
 func (l *LatencyStats) GetThreshold() time.Duration {
@@ -357,15 +371,20 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 		).Inc()
 	}
 
-	if data.HTTPResponseCode >= http.StatusBadRequest {
-		// No RPC responses are available since the HTTP request errored out.
+	errorString := ""
+	if data.Error != nil {
+		errorString = data.Error.Error()
+	}
+
+	if data.HTTPResponseCode >= http.StatusBadRequest || data.ResponseBody == nil {
+		// No RPC responses are available since the HTTP request errored out or does not contain a JSON RPC response.
 		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 		c.errorCircuitBreaker.RecordResponse(c.isError(
-			strconv.Itoa(data.HTTPResponseCode),
+			strconv.Itoa(data.HTTPResponseCode), // Note that this CAN be 200 OK.
 			"",
-			"",
-		)) // HTTP request error
-	} else if data.ResponseBody != nil {
+			errorString,
+		))
+	} else { // data.ResponseBody != nil
 		for _, resp := range data.ResponseBody.GetSubResponses() {
 			if resp.Error != nil {
 				// Do not ignore this response even if it does not correspond to an RPC request.
@@ -385,8 +404,6 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 			}
 		}
 	}
-	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
-	//  Log this strange case as an error.
 
 	c.metricsContainer.ErrorLatency.WithLabelValues(
 		c.upstreamConfig.ID,
@@ -461,14 +478,6 @@ func isErrorMatches(errorMsg string, errors []string) bool {
 	}
 
 	return false
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-
-	return 0
 }
 
 func getDetectionWindow(routingConfig *conf.RoutingConfig) time.Duration {
