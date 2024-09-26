@@ -12,4 +12,6 @@ do_curl() {
   \"method\": \"$METHOD\",
   \"params\": []
 }"
+
+    printf "\n\n"
 }
