@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	ResponseCodeWildcard        = 'x'
-	PercentPerFrac              = 100
-	MinNumFailedRequestsForRate = 3 // The minimum number of failed requests required to compute the error rate.
+	ResponseCodeWildcard  = 'x'
+	PercentPerFrac        = 100
+	MinNumRequestsForRate = 3 // The minimum number of failed requests required to compute the error rate.
 )
 
 type ErrorCircuitBreaker interface {
@@ -108,7 +108,7 @@ func NewCircuitBreaker(
 		HandleResult(false). // The false return value of the wrapped call will be interpreted as a failure.
 		WithFailureRateThreshold(
 			uint(math.Floor(errorRate*PercentPerFrac)), // Minimum percentage of failed requests to open the breaker.
-			MinNumFailedRequestsForRate,
+			MinNumRequestsForRate,
 			detectionWindow,
 		).
 		WithDelay(banWindow).
@@ -357,15 +357,15 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 		).Inc()
 	}
 
-	if data.HTTPResponseCode >= http.StatusBadRequest {
-		// No RPC responses are available since the HTTP request errored out.
+	if data.HTTPResponseCode >= http.StatusBadRequest || data.ResponseBody == nil {
+		// No RPC responses are available since the HTTP request errored out or does not contain a JSON RPC response.
 		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 		c.errorCircuitBreaker.RecordResponse(c.isError(
 			strconv.Itoa(data.HTTPResponseCode),
 			"",
 			"",
-		)) // HTTP request error
-	} else if data.ResponseBody != nil {
+		))
+	} else { // data.ResponseBody != nil
 		for _, resp := range data.ResponseBody.GetSubResponses() {
 			if resp.Error != nil {
 				// Do not ignore this response even if it does not correspond to an RPC request.
@@ -385,8 +385,6 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 			}
 		}
 	}
-	// TODO(polsar): What does it mean when `data.ResponseBody == nil` and no HTTP error occurred?
-	//  Log this strange case as an error.
 
 	c.metricsContainer.ErrorLatency.WithLabelValues(
 		c.upstreamConfig.ID,
