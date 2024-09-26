@@ -41,7 +41,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             c = 200
 
         secs = 0
-        if c >= 1000:
+        if str(c).endswith("77"):
             # Interpret the suffix as the response delay rather than the HTTP code.
             secs = c / 1000
             c = 200

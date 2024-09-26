@@ -15,4 +15,6 @@ LOG_LEVEL=debug go run cmd/gateway/main.go config-disabled.yml
 ./test-scripts/test-http-error.sh
 ./test-scripts/test-error-string.sh
 ./test-scripts/test-error-string-and-http.sh
+./test-scripts/test-latency.sh
+./test-scripts/test-latency-override.sh
 ```

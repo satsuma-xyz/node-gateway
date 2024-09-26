@@ -3,7 +3,7 @@
 source test-scripts/common.sh
 
 # This will cause both primary upstreams (ports 3333 & 4444) to be marked as unhealthy
-# due to high error rate of 0.25. We need at least 3 failed requests to each upstream
+# due to high error rate. We need at least 3 failed requests to each upstream
 # to trigger error rate filtering, and we have 2 upstreams. The requests will round-robin
 # between the two upstreams, so we need 6 failed requests in total.
 do_curl "eth_string_rate_limit_exceeded" # Routed to 4444
