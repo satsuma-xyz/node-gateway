@@ -48,8 +48,15 @@ func (e *ErrorStats) RecordResponse(isError bool) {
 }
 
 func (e *ErrorStats) IsOpen() bool {
-	// TODO(polsar): Dedup with LatencyStats.IsOpen.
-	return e.circuitBreaker.IsOpen() || e.circuitBreaker.IsHalfOpen()
+	// TODO(polsar): We should be able to check `e.circuitBreaker.IsOpen()`,
+	//  but it appears to remain open forever, regardless of the configured delay.
+	//  We also must reset the circuit breaker manually if it is not supposed to be open.
+	isOpen := e.circuitBreaker.RemainingDelay() > 0
+	if !isOpen {
+		e.circuitBreaker.Close()
+	}
+
+	return isOpen
 }
 
 func NewErrorStats(routingConfig *conf.RoutingConfig) ErrorCircuitBreaker {
@@ -76,8 +83,15 @@ func (l *LatencyStats) RecordLatency(latency time.Duration) {
 }
 
 func (l *LatencyStats) IsOpen() bool {
-	// TODO(polsar): Dedup with ErrorStats.IsOpen.
-	return l.circuitBreaker.IsOpen() || l.circuitBreaker.IsHalfOpen()
+	// TODO(polsar): We should be able to check `l.circuitBreaker.IsOpen()`,
+	//  but it appears to remain open forever, regardless of the configured delay.
+	//  We also must reset the circuit breaker manually if it is not supposed to be open.
+	isOpen := l.circuitBreaker.RemainingDelay() > 0
+	if !isOpen {
+		l.circuitBreaker.Close()
+	}
+
+	return isOpen
 }
 
 func (l *LatencyStats) GetThreshold() time.Duration {

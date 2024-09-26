@@ -1,7 +1,7 @@
 global:
   port: 8080
   routing:
-    banWindow: 1m
+    banWindow: 3s
     errors:
       rate: 0.25
       httpCodes:
