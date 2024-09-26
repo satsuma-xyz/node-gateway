@@ -13,5 +13,3 @@ do_curl() {
   \"params\": []
 }"
 }
-
-do_curl "eth_slowMethod"
