@@ -6,6 +6,8 @@ global:
       rate: 0.25
       httpCodes:
         - 404
+      errorStrings:
+        - "rate limit exceeded"
     latency:
       threshold: 100ms
       methods:

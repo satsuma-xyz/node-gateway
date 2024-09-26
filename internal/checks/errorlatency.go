@@ -357,13 +357,18 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 		).Inc()
 	}
 
+	errorString := ""
+	if data.Error != nil {
+		errorString = data.Error.Error()
+	}
+
 	if data.HTTPResponseCode >= http.StatusBadRequest || data.ResponseBody == nil {
 		// No RPC responses are available since the HTTP request errored out or does not contain a JSON RPC response.
 		// TODO(polsar): We might want to emit a Prometheus stat like we do for an RPC error below.
 		c.errorCircuitBreaker.RecordResponse(c.isError(
-			strconv.Itoa(data.HTTPResponseCode),
+			strconv.Itoa(data.HTTPResponseCode), // Note that this CAN be 200 OK.
 			"",
-			"",
+			errorString,
 		))
 	} else { // data.ResponseBody != nil
 		for _, resp := range data.ResponseBody.GetSubResponses() {

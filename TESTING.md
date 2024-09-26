@@ -1,5 +1,6 @@
 ```zsh
 # Start test servers.
+# TODO(polsar): Ports are not immediately available after stopping servers.
 ./start_servers.sh
 
 # Start node gateway with routing control ENABLED.
@@ -10,4 +11,5 @@ LOG_LEVEL=debug go run cmd/gateway/main.go config-disabled.yml
 
 # Run tests.
 ./test-scripts/test-http-error.sh
+./test-scripts/test-error-string.sh
 ```

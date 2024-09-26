@@ -7,6 +7,7 @@ import time
 PORT = int(sys.argv[1])
 
 METHOD_PREFIX = "eth_"
+ERROR_STRING_PREFIX= "string_"
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
     
@@ -25,11 +26,17 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         post_data = self.rfile.read(content_length)  # Read the incoming POST data
 
         m = json.loads(post_data.decode('utf-8'))["method"]
+        err = ""
         try:
             if not m.startswith(METHOD_PREFIX):
                 raise ValueError
             suffix = m[len(METHOD_PREFIX):]
-            c = int(suffix)
+            if suffix.startswith(ERROR_STRING_PREFIX):
+                suffix = suffix[len(ERROR_STRING_PREFIX):]
+                err = " ".join(suffix.split("_"))
+                c = 403
+            else:
+                c = int(suffix)
         except ValueError:
             c = 200
 
@@ -52,7 +59,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         print("Received POST data:", post_data.decode('utf-8'))
 
         # Respond to the POST request
-        response = f"<html><body><h1>POST request received: port={PORT}, method={m}, secs={secs}</h1></body></html>"
+        response = f"<html><body><h1>POST request received: port={PORT}, method={m}, secs={secs}, error={err}</h1></body></html>"
+        print(f"Responding with: {response}")
         self.wfile.write(response.encode('utf-8'))
 
 # Create server and bind to port 4444
