@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	ResponseCodeWildcard  = 'x'
-	PercentPerFrac        = 100
-	MinNumRequestsForRate = 4 - 1 // The minimum number (- 1) of requests required to compute the error rate.
+	ResponseCodeWildcard        = 'x'
+	PercentPerFrac              = 100
+	MinNumFailedRequestsForRate = 3 // The minimum number of failed requests required to compute the error rate.
 )
 
 type ErrorCircuitBreaker interface {
@@ -108,7 +108,7 @@ func NewCircuitBreaker(
 		HandleResult(false). // The false return value of the wrapped call will be interpreted as a failure.
 		WithFailureRateThreshold(
 			uint(math.Floor(errorRate*PercentPerFrac)), // Minimum percentage of failed requests to open the breaker.
-			MinNumRequestsForRate,
+			MinNumFailedRequestsForRate,
 			detectionWindow,
 		).
 		WithDelay(banWindow).
