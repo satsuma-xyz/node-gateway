@@ -10,6 +10,7 @@ LOG_LEVEL=debug go run cmd/gateway/main.go config.yml
 LOG_LEVEL=debug go run cmd/gateway/main.go config-disabled.yml
 
 # Run tests.
+# YOU MUST RESTART THE GATEWAY AFTER EACH TEST RUN TO CLEAR THE STATE!
 ./test-scripts/test-http-error.sh
 ./test-scripts/test-error-string.sh
 ```
