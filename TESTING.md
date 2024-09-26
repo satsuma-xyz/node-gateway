@@ -7,4 +7,7 @@ LOG_LEVEL=debug go run cmd/gateway/main.go config.yml
 
 # Start node gateway with routing control DISABLED.
 LOG_LEVEL=debug go run cmd/gateway/main.go config-disabled.yml
+
+# Run tests.
+./test-scripts/test-http-error.sh
 ```
