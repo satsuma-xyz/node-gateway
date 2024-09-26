@@ -23,6 +23,7 @@ do_curl "eth_77" # Routed to 3333
 do_curl "eth_177" # Routed to 5555
 
 # No healthy upstreams left, so the next request will not be routed.
+# IF `alwaysRoute` IS SET TO `true`, THE REQUEST WILL BE ROUTED TO 3333.
 do_curl "eth_177" # Not routed
 
 # The fact that the upstream is kept separately for each method can be seen here,

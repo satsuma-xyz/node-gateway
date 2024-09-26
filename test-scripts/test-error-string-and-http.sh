@@ -28,6 +28,7 @@ do_curl "eth_400" # Routed to 5555
 do_curl "eth_404" # Routed to 5555
 
 # There are no healthy upstreams left, so the next request will not be routed.
+# IF `alwaysRoute` IS SET TO `true`, THE REQUEST WILL BE ROUTED TO 3333.
 do_curl "eth_method" # Not routed
 
 # IF YOU START NODE GATEWAY WITH ROUTING CONTROL DISABLED, THE REQUESTS WILL SIMPLY

@@ -1,0 +1,46 @@
+global:
+  port: 8080
+  routing:
+    banWindow: 1m
+    errors:
+      rate: 0.25
+      httpCodes:
+        - 404
+      errorStrings:
+        - "rate limit exceeded"
+    latency:
+      threshold: 100ms
+      methods:
+        - method: eth_slowMethod
+          threshold: 2000ms
+    alwaysRoute: true
+
+chains:
+  - chainName: mainnet
+    groups:
+      - id: primary
+        priority: 0
+      - id: fallback
+        priority: 1
+
+    upstreams:
+      - id: zero1
+        httpURL: http://localhost:3333/any/path
+        group: primary
+        nodeType: archive
+        healthCheck:
+          skipPeerCountCheck: true
+
+      - id: zero2
+        httpURL: http://localhost:4444/any/path
+        group: primary
+        nodeType: archive
+        healthCheck:
+          skipPeerCountCheck: true
+
+      - id: one
+        httpURL: http://localhost:5555/any/path
+        group: fallback
+        nodeType: archive
+        healthCheck:
+          skipPeerCountCheck: true
