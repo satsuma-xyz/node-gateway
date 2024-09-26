@@ -21,4 +21,5 @@ build/
 .vscode
 .idea
 
+# Temporary files
 /__pycache__/
