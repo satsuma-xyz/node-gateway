@@ -463,14 +463,6 @@ func isErrorMatches(errorMsg string, errors []string) bool {
 	return false
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-
-	return 0
-}
-
 func getDetectionWindow(routingConfig *conf.RoutingConfig) time.Duration {
 	if routingConfig != nil && routingConfig.DetectionWindow != nil {
 		return *routingConfig.DetectionWindow
