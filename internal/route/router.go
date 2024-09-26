@@ -2,21 +2,19 @@ package route
 
 import (
 	"context"
-
-	"github.com/satsuma-data/node-gateway/internal/cache"
-	"github.com/satsuma-data/node-gateway/internal/metadata"
-	"github.com/satsuma-data/node-gateway/internal/types"
-
 	"net/http"
 	"strconv"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+	"github.com/satsuma-data/node-gateway/internal/metadata"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"github.com/satsuma-data/node-gateway/internal/types"
 	"github.com/satsuma-data/node-gateway/internal/util"
 )
 
@@ -141,6 +139,7 @@ func (r *SimpleRouter) Route(
 		HTTPResponseCode: statusCode,
 		ResponseBody:     jsonRPCResponse,
 		Latency:          time.Since(start),
+		Error:            err,
 	})
 
 	r.metricsContainer.UpstreamRPCRequestsTotal.WithLabelValues(

@@ -18,6 +18,7 @@ type UpstreamStatus struct {
 
 type RequestData struct {
 	ResponseBody     jsonrpc.ResponseBody
+	Error            error
 	Method           string
 	HTTPResponseCode int
 	Latency          time.Duration
