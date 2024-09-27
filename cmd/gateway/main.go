@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -53,7 +52,7 @@ func main() {
 
 	var rpcServer *server.RPCServer
 
-	var metricsServer *http.Server
+	var metricsServer *metrics.Server
 
 	zap.L().Info("Starting node gateway.", zap.String("env", env), zap.Any("config", conf))
 
@@ -71,7 +70,7 @@ func main() {
 	go func() {
 		metricsServer = metrics.NewMetricsServer()
 
-		if err := metricsServer.ListenAndServe(); err != http.ErrServerClosed {
+		if err := metricsServer.Start(); err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start metrics server.", zap.Error(err))
 		}
 	}()
@@ -90,7 +89,7 @@ func main() {
 		zap.L().Fatal("Failed to gracefully shut down RPC server.", zap.Error(err))
 	}
 
-	if err := metricsServer.Shutdown(context.Background()); err != nil {
+	if err := metricsServer.Shutdown(); err != nil {
 		zap.L().Fatal("Failed to gracefully shut down metrics server.", zap.Error(err))
 	}
 }
