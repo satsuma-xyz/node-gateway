@@ -1,19 +1,23 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 )
 
 const (
-	DefaultPort              = 9090
-	metricsNamespace         = "node_gateway"
-	defaultReadHeaderTimeout = 10 * time.Second
+	DefaultPort                 = 9090
+	metricsNamespace            = "node_gateway"
+	defaultReadHeaderTimeout    = 10 * time.Second
+	systemStatsEmissionInterval = 60 * time.Second
 
 	// Metric labels
 
@@ -285,6 +289,15 @@ var (
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
+
+	// System metrics
+	fileDescriptorsUsed = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Name:      "file_descriptors_used",
+			Help:      "Count of Unix file descriptors used.",
+		},
+	)
 )
 
 type Container struct {
@@ -358,15 +371,79 @@ func NewContainer(chainName string) *Container {
 	return result
 }
 
-func NewMetricsServer() *http.Server {
+func NewMetricsServer() *Server {
 	mux := http.NewServeMux()
 	mux.Handle("/", promhttp.Handler())
 
-	return &http.Server{
+	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", DefaultPort),
 		Handler:           mux,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
+
+	return &Server{
+		server:          server,
+		shutdownChannel: make(chan int),
+	}
+}
+
+type Server struct {
+	server          *http.Server
+	shutdownChannel chan int
+}
+
+func (m *Server) Start() error {
+	m.StartEmittingSystemStats()
+	return m.server.ListenAndServe()
+}
+
+func (m *Server) Shutdown() error {
+	select {
+	case m.shutdownChannel <- 1:
+		zap.L().Debug("Metrics server is stopping")
+	default:
+		zap.L().Debug("Metrics server has likely already shutdown.")
+	}
+
+	return m.server.Shutdown(context.Background())
+}
+
+func getNumFileDesciptors() (int, error) {
+	pid := os.Getpid()
+	fds, err := os.Open(fmt.Sprintf("/proc/%d/fd", pid))
+
+	if err != nil {
+		return 0, err
+	}
+
+	defer fds.Close()
+
+	files, err := fds.Readdirnames(-1)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(files), nil
+}
+
+func (m *Server) StartEmittingSystemStats() {
+	go func() {
+		for {
+			select {
+			case <-m.shutdownChannel:
+				return
+			case <-time.After(systemStatsEmissionInterval):
+				numFileDescriptors, err := getNumFileDesciptors()
+				zap.L().Debug("Emitting system stats.", zap.Int("numFileDescriptors", numFileDescriptors))
+
+				if err != nil {
+					zap.L().Error("Failed to get number of file descriptors.", zap.Error(err))
+				} else {
+					fileDescriptorsUsed.Set(float64(numFileDescriptors))
+				}
+			}
+		}
+	}()
 }
 
 func InstrumentHandler(handler http.Handler, container *Container) http.Handler {
