@@ -10,7 +10,11 @@ import (
 const DefaultMaxBlocksBehind = 10
 
 type NodeFilter interface {
-	Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool
+	Apply(
+		requestMetadata metadata.RequestMetadata,
+		upstreamConfig *config.UpstreamConfig,
+		numUpstreamsInPriorityGroup int,
+	) bool
 }
 
 type AndFilter struct {
