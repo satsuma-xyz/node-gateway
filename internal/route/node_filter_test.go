@@ -33,24 +33,49 @@ func TestAndFilter_Apply(t *testing.T) {
 		filters []NodeFilter
 	}
 
-	type argsType struct { //nolint:govet // field alignment doesn't matter in tests
-		requestMetadata metadata.RequestMetadata
+	type argsType struct {
 		upstreamConfig  *config.UpstreamConfig
+		requestMetadata metadata.RequestMetadata
 	}
 
 	args := argsType{upstreamConfig: cfg("test-node")}
 
-	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
+	tests := []struct {
+		args   argsType
 		name   string
 		fields fields
-		args   argsType
 		want   bool
 	}{
-		{"No filters", fields{}, args, true},
-		{"One passing filter", fields{[]NodeFilter{AlwaysPass{}}}, args, true},
-		{"Multiple passing filters", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}}, args, true},
-		{"One failing filter", fields{[]NodeFilter{AlwaysFail{}}}, args, false},
-		{"Multiple passing and one failing", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}}, args, false},
+		{
+			args,
+			"No filters",
+			fields{},
+			true,
+		},
+		{
+			args,
+			"One passing filter",
+			fields{[]NodeFilter{AlwaysPass{}}},
+			true,
+		},
+		{
+			args,
+			"Multiple passing filters",
+			fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}},
+			true,
+		},
+		{
+			args,
+			"One failing filter",
+			fields{[]NodeFilter{AlwaysFail{}}},
+			false,
+		},
+		{
+			args,
+			"Multiple passing and one failing",
+			fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -58,7 +83,7 @@ func TestAndFilter_Apply(t *testing.T) {
 				filters: tt.fields.filters,
 			}
 			ok := a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig, 1)
-			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig, 1)
+			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
 }
@@ -174,32 +199,104 @@ func TestMethodsAllowedFilter_Apply(t *testing.T) {
 	// Batch requests
 	stateMethodsMetadata := metadata.RequestMetadata{Methods: []string{"eth_getBalance", "eth_getBlockNumber"}}
 
-	type args struct { //nolint:govet // field alignment doesn't matter in tests
-		requestMetadata metadata.RequestMetadata
+	type args struct {
 		upstreamConfig  *config.UpstreamConfig
+		requestMetadata metadata.RequestMetadata
 	}
 
-	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
-		name string
+	tests := []struct {
 		args args
+		name string
 		want bool
 	}{
-		{"stateMethodFullNode", args{stateMethodMetadata, &fullNodeConfig}, false},
-		{"stateMethodFullNodeWithArchiveMethodEnabled",
-			args{stateMethodMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
-		{"stateMethodArchiveNode", args{stateMethodMetadata, &archiveNodeConfig}, true},
-		{"stateMethodArchiveNodeWithMethodDisabled",
-			args{stateMethodMetadata, &archiveNodeConfigWithMethodDisabled}, false},
-		{"nonStateMethodFullNode", args{nonStateMethodMetadata, &fullNodeConfig}, true},
-		{"nonStateMethodFullNodeWithMethodDisabled",
-			args{nonStateMethodMetadata, &fullNodeConfigWithFullMethodDisabled}, false},
-		{"nonStateMethodArchiveNode", args{nonStateMethodMetadata, &archiveNodeConfig}, true},
-		{"batchRequestsStateMethodsFullNode", args{stateMethodsMetadata, &fullNodeConfig}, false},
-		{"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
-			args{stateMethodsMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
-		{"batchRequestsStateMethodsArchiveNode", args{stateMethodsMetadata, &archiveNodeConfig}, true},
-		{"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
-			args{stateMethodsMetadata, &archiveNodeConfigWithMethodDisabled}, false},
+		{
+			args{
+				&fullNodeConfig,
+				stateMethodMetadata,
+			},
+			"stateMethodFullNode",
+			false,
+		},
+		{
+			args{
+				&fullNodeConfigWithArchiveMethodEnabled,
+				stateMethodMetadata,
+			},
+			"stateMethodFullNodeWithArchiveMethodEnabled",
+			true,
+		},
+		{
+			args{
+				&archiveNodeConfig,
+				stateMethodMetadata,
+			},
+			"stateMethodArchiveNode",
+			true,
+		},
+		{
+			args{
+				&archiveNodeConfigWithMethodDisabled,
+				stateMethodMetadata,
+			},
+			"stateMethodArchiveNodeWithMethodDisabled",
+			false,
+		},
+		{
+			args{
+				&fullNodeConfig,
+				nonStateMethodMetadata,
+			},
+			"nonStateMethodFullNode",
+			true,
+		},
+		{
+			args{
+				&fullNodeConfigWithFullMethodDisabled,
+				nonStateMethodMetadata,
+			},
+			"nonStateMethodFullNodeWithMethodDisabled",
+			false,
+		},
+		{
+			args{
+				&archiveNodeConfig,
+				nonStateMethodMetadata,
+			},
+			"nonStateMethodArchiveNode",
+			true,
+		},
+		{
+			args{
+				&fullNodeConfig,
+				stateMethodsMetadata,
+			},
+			"batchRequestsStateMethodsFullNode",
+			false,
+		},
+		{
+			args{
+				&fullNodeConfigWithArchiveMethodEnabled,
+				stateMethodsMetadata,
+			},
+			"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
+			true,
+		},
+		{
+			args{
+				&archiveNodeConfig,
+				stateMethodsMetadata,
+			},
+			"batchRequestsStateMethodsArchiveNode",
+			true,
+		},
+		{
+			args{
+				&archiveNodeConfigWithMethodDisabled,
+				stateMethodsMetadata,
+			},
+			"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
+			false,
+		},
 	}
 
 	for _, tt := range tests {
