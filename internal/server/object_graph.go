@@ -52,8 +52,6 @@ func wireSingleChainDependencies(
 		alwaysRoute = *chainConfig.Routing.AlwaysRoute
 	}
 
-	// TODO(polsar): Here, the HealthCheckManager is wired into the primary FilteringRoutingStrategy.
-	//  We may need to wire it into the secondary PriorityRoundRobinStrategy as well.
 	enabledNodeFilters := []route.NodeFilterType{
 		route.Healthy,
 		route.MaxHeightForGroup,
