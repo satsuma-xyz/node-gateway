@@ -205,96 +205,96 @@ func TestMethodsAllowedFilter_Apply(t *testing.T) {
 	}
 
 	tests := []struct {
-		args args
 		name string
+		args args
 		want bool
 	}{
 		{
+			"stateMethodFullNode",
 			args{
 				&fullNodeConfig,
 				stateMethodMetadata,
 			},
-			"stateMethodFullNode",
 			false,
 		},
 		{
+			"stateMethodFullNodeWithArchiveMethodEnabled",
 			args{
 				&fullNodeConfigWithArchiveMethodEnabled,
 				stateMethodMetadata,
 			},
-			"stateMethodFullNodeWithArchiveMethodEnabled",
 			true,
 		},
 		{
+			"stateMethodArchiveNode",
 			args{
 				&archiveNodeConfig,
 				stateMethodMetadata,
 			},
-			"stateMethodArchiveNode",
 			true,
 		},
 		{
+			"stateMethodArchiveNodeWithMethodDisabled",
 			args{
 				&archiveNodeConfigWithMethodDisabled,
 				stateMethodMetadata,
 			},
-			"stateMethodArchiveNodeWithMethodDisabled",
 			false,
 		},
 		{
+			"nonStateMethodFullNode",
 			args{
 				&fullNodeConfig,
 				nonStateMethodMetadata,
 			},
-			"nonStateMethodFullNode",
 			true,
 		},
 		{
+			"nonStateMethodFullNodeWithMethodDisabled",
 			args{
 				&fullNodeConfigWithFullMethodDisabled,
 				nonStateMethodMetadata,
 			},
-			"nonStateMethodFullNodeWithMethodDisabled",
 			false,
 		},
 		{
+			"nonStateMethodArchiveNode",
 			args{
 				&archiveNodeConfig,
 				nonStateMethodMetadata,
 			},
-			"nonStateMethodArchiveNode",
 			true,
 		},
 		{
+			"batchRequestsStateMethodsFullNode",
 			args{
 				&fullNodeConfig,
 				stateMethodsMetadata,
 			},
-			"batchRequestsStateMethodsFullNode",
 			false,
 		},
 		{
+			"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
 			args{
 				&fullNodeConfigWithArchiveMethodEnabled,
 				stateMethodsMetadata,
 			},
-			"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
 			true,
 		},
 		{
+			"batchRequestsStateMethodsArchiveNode",
 			args{
 				&archiveNodeConfig,
 				stateMethodsMetadata,
 			},
-			"batchRequestsStateMethodsArchiveNode",
 			true,
 		},
 		{
+			"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
 			args{
 				&archiveNodeConfigWithMethodDisabled,
 				stateMethodsMetadata,
 			},
-			"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
 			false,
 		},
 	}
