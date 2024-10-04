@@ -10,14 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type AlwaysRouteRoutingStrategy struct {
+type AlwaysRouteFilteringStrategy struct {
 	BackingStrategy  RoutingStrategy
 	Logger           *zap.Logger
 	NodeFilters      []NodeFilter
 	RemovableFilters []NodeFilterType
 }
 
-func (s *AlwaysRouteRoutingStrategy) RouteNextRequest(
+func (s *AlwaysRouteFilteringStrategy) RouteNextRequest(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
 	requestMetadata metadata.RequestMetadata,
 ) (string, error) {
@@ -58,7 +58,7 @@ func (s *AlwaysRouteRoutingStrategy) RouteNextRequest(
 // FilterUpstreams filters upstreams based on the provided NodeFilter.
 // WARNING: If a given priority does not have any healthy upstreams,
 // it will not be included in the returned map.
-func (s *AlwaysRouteRoutingStrategy) FilterUpstreams(
+func (s *AlwaysRouteFilteringStrategy) FilterUpstreams(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
 	requestMetadata metadata.RequestMetadata,
 	nodeFilters []NodeFilter,
