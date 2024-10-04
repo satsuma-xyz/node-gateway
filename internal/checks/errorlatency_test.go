@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, reason config.UnhealthyReason) {
+func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, pass bool) {
 	t.Helper()
 
 	methods := []string{"eth_call", "eth_getLogs"}
@@ -32,31 +32,33 @@ func helperTestLatencyChecker(t *testing.T, latency1, latency2 time.Duration, re
 		mockEthClientGetter,
 		metrics.NewContainer(config.TestChainName),
 		zap.L(),
+		true,
+		true,
 	)
 
-	assert.Equal(t, reason, checker.GetUnhealthyReason(methods))
+	assert.Equal(t, pass, checker.IsPassing(methods))
 
 	ethClient.AssertNumberOfCalls(t, "RecordLatency", 2)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesLessThanThreshold(t *testing.T) {
-	helperTestLatencyChecker(t, 2*time.Millisecond, 3*time.Millisecond, config.ReasonUnknownOrHealthy)
+	helperTestLatencyChecker(t, 2*time.Millisecond, 3*time.Millisecond, true)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesJustBelowThreshold(t *testing.T) {
-	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, (2000-1)*time.Millisecond, config.ReasonUnknownOrHealthy)
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, (2000-1)*time.Millisecond, true)
 }
 
 func TestLatencyChecker_TwoMethods_FirstLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10000*time.Millisecond, (2000-1)*time.Millisecond, config.ReasonLatencyTooHighRate)
+	helperTestLatencyChecker(t, 10000*time.Millisecond, (2000-1)*time.Millisecond, false)
 }
 
 func TestLatencyChecker_TwoMethods_SecondLatencyTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, 2000*time.Millisecond, config.ReasonLatencyTooHighRate)
+	helperTestLatencyChecker(t, (10000-1)*time.Millisecond, 2000*time.Millisecond, false)
 }
 
 func TestLatencyChecker_TwoMethods_BothLatenciesTooHigh(t *testing.T) {
-	helperTestLatencyChecker(t, 10002*time.Millisecond, 2003*time.Millisecond, config.ReasonLatencyTooHighRate)
+	helperTestLatencyChecker(t, 10002*time.Millisecond, 2003*time.Millisecond, false)
 }
 
 func Test_isMatchForPatterns_True(t *testing.T) {
