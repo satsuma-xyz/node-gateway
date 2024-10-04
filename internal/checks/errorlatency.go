@@ -372,6 +372,8 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 	c.logger.Debug("Ran passive ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
+// IsPassing
+// TODO(polsar): Split this method into two separate methods: IsPassingError and IsPassingLatency.
 func (c *ErrorLatencyCheck) IsPassing(methods []string) bool {
 	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
 		return true
@@ -416,6 +418,8 @@ func (c *ErrorLatencyCheck) IsPassing(methods []string) bool {
 	return true
 }
 
+// RecordRequest
+// TODO(polsar): Split this method into two separate methods: RecordError and RecordLatency.
 func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 	if c.routingConfig.PassiveLatencyChecking {
 		return

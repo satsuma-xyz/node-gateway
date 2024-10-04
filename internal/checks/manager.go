@@ -126,7 +126,16 @@ func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.Upstrea
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
 }
 
+func (h *healthCheckManager) GetErrorCheck(upstreamID string) types.ErrorLatencyChecker {
+	return h.GetUpstreamStatus(upstreamID).ErrorCheck
+}
+
+func (h *healthCheckManager) GetLatencyCheck(upstreamID string) types.ErrorLatencyChecker {
+	return h.GetUpstreamStatus(upstreamID).LatencyCheck
+}
+
 func (h *healthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
+	h.GetUpstreamStatus(upstreamID).ErrorCheck.RecordRequest(data)
 	h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
 }
 

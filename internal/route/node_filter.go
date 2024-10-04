@@ -111,14 +111,23 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 	return true
 }
 
+type IsErrorRateAcceptable struct {
+	HealthCheckManager checks.HealthCheckManager
+}
+
+func (f *IsErrorRateAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
+	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	errorCheck, _ := upstreamStatus.ErrorCheck.(*checks.ErrorLatencyCheck)
+
+	return errorCheck.IsPassing(requestMetadata.Methods)
+}
+
 type IsLatencyAcceptable struct {
-	healthCheckManager checks.HealthCheckManager
-	logger             *zap.Logger
+	HealthCheckManager checks.HealthCheckManager
 }
 
 func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-
+	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.ErrorLatencyCheck)
 
 	return latencyCheck.IsPassing(requestMetadata.Methods)
@@ -284,15 +293,9 @@ func CreateSingleNodeFilter(
 			minimumPeerCount:   checks.MinimumPeerCount,
 		}
 
-		isLatencyAcceptable := IsLatencyAcceptable{
-			healthCheckManager: manager,
-			logger:             logger,
-		}
-
 		return &AndFilter{
 			filters: []NodeFilter{
 				&hasEnoughPeers,
-				&isLatencyAcceptable,
 			},
 			logger: logger,
 		}
@@ -314,6 +317,10 @@ func CreateSingleNodeFilter(
 		}
 	case MethodsAllowed:
 		return &AreMethodsAllowed{logger: logger}
+	case ErrorRateAcceptable:
+		panic("ErrorRateAcceptable filter is not implemented!")
+	case LatencyAcceptable:
+		panic("LatencyAcceptable filter is not implemented!")
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -326,4 +333,6 @@ const (
 	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
 	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
 	MethodsAllowed      NodeFilterType = "methodsAllowed"
+	ErrorRateAcceptable NodeFilterType = "errorRateAcceptable"
+	LatencyAcceptable   NodeFilterType = "latencyAcceptable"
 )
