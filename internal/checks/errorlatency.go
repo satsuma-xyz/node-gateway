@@ -147,6 +147,42 @@ type ErrorLatencyCheck struct {
 	ShouldRunPassiveHealthChecks bool
 }
 
+func NewErrorChecker(
+	upstreamConfig *conf.UpstreamConfig,
+	routingConfig *conf.RoutingConfig,
+	clientGetter client.EthClientGetter,
+	metricsContainer *metrics.Container,
+	logger *zap.Logger,
+) types.ErrorLatencyChecker {
+	return NewErrorLatencyChecker(
+		upstreamConfig,
+		routingConfig,
+		clientGetter,
+		metricsContainer,
+		logger,
+		true,
+		false,
+	)
+}
+
+func NewLatencyChecker(
+	upstreamConfig *conf.UpstreamConfig,
+	routingConfig *conf.RoutingConfig,
+	clientGetter client.EthClientGetter,
+	metricsContainer *metrics.Container,
+	logger *zap.Logger,
+) types.ErrorLatencyChecker {
+	return NewErrorLatencyChecker(
+		upstreamConfig,
+		routingConfig,
+		clientGetter,
+		metricsContainer,
+		logger,
+		false,
+		true,
+	)
+}
+
 func NewErrorLatencyChecker(
 	upstreamConfig *conf.UpstreamConfig,
 	routingConfig *conf.RoutingConfig,

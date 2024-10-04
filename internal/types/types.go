@@ -11,6 +11,7 @@ type UpstreamStatus struct {
 	BlockHeightCheck BlockHeightChecker
 	PeerCheck        Checker
 	SyncingCheck     Checker
+	ErrorCheck       ErrorLatencyChecker
 	LatencyCheck     ErrorLatencyChecker
 	ID               string
 	GroupID          string

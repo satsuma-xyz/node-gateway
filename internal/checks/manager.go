@@ -56,6 +56,13 @@ type healthCheckManager struct {
 		*metrics.Container,
 		*zap.Logger,
 	) types.Checker
+	newErrorCheck func(
+		*conf.UpstreamConfig,
+		*conf.RoutingConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.ErrorLatencyChecker
 	newLatencyCheck func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
@@ -92,7 +99,8 @@ func NewHealthCheckManager(
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
-		newLatencyCheck:     NewErrorLatencyChecker,
+		newErrorCheck:       NewErrorChecker,
+		newLatencyCheck:     NewLatencyChecker,
 		blockHeightObserver: blockHeightObserver,
 		healthCheckTicker:   healthCheckTicker,
 		metricsContainer:    metricsContainer,
@@ -188,6 +196,22 @@ func (h *healthCheckManager) initializeChecks() {
 				)
 			}()
 
+			var errorCheck types.ErrorLatencyChecker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				errorCheck = h.newErrorCheck(
+					&config,
+					&h.routingConfig,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
+			}()
+
 			var latencyCheck types.ErrorLatencyChecker
 
 			innerWG.Add(1)
@@ -213,6 +237,7 @@ func (h *healthCheckManager) initializeChecks() {
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
 				SyncingCheck:     syncingCheck,
+				ErrorCheck:       errorCheck,
 				LatencyCheck:     latencyCheck,
 			})
 			mutex.Unlock()
