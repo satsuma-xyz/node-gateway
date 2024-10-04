@@ -49,6 +49,9 @@ func (s *AlwaysRouteRoutingStrategy) RouteNextRequest(
 
 	// If all removable filters are exhausted and no healthy upstreams are found,
 	// pass in the original list of upstreams to the backing strategy.
+	//
+	// TODO(polsar): Eventually, we want all filters to be removable. Once that is the case,
+	// we should not be able to get here.
 	return s.BackingStrategy.RouteNextRequest(upstreamsByPriority, requestMetadata)
 }
 
