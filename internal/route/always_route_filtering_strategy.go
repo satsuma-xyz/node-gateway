@@ -35,8 +35,7 @@ func (s *AlwaysRouteRoutingStrategy) RouteNextRequest(
 			return s.BackingStrategy.RouteNextRequest(upstreams, requestMetadata)
 		}
 
-		// If there are no more filters to remove, and there are no healthy upstreams
-		// found, so give up.
+		// There are no more filters to remove and no healthy upstreams found, so give up.
 		if len(removableFilters) == 0 {
 			break
 		}
