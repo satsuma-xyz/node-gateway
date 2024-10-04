@@ -41,7 +41,7 @@ type Checker interface {
 //go:generate mockery --output ../mocks --name ErrorLatencyChecker --with-expecter
 type ErrorLatencyChecker interface {
 	RunPassiveCheck()
-	GetUnhealthyReason(methods []string) config.UnhealthyReason
+	IsPassing(methods []string) bool
 	RecordRequest(data *RequestData)
 }
 

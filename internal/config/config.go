@@ -33,18 +33,6 @@ const (
 	PassiveLatencyChecking = false
 )
 
-// UnhealthyReason is the reason why a health check failed. We use it to select the most appropriate upstream to route to
-// if all upstreams are unhealthy and the `alwaysRoute` option is true.
-type UnhealthyReason int
-
-const (
-	ReasonUnknownOrHealthy = iota
-	ReasonErrorRate
-	ReasonLatencyTooHighRate
-)
-
-// UpstreamConfig
-// TODO(polsar): Move the HealthStatus field to a new struct and embed this struct in it. Asana task: https://app.asana.com/0/1207397277805097/1208232039997185/f
 type UpstreamConfig struct {
 	Methods              MethodsConfig         `yaml:"methods"`
 	HealthCheckConfig    HealthCheckConfig     `yaml:"healthCheck"`
@@ -55,7 +43,6 @@ type UpstreamConfig struct {
 	GroupID              string                `yaml:"group"`
 	NodeType             NodeType              `yaml:"nodeType"`
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
-	HealthStatus         UnhealthyReason       // The default value of this field is 0 (ReasonUnknownOrHealthy).
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {

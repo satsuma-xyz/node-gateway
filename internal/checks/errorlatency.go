@@ -310,9 +310,9 @@ func (c *ErrorLatencyCheck) runPassiveCheckForMethod(method string, latencyThres
 	c.logger.Debug("Ran passive ErrorLatencyCheck.", zap.Any("upstreamID", c.upstreamConfig.ID), zap.Any("latency", duration), zap.Error(c.Err))
 }
 
-func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyReason {
+func (c *ErrorLatencyCheck) IsPassing(methods []string) bool {
 	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
-		return conf.ReasonUnknownOrHealthy
+		return true
 	}
 
 	if c.errorCircuitBreaker.IsOpen() {
@@ -322,7 +322,7 @@ func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyR
 			zap.Error(c.Err),
 		)
 
-		return conf.ReasonErrorRate
+		return false
 	}
 
 	c.lock.Lock()
@@ -343,11 +343,11 @@ func (c *ErrorLatencyCheck) GetUnhealthyReason(methods []string) conf.UnhealthyR
 				zap.Error(c.Err),
 			)
 
-			return conf.ReasonLatencyTooHighRate
+			return false
 		}
 	}
 
-	return conf.ReasonUnknownOrHealthy
+	return true
 }
 
 func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
