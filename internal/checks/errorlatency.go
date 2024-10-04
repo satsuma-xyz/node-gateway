@@ -129,6 +129,10 @@ func NewCircuitBreaker(
 		Build()
 }
 
+// ErrorLatencyCheck
+// Error checking is disabled if `errorCircuitBreaker` is nil.
+// Latency checking is disabled if `methodLatencyBreaker` is nil.
+// At least one of these two must be non-nil.
 type ErrorLatencyCheck struct {
 	client                       client.EthClient
 	Err                          error
@@ -149,16 +153,38 @@ func NewErrorLatencyChecker(
 	clientGetter client.EthClientGetter,
 	metricsContainer *metrics.Container,
 	logger *zap.Logger,
+	enableErrorChecking bool,
+	enableLatencyChecking bool,
 ) types.ErrorLatencyChecker {
+	if !enableErrorChecking && !enableLatencyChecking {
+		panic("ErrorLatencyCheck must have at least one of error or latency checking enabled.")
+	}
+
+	// Create the error circuit breaker if error checking is enabled.
+	var errorCircuitBreaker ErrorCircuitBreaker
+	if enableErrorChecking {
+		errorCircuitBreaker = NewErrorStats(routingConfig)
+	}
+
+	// Create the latency circuit breaker if latency checking is enabled.
+	var latencyCircuitBreaker map[string]LatencyCircuitBreaker
+	if enableLatencyChecking {
+		latencyCircuitBreaker = make(map[string]LatencyCircuitBreaker)
+	}
+
 	c := &ErrorLatencyCheck{
 		upstreamConfig:               upstreamConfig,
 		routingConfig:                routingConfig,
 		clientGetter:                 clientGetter,
 		metricsContainer:             metricsContainer,
 		logger:                       logger,
-		errorCircuitBreaker:          NewErrorStats(routingConfig),
-		methodLatencyBreaker:         make(map[string]LatencyCircuitBreaker),
+		errorCircuitBreaker:          errorCircuitBreaker,
+		methodLatencyBreaker:         latencyCircuitBreaker,
 		ShouldRunPassiveHealthChecks: routingConfig.PassiveLatencyChecking && (routingConfig.Errors != nil || routingConfig.Latency != nil),
+	}
+
+	if c.ShouldRunPassiveHealthChecks && !(enableErrorChecking && enableLatencyChecking) {
+		panic("ErrorLatencyCheck must have both error and latency checking enabled for passive health checks.")
 	}
 
 	if err := c.InitializePassiveCheck(); err != nil {
@@ -315,7 +341,7 @@ func (c *ErrorLatencyCheck) IsPassing(methods []string) bool {
 		return true
 	}
 
-	if c.errorCircuitBreaker.IsOpen() {
+	if c.errorCircuitBreaker != nil && c.errorCircuitBreaker.IsOpen() {
 		c.logger.Debug(
 			"ErrorLatencyCheck is not passing due to too many errors.",
 			zap.String("upstreamID", c.upstreamConfig.ID),
@@ -327,6 +353,10 @@ func (c *ErrorLatencyCheck) IsPassing(methods []string) bool {
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
+
+	if c.methodLatencyBreaker == nil {
+		return true
+	}
 
 	// Only consider the passed methods, even if other methods' circuit breakers might be open.
 	//
@@ -359,16 +389,24 @@ func (c *ErrorLatencyCheck) RecordRequest(data *types.RequestData) {
 		return
 	}
 
-	latencyCircuitBreaker := c.getLatencyCircuitBreaker(data.Method)
-	latencyCircuitBreaker.RecordLatency(data.Latency)
+	// Record the request latency if latency checking is enabled.
+	if c.methodLatencyBreaker != nil {
+		latencyCircuitBreaker := c.getLatencyCircuitBreaker(data.Method)
+		latencyCircuitBreaker.RecordLatency(data.Latency)
 
-	if data.Latency >= latencyCircuitBreaker.GetThreshold() {
-		c.metricsContainer.ErrorLatencyCheckHighLatencies.WithLabelValues(
-			c.upstreamConfig.ID,
-			c.upstreamConfig.HTTPURL,
-			metrics.HTTPRequest,
-			data.Method,
-		).Inc()
+		if data.Latency >= latencyCircuitBreaker.GetThreshold() {
+			c.metricsContainer.ErrorLatencyCheckHighLatencies.WithLabelValues(
+				c.upstreamConfig.ID,
+				c.upstreamConfig.HTTPURL,
+				metrics.HTTPRequest,
+				data.Method,
+			).Inc()
+		}
+	}
+
+	// If error checking is disabled, we can return early.
+	if c.errorCircuitBreaker == nil {
+		return
 	}
 
 	errorString := ""
