@@ -104,7 +104,7 @@ func removeFilters(filters []NodeFilter, filterToRemove NodeFilterType) []NodeFi
 	retFilters := make([]NodeFilter, 0)
 
 	for _, filter := range filters {
-		if getFilterTypeName(filter) != filterToRemove {
+		if GetFilterTypeName(filter) != filterToRemove {
 			retFilters = append(retFilters, filter)
 		}
 	}
@@ -112,7 +112,7 @@ func removeFilters(filters []NodeFilter, filterToRemove NodeFilterType) []NodeFi
 	return retFilters
 }
 
-func getFilterTypeName(v interface{}) NodeFilterType {
+func GetFilterTypeName(v interface{}) NodeFilterType {
 	t := reflect.TypeOf(v)
 
 	// If it's a pointer, get the element type.

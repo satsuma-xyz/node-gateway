@@ -72,16 +72,19 @@ func wireSingleChainDependencies(
 
 	var routingStrategy route.RoutingStrategy
 
+	errorFilter := route.IsErrorRateAcceptable{HealthCheckManager: healthCheckManager}
+	latencyFilter := route.IsLatencyAcceptable{HealthCheckManager: healthCheckManager}
+
 	if alwaysRoute {
 		routingStrategy = &route.AlwaysRouteFilteringStrategy{
 			NodeFilters: []route.NodeFilter{
 				nodeFilter,
-				&route.IsErrorRateAcceptable{HealthCheckManager: healthCheckManager},
-				&route.IsLatencyAcceptable{HealthCheckManager: healthCheckManager},
+				&errorFilter,
+				&latencyFilter,
 			},
 			RemovableFilters: []route.NodeFilterType{
-				route.ErrorRateAcceptable,
-				route.LatencyAcceptable,
+				route.GetFilterTypeName(errorFilter),
+				route.GetFilterTypeName(latencyFilter),
 			},
 			BackingStrategy: backingStrategy,
 			Logger:          logger,
