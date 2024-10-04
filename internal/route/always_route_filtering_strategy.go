@@ -55,8 +55,7 @@ func (s *AlwaysRouteRoutingStrategy) RouteNextRequest(
 
 // FilterUpstreams filters upstreams based on the provided NodeFilter.
 // WARNING: If a given priority does not have any healthy upstreams,
-//
-//	it will not be included in the returned map.
+// it will not be included in the returned map.
 func (s *AlwaysRouteRoutingStrategy) FilterUpstreams(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
 	requestMetadata metadata.RequestMetadata,
