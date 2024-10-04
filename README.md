@@ -112,6 +112,16 @@ Running all tests that match regexp `TestHealthCheckManager`:
 go test -v -run TestHealthCheckManager ./...
 ```
 
+Running all tests in a specific package that match regexp `TestHealthCheckManager`:
+```sh
+go test -v github.com/satsuma-data/node-gateway/internal/route -run 'Test_RemoveFilters*'
+```
+
+Running a specific test:
+```sh
+go test -v github.com/satsuma-data/node-gateway/internal/route -run Test_RemoveFilters_RemoveNone
+```
+
 To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
 ```sh
 go get golang.org/x/tools/cmd/cover
