@@ -75,7 +75,7 @@ func wireSingleChainDependencies(
 	errorFilter := route.IsErrorRateAcceptable{HealthCheckManager: healthCheckManager}
 	latencyFilter := route.IsLatencyAcceptable{HealthCheckManager: healthCheckManager}
 
-	// These should be order from most important to least important.
+	// These should be ordered from most important to least important.
 	nodeFilters := []route.NodeFilter{
 		nodeFilter,
 		&errorFilter,
