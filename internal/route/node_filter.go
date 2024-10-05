@@ -26,6 +26,14 @@ type AndFilter struct {
 	isTopLevel bool
 }
 
+func NewAndFilter(filters []NodeFilter, logger *zap.Logger) *AndFilter {
+	return &AndFilter{
+		logger:     logger,
+		filters:    filters,
+		isTopLevel: true,
+	}
+}
+
 func (a *AndFilter) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, numUpstreamsInPriorityGroup int) bool {
 	var result = true
 
