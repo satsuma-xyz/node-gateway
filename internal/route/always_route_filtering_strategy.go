@@ -45,6 +45,12 @@ func (s *AlwaysRouteFilteringStrategy) RouteNextRequest(
 		nextFilterToRemove := removableFilters[idx]
 		removableFilters = removableFilters[:idx]
 		filters = removeFilters(filters, nextFilterToRemove)
+		s.Logger.Debug(
+			"Removed a filter.",
+			zap.Any("upstreamsByPriority", upstreamsByPriority),
+			zap.Any("removedFilter", nextFilterToRemove),
+			zap.Any("remainingFilters", filters),
+		)
 	}
 
 	// If all removable filters are exhausted and no healthy upstreams are found,
