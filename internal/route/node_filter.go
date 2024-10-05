@@ -120,9 +120,7 @@ type IsErrorRateAcceptable struct {
 
 func (f *IsErrorRateAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	errorCheck, _ := upstreamStatus.ErrorCheck.(*checks.ErrorLatencyCheck)
-
-	return errorCheck.IsPassing(requestMetadata.Methods)
+	return upstreamStatus.ErrorCheck.IsPassing(requestMetadata.Methods)
 }
 
 type IsLatencyAcceptable struct {
@@ -131,9 +129,7 @@ type IsLatencyAcceptable struct {
 
 func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.ErrorLatencyCheck)
-
-	return latencyCheck.IsPassing(requestMetadata.Methods)
+	return upstreamStatus.LatencyCheck.IsPassing(requestMetadata.Methods)
 }
 
 type IsCloseToGlobalMaxHeight struct {
