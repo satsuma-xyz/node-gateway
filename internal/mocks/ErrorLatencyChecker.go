@@ -99,38 +99,6 @@ func (_c *ErrorLatencyChecker_RecordRequest_Call) RunAndReturn(run func(*types.R
 	return _c
 }
 
-// RunPassiveCheck provides a mock function with given fields:
-func (_m *ErrorLatencyChecker) RunPassiveCheck() {
-	_m.Called()
-}
-
-// ErrorLatencyChecker_RunPassiveCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RunPassiveCheck'
-type ErrorLatencyChecker_RunPassiveCheck_Call struct {
-	*mock.Call
-}
-
-// RunPassiveCheck is a helper method to define mock.On call
-func (_e *ErrorLatencyChecker_Expecter) RunPassiveCheck() *ErrorLatencyChecker_RunPassiveCheck_Call {
-	return &ErrorLatencyChecker_RunPassiveCheck_Call{Call: _e.mock.On("RunPassiveCheck")}
-}
-
-func (_c *ErrorLatencyChecker_RunPassiveCheck_Call) Run(run func()) *ErrorLatencyChecker_RunPassiveCheck_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *ErrorLatencyChecker_RunPassiveCheck_Call) Return() *ErrorLatencyChecker_RunPassiveCheck_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *ErrorLatencyChecker_RunPassiveCheck_Call) RunAndReturn(run func()) *ErrorLatencyChecker_RunPassiveCheck_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // NewErrorLatencyChecker creates a new instance of ErrorLatencyChecker. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewErrorLatencyChecker(t interface {

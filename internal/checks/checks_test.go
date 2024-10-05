@@ -16,9 +16,8 @@ var defaultUpstreamConfig = &config.UpstreamConfig{
 }
 
 var defaultRoutingConfig = &config.RoutingConfig{
-	PassiveLatencyChecking: true,
-	DetectionWindow:        config.NewDuration(10 * time.Minute),
-	BanWindow:              config.NewDuration(50 * time.Minute),
+	DetectionWindow: config.NewDuration(10 * time.Minute),
+	BanWindow:       config.NewDuration(50 * time.Minute),
 	Errors: &config.ErrorsConfig{
 		Rate: 0.25,
 		HTTPCodes: []string{

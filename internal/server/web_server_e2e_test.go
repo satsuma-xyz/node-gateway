@@ -332,10 +332,15 @@ func executeRequest(
 
 	handler.ServeHTTP(recorder, req)
 
-	result := recorder.Result()
+	result := recorder.Result() //nolint:bodyclose // Body is closed in the defer statement below.
 	resultBody, _ := io.ReadAll(result.Body)
 
-	defer result.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil { //nolint:errorlint // Wrong error.
+			t.Errorf("Error closing response body: %s", err)
+		}
+	}(result.Body)
 
 	responseBody, err := jsonrpc.DecodeResponseBody(resultBody)
 	assert.NoError(t, err)
@@ -414,7 +419,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 	case "net_peerCount":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(10).String())}
 
-	case config.PassiveLatencyCheckMethod:
+	case "eth_chainId":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(11).String())}
 
 	case "eth_getBlockByNumber":
@@ -424,7 +429,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 		})
 
 		return jsonrpc.SingleResponseBody{
-			Result: json.RawMessage(result),
+			Result: result,
 		}
 
 	case "eth_blockNumber":
@@ -454,7 +459,7 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 		switch r := requestBody.(type) {
 		case *jsonrpc.SingleRequestBody:
 			switch requestBody.GetMethod() {
-			case "eth_syncing", "net_peerCount", config.PassiveLatencyCheckMethod, "eth_getBlockByNumber":
+			case "eth_syncing", "net_peerCount", "eth_chainId", "eth_getBlockByNumber":
 				responseBody = &jsonrpc.SingleResponseBody{Error: &jsonrpc.Error{Message: "This is a failing fake node!"}}
 				writeResponseBody(t, writer, responseBody)
 			default:
