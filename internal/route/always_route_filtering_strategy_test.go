@@ -6,23 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_getFilterTypeName(t *testing.T) {
-	Assert := assert.New(t)
-
-	Assert.Equal(
-		NodeFilterType("AlwaysPass"),
-		getFilterTypeName(AlwaysPass{}),
-	)
-	Assert.Equal(
-		NodeFilterType("AlwaysFail"),
-		getFilterTypeName(AlwaysFail{}),
-	)
-	Assert.Equal(
-		NodeFilterType("AndFilter"),
-		getFilterTypeName(&AndFilter{}),
-	)
-}
-
 func Test_RemoveFilters_RemoveNone(t *testing.T) {
 	Assert := assert.New(t)
 

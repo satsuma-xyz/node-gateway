@@ -315,3 +315,20 @@ func emitBlockHeight(store *metadata.ChainMetadataStore, groupID, upstreamID str
 func emitError(store *metadata.ChainMetadataStore, groupID, upstreamID string, err error) {
 	store.ProcessErrorUpdate(groupID, upstreamID, err)
 }
+
+func Test_getFilterTypeName(t *testing.T) {
+	Assert := assert.New(t)
+
+	Assert.Equal(
+		NodeFilterType("AlwaysPass"),
+		getFilterTypeName(AlwaysPass{}),
+	)
+	Assert.Equal(
+		NodeFilterType("AlwaysFail"),
+		getFilterTypeName(AlwaysFail{}),
+	)
+	Assert.Equal(
+		NodeFilterType("AndFilter"),
+		getFilterTypeName(&AndFilter{}),
+	)
+}

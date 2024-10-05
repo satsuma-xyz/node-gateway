@@ -1,6 +1,9 @@
 package route
 
 import (
+	"reflect"
+	"strings"
+
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
@@ -338,3 +341,23 @@ const (
 	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
 	MethodsAllowed      NodeFilterType = "methodsAllowed"
 )
+
+func getFilterTypeName(v interface{}) NodeFilterType {
+	t := reflect.TypeOf(v)
+
+	// If it's a pointer, get the element type.
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	// Extract the name of the type and remove the package path.
+	typeName := t.String()
+	lastDotIndex := strings.LastIndex(typeName, ".")
+
+	if lastDotIndex != -1 {
+		// Remove the package path, keep only the type name.
+		typeName = typeName[lastDotIndex+1:]
+	}
+
+	return NodeFilterType(typeName)
+}
