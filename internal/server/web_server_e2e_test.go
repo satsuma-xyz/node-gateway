@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 
 var defaultRoutingConfig = config.RoutingConfig{
 	DetectionWindow: config.NewDuration(10 * time.Minute),
-	BanWindow:       config.NewDuration(50 * time.Minute),
+	BanWindow:       config.NewDuration(100 * time.Millisecond),
 	Errors: &config.ErrorsConfig{
 		Rate: 0.5,
 		HTTPCodes: []string{
@@ -96,20 +97,20 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func getHandler(t *testing.T, errMsg string) (*http.ServeMux, []*httptest.Server) {
+func getHandler(t *testing.T, methodName, errMsg string) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
 
 	numCalls := 0
 	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
-		"eth_getLogs": func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+		methodName: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
 			t.Helper()
 
 			numCalls++
@@ -138,18 +139,17 @@ func getHandler(t *testing.T, errMsg string) (*http.ServeMux, []*httptest.Server
 			ChainName: config.TestChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    nil,
+			Routing:   defaultRoutingConfig,
 		}},
-		Global: config.GlobalConfig{
-			Routing: defaultRoutingConfig,
-		},
 	}
 
 	return startRouterAndHandler(t, conf), []*httptest.Server{healthyUpstream, unhealthyUpstream}
 }
 
-func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testing.T) {
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringDoesNotMatch(t *testing.T) {
+	methodName := "eth_getLogs"
 	errMsg := "This is a failing fake node!"
-	handler, upstreams := getHandler(t, errMsg)
+	handler, upstreams := getHandler(t, methodName, errMsg)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -158,7 +158,13 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testin
 	}()
 
 	for i := 0; i < checks.MinNumRequestsForRate; i++ {
-		statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
+		statusCode, responseBody, _, _ := executeSingleRequest(
+			t,
+			config.TestChainName,
+			methodName,
+			handler,
+			false,
+		)
 
 		assert.Equal(t, http.StatusOK, statusCode)
 
@@ -169,10 +175,47 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testin
 		assert.Equal(t, errMsg, res.Error.Message)
 	}
 
-	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
 
 	// Even though the error rate exceeds the configured amount, the upstream is still considered healthy since
 	// the error message does not match the configured error string.
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := "Terrible internal server error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// The error rate exceeds the configured amount of 0.5, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
@@ -205,7 +248,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 	handler := startRouterAndHandler(t, conf)
 
 	{
-		statusCode, responseBody, headers := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+		statusCode, responseBody, headers, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler, false)
 
 		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
@@ -213,7 +256,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 	}
 
 	{
-		statusCode, responseBody, headers := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler)
+		statusCode, responseBody, headers, _ := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler, false)
 
 		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
@@ -290,12 +333,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 
-	statusCode, responseBody, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler)
+	statusCode, responseBody, _, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -371,7 +414,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	handler := startRouterAndHandler(t, conf)
 
 	// Batch request where one request in the batch is stateful. This should go to archive.
-	statusCode, responseBody, _ := executeBatchRequest(t, config.TestChainName, []string{statefulMethod, nonStatefulMethod}, handler)
+	statusCode, responseBody, _, _ := executeBatchRequest(t, config.TestChainName, []string{statefulMethod, nonStatefulMethod}, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, 2, len(responseBody.GetSubResponses()))
@@ -390,7 +433,8 @@ func executeSingleRequest(
 	chainName string,
 	methodName string,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+	allowNilResponse bool,
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	singleRequest := jsonrpc.SingleRequestBody{
@@ -399,7 +443,7 @@ func executeSingleRequest(
 		ID:             lo.ToPtr[int64](1),
 	}
 
-	return executeRequest(t, chainName, &singleRequest, handler)
+	return executeRequest(t, chainName, &singleRequest, handler, allowNilResponse)
 }
 
 func executeBatchRequest(
@@ -407,7 +451,7 @@ func executeBatchRequest(
 	chainName string,
 	methodNames []string,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	requests := make([]jsonrpc.SingleRequestBody, 0)
@@ -423,7 +467,7 @@ func executeBatchRequest(
 
 	batchRequest := jsonrpc.BatchRequestBody{Requests: requests}
 
-	return executeRequest(t, chainName, &batchRequest, handler)
+	return executeRequest(t, chainName, &batchRequest, handler, false)
 }
 
 func executeRequest(
@@ -431,7 +475,8 @@ func executeRequest(
 	chainName string,
 	request jsonrpc.RequestBody,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+	allowNilResponse bool,
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	requestBytes, _ := request.Encode()
@@ -454,10 +499,14 @@ func executeRequest(
 	}(result.Body)
 
 	responseBody, err := jsonrpc.DecodeResponseBody(resultBody)
-	assert.NoError(t, err)
-	require.NotNil(t, responseBody)
 
-	return result.StatusCode, responseBody, recorder.Header()
+	// TODO(polsar): These checks should be done by the individual tests. Refactor.
+	if !allowNilResponse {
+		assert.NoError(t, err)
+		require.NotNil(t, responseBody)
+	}
+
+	return result.StatusCode, responseBody, recorder.Header(), err
 }
 
 func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux { //nolint:gocritic // Legacy
