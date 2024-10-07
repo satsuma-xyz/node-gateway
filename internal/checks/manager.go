@@ -133,8 +133,10 @@ func (h *healthCheckManager) GetLatencyCheck(upstreamID string) types.ErrorLaten
 }
 
 func (h *healthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
-	h.GetUpstreamStatus(upstreamID).ErrorCheck.RecordRequest(data)
-	h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
+	isError := h.GetUpstreamStatus(upstreamID).ErrorCheck.RecordRequest(data)
+	if !isError {
+		h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
+	}
 }
 
 func (h *healthCheckManager) setUpstreamStatus(upstreamID string, status *types.UpstreamStatus) {
