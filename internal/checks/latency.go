@@ -148,10 +148,13 @@ func (c *LatencyCheck) IsPassing(methods []string) bool {
 	return true
 }
 
-func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
+// RecordRequest records the request data for latency checking. It returns true if we recorded a high latency.
+func (c *LatencyCheck) RecordRequest(data *types.RequestData) bool {
 	if !c.isCheckEnabled {
-		return
+		return false
 	}
+
+	isHighLatency := false
 
 	// Record the request latency if latency checking is enabled.
 	if c.methodLatencyBreaker != nil {
@@ -165,6 +168,8 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 				metrics.HTTPRequest,
 				data.Method,
 			).Inc()
+
+			isHighLatency = true
 		}
 	}
 
@@ -173,4 +178,6 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
 		c.upstreamConfig.HTTPURL,
 		data.Method,
 	).Set(float64(data.Latency.Milliseconds()))
+
+	return isHighLatency
 }

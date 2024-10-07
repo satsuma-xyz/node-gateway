@@ -42,7 +42,7 @@ type Checker interface {
 //go:generate mockery --output ../mocks --name ErrorLatencyChecker --with-expecter
 type ErrorLatencyChecker interface {
 	IsPassing(methods []string) bool
-	RecordRequest(data *RequestData)
+	RecordRequest(data *RequestData) bool
 }
 
 type PriorityToUpstreamsMap map[int][]*config.UpstreamConfig
