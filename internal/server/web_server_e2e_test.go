@@ -310,7 +310,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "What an error occurred!"
 	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0, false)
@@ -343,6 +343,30 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCode
 
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches_AlwaysRoute(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := "What an error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0, true)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
