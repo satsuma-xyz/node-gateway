@@ -57,7 +57,9 @@ func filterUpstreams(
 			}
 		}
 
-		priorityToHealthyUpstreams[priority] = filteredUpstreams
+		if len(filteredUpstreams) > 0 {
+			priorityToHealthyUpstreams[priority] = filteredUpstreams
+		}
 	}
 
 	return priorityToHealthyUpstreams

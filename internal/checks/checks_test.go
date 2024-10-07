@@ -3,7 +3,6 @@ package checks
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/stretchr/testify/assert"
@@ -13,41 +12,6 @@ var defaultUpstreamConfig = &config.UpstreamConfig{
 	ID:      "eth_mainnet",
 	HTTPURL: "http://alchemy",
 	WSURL:   "wss://alchemy",
-}
-
-var defaultRoutingConfig = &config.RoutingConfig{
-	DetectionWindow: config.NewDuration(10 * time.Minute),
-	BanWindow:       config.NewDuration(50 * time.Minute),
-	Errors: &config.ErrorsConfig{
-		Rate: 0.25,
-		HTTPCodes: []string{
-			"5xx",
-			"420",
-		},
-		JSONRPCCodes: []string{
-			"32xxx",
-		},
-		ErrorStrings: []string{
-			"internal server error",
-		},
-	},
-	Latency: &config.LatencyConfig{
-		MethodLatencyThresholds: map[string]time.Duration{
-			"eth_call":    10000 * time.Millisecond,
-			"eth_getLogs": 2000 * time.Millisecond,
-		},
-		Threshold: 1000 * time.Millisecond,
-		Methods: []config.MethodConfig{
-			{
-				Name:      "eth_getLogs",
-				Threshold: 2000 * time.Millisecond,
-			},
-			{
-				Name:      "eth_call",
-				Threshold: 10000 * time.Millisecond,
-			},
-		},
-	},
 }
 
 type methodNotSupportedError struct{}
