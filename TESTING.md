@@ -16,6 +16,8 @@ LOG_LEVEL=debug go run cmd/gateway/main.go config-always-route.yml
 # YOU MUST RESTART THE GATEWAY AFTER EACH TEST RUN TO CLEAR THE STATE!
 # TODO(polsar): Add a test script for error rate routing based on matching JSON RPC codes.
 ./test-scripts/test-http-error.sh > test-scripts-output-enabled/test-http-error.txt
+./test-scripts/test-http-error.sh > test-scripts-output-enabled/test-http-error-always-route.txt
+
 ./test-scripts/test-error-string.sh
 ./test-scripts/test-error-string-and-http.sh
 ./test-scripts/test-latency.sh
