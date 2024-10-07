@@ -27,6 +27,7 @@ import (
 
 func getRoutingConfig(alwaysRoute bool) *config.RoutingConfig {
 	return &config.RoutingConfig{
+		IsEnabled:       true,
 		AlwaysRoute:     &alwaysRoute,
 		DetectionWindow: config.NewDuration(10 * time.Minute),
 		BanWindow:       config.NewDuration(100 * time.Millisecond),

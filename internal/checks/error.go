@@ -22,6 +22,7 @@ type ErrorCheck struct {
 	upstreamConfig      *config.UpstreamConfig
 	routingConfig       *config.RoutingConfig
 	errorCircuitBreaker ErrorCircuitBreaker
+	isCheckEnabled      bool
 }
 
 type ErrorCircuitBreaker interface {
@@ -55,6 +56,7 @@ func NewErrorChecker(
 		metricsContainer:    metricsContainer,
 		logger:              logger,
 		errorCircuitBreaker: NewErrorStats(routingConfig),
+		isCheckEnabled:      routingConfig.IsEnabled,
 	}
 }
 
@@ -155,7 +157,7 @@ func (e *ErrorStats) IsOpen() bool {
 }
 
 func (c *ErrorCheck) IsPassing([]string) bool {
-	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
+	if !c.isCheckEnabled {
 		return true
 	}
 
@@ -173,7 +175,7 @@ func (c *ErrorCheck) IsPassing([]string) bool {
 }
 
 func (c *ErrorCheck) RecordRequest(data *types.RequestData) {
-	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
+	if !c.isCheckEnabled {
 		return
 	}
 

@@ -20,6 +20,7 @@ type LatencyCheck struct {
 	routingConfig        *config.RoutingConfig
 	methodLatencyBreaker map[string]LatencyCircuitBreaker // RPC method -> LatencyCircuitBreaker
 	lock                 sync.RWMutex
+	isCheckEnabled       bool
 }
 
 type LatencyCircuitBreaker interface {
@@ -68,6 +69,7 @@ func NewLatencyChecker(
 		metricsContainer:     metricsContainer,
 		logger:               logger,
 		methodLatencyBreaker: make(map[string]LatencyCircuitBreaker),
+		isCheckEnabled:       routingConfig.IsEnabled,
 	}
 }
 
@@ -113,7 +115,7 @@ func (l *LatencyStats) IsOpen() bool {
 }
 
 func (c *LatencyCheck) IsPassing(methods []string) bool {
-	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
+	if !c.isCheckEnabled {
 		return true
 	}
 
@@ -147,7 +149,7 @@ func (c *LatencyCheck) IsPassing(methods []string) bool {
 }
 
 func (c *LatencyCheck) RecordRequest(data *types.RequestData) {
-	if !c.routingConfig.IsEnhancedRoutingControlDefined() {
+	if !c.isCheckEnabled {
 		return
 	}
 

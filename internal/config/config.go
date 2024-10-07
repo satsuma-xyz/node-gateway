@@ -352,6 +352,7 @@ type RoutingConfig struct {
 	BanWindow       *time.Duration `yaml:"banWindow"`
 	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
 	IsInitialized   bool
+	IsEnabled       bool
 }
 
 // IsEnhancedRoutingControlDefined returns true iff any of the enhanced routing control fields are specified
@@ -434,6 +435,7 @@ func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) boo
 	}
 
 	r.IsInitialized = true
+	r.IsEnabled = true
 
 	return true
 }
