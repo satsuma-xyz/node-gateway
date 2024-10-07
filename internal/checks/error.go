@@ -56,7 +56,7 @@ func NewErrorChecker(
 		metricsContainer:    metricsContainer,
 		logger:              logger,
 		errorCircuitBreaker: NewErrorStats(routingConfig),
-		isCheckEnabled:      routingConfig.IsCheckEnabled,
+		isCheckEnabled:      routingConfig.IsEnabled,
 	}
 }
 

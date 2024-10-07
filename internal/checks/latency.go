@@ -69,7 +69,7 @@ func NewLatencyChecker(
 		metricsContainer:     metricsContainer,
 		logger:               logger,
 		methodLatencyBreaker: make(map[string]LatencyCircuitBreaker),
-		isCheckEnabled:       routingConfig.IsCheckEnabled,
+		isCheckEnabled:       routingConfig.IsEnabled,
 	}
 }
 
