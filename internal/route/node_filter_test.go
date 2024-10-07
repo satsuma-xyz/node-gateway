@@ -33,24 +33,49 @@ func TestAndFilter_Apply(t *testing.T) {
 		filters []NodeFilter
 	}
 
-	type argsType struct { //nolint:govet // field alignment doesn't matter in tests
-		requestMetadata metadata.RequestMetadata
+	type argsType struct {
 		upstreamConfig  *config.UpstreamConfig
+		requestMetadata metadata.RequestMetadata
 	}
 
 	args := argsType{upstreamConfig: cfg("test-node")}
 
-	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
+	tests := []struct {
+		args   argsType
 		name   string
 		fields fields
-		args   argsType
 		want   bool
 	}{
-		{"No filters", fields{}, args, true},
-		{"One passing filter", fields{[]NodeFilter{AlwaysPass{}}}, args, true},
-		{"Multiple passing filters", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}}, args, true},
-		{"One failing filter", fields{[]NodeFilter{AlwaysFail{}}}, args, false},
-		{"Multiple passing and one failing", fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}}, args, false},
+		{
+			args,
+			"No filters",
+			fields{},
+			true,
+		},
+		{
+			args,
+			"One passing filter",
+			fields{[]NodeFilter{AlwaysPass{}}},
+			true,
+		},
+		{
+			args,
+			"Multiple passing filters",
+			fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysPass{}}},
+			true,
+		},
+		{
+			args,
+			"One failing filter",
+			fields{[]NodeFilter{AlwaysFail{}}},
+			false,
+		},
+		{
+			args,
+			"Multiple passing and one failing",
+			fields{[]NodeFilter{AlwaysPass{}, AlwaysPass{}, AlwaysFail{}}},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -58,7 +83,7 @@ func TestAndFilter_Apply(t *testing.T) {
 				filters: tt.fields.filters,
 			}
 			ok := a.Apply(tt.args.requestMetadata, tt.args.upstreamConfig, 1)
-			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig, 1)
+			assert.Equalf(t, tt.want, ok, "Apply(%v, %v)", tt.args.requestMetadata, tt.args.upstreamConfig)
 		})
 	}
 }
@@ -174,32 +199,104 @@ func TestMethodsAllowedFilter_Apply(t *testing.T) {
 	// Batch requests
 	stateMethodsMetadata := metadata.RequestMetadata{Methods: []string{"eth_getBalance", "eth_getBlockNumber"}}
 
-	type args struct { //nolint:govet // field alignment doesn't matter in tests
-		requestMetadata metadata.RequestMetadata
+	type args struct {
 		upstreamConfig  *config.UpstreamConfig
+		requestMetadata metadata.RequestMetadata
 	}
 
-	tests := []struct { //nolint:govet // field alignment doesn't matter in tests
+	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{"stateMethodFullNode", args{stateMethodMetadata, &fullNodeConfig}, false},
-		{"stateMethodFullNodeWithArchiveMethodEnabled",
-			args{stateMethodMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
-		{"stateMethodArchiveNode", args{stateMethodMetadata, &archiveNodeConfig}, true},
-		{"stateMethodArchiveNodeWithMethodDisabled",
-			args{stateMethodMetadata, &archiveNodeConfigWithMethodDisabled}, false},
-		{"nonStateMethodFullNode", args{nonStateMethodMetadata, &fullNodeConfig}, true},
-		{"nonStateMethodFullNodeWithMethodDisabled",
-			args{nonStateMethodMetadata, &fullNodeConfigWithFullMethodDisabled}, false},
-		{"nonStateMethodArchiveNode", args{nonStateMethodMetadata, &archiveNodeConfig}, true},
-		{"batchRequestsStateMethodsFullNode", args{stateMethodsMetadata, &fullNodeConfig}, false},
-		{"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
-			args{stateMethodsMetadata, &fullNodeConfigWithArchiveMethodEnabled}, true},
-		{"batchRequestsStateMethodsArchiveNode", args{stateMethodsMetadata, &archiveNodeConfig}, true},
-		{"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
-			args{stateMethodsMetadata, &archiveNodeConfigWithMethodDisabled}, false},
+		{
+			"stateMethodFullNode",
+			args{
+				&fullNodeConfig,
+				stateMethodMetadata,
+			},
+			false,
+		},
+		{
+			"stateMethodFullNodeWithArchiveMethodEnabled",
+			args{
+				&fullNodeConfigWithArchiveMethodEnabled,
+				stateMethodMetadata,
+			},
+			true,
+		},
+		{
+			"stateMethodArchiveNode",
+			args{
+				&archiveNodeConfig,
+				stateMethodMetadata,
+			},
+			true,
+		},
+		{
+			"stateMethodArchiveNodeWithMethodDisabled",
+			args{
+				&archiveNodeConfigWithMethodDisabled,
+				stateMethodMetadata,
+			},
+			false,
+		},
+		{
+			"nonStateMethodFullNode",
+			args{
+				&fullNodeConfig,
+				nonStateMethodMetadata,
+			},
+			true,
+		},
+		{
+			"nonStateMethodFullNodeWithMethodDisabled",
+			args{
+				&fullNodeConfigWithFullMethodDisabled,
+				nonStateMethodMetadata,
+			},
+			false,
+		},
+		{
+			"nonStateMethodArchiveNode",
+			args{
+				&archiveNodeConfig,
+				nonStateMethodMetadata,
+			},
+			true,
+		},
+		{
+			"batchRequestsStateMethodsFullNode",
+			args{
+				&fullNodeConfig,
+				stateMethodsMetadata,
+			},
+			false,
+		},
+		{
+			"batchRequestsStateMethodsFullNodeWithArchiveMethodEnabled",
+			args{
+				&fullNodeConfigWithArchiveMethodEnabled,
+				stateMethodsMetadata,
+			},
+			true,
+		},
+		{
+			"batchRequestsStateMethodsArchiveNode",
+			args{
+				&archiveNodeConfig,
+				stateMethodsMetadata,
+			},
+			true,
+		},
+		{
+			"batchRequestsStateMethodsArchiveNodeWithMethodDisabled",
+			args{
+				&archiveNodeConfigWithMethodDisabled,
+				stateMethodsMetadata,
+			},
+			false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -217,4 +314,21 @@ func emitBlockHeight(store *metadata.ChainMetadataStore, groupID, upstreamID str
 
 func emitError(store *metadata.ChainMetadataStore, groupID, upstreamID string, err error) {
 	store.ProcessErrorUpdate(groupID, upstreamID, err)
+}
+
+func Test_getFilterTypeName(t *testing.T) {
+	Assert := assert.New(t)
+
+	Assert.Equal(
+		NodeFilterType("AlwaysPass"),
+		getFilterTypeName(AlwaysPass{}),
+	)
+	Assert.Equal(
+		NodeFilterType("AlwaysFail"),
+		getFilterTypeName(AlwaysFail{}),
+	)
+	Assert.Equal(
+		NodeFilterType("AndFilter"),
+		getFilterTypeName(&AndFilter{}),
+	)
 }
