@@ -57,6 +57,7 @@ type ResponseBody interface {
 	GetSubResponses() []SingleResponseBody
 }
 
+// SingleResponseBody
 // See: http://www.jsonrpc.org/specification#response_object
 type SingleResponseBody struct {
 	Error   *Error          `json:"error,omitempty"`

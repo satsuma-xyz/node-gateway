@@ -16,12 +16,48 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/samber/lo"
+	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+var defaultRoutingConfig = config.RoutingConfig{
+	DetectionWindow: config.NewDuration(10 * time.Minute),
+	BanWindow:       config.NewDuration(50 * time.Minute),
+	Errors: &config.ErrorsConfig{
+		Rate: 0.5,
+		HTTPCodes: []string{
+			"5xx",
+			"420",
+		},
+		JSONRPCCodes: []string{
+			"32xxx",
+		},
+		ErrorStrings: []string{
+			"internal server error",
+		},
+	},
+	Latency: &config.LatencyConfig{
+		MethodLatencyThresholds: map[string]time.Duration{
+			"eth_call":    10000 * time.Millisecond,
+			"eth_getLogs": 2000 * time.Millisecond,
+		},
+		Threshold: 1000 * time.Millisecond,
+		Methods: []config.MethodConfig{
+			{
+				Name:      "eth_getLogs",
+				Threshold: 2000 * time.Millisecond,
+			},
+			{
+				Name:      "eth_call",
+				Threshold: 10000 * time.Millisecond,
+			},
+		},
+	},
+}
 
 func TestMain(m *testing.M) {
 	loggingConfig := zap.NewDevelopmentConfig()
@@ -61,6 +97,69 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	handler := startRouterAndHandler(t, conf)
 
 	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testing.T) {
+	unhealthyUpstream := setUpUnhealthyUpstream(t)
+	defer unhealthyUpstream.Close()
+
+	numCalls := 0
+
+	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
+		"eth_getLogs": func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+			t.Helper()
+
+			numCalls++
+			if numCalls <= checks.MinNumRequestsForRate {
+				// Even if we return en error on the first MinNumRequestsForRate calls,
+				// the upstream will still be considered healthy.
+				return jsonrpc.SingleResponseBody{
+					Error: &jsonrpc.Error{
+						Message: "This is a failing fake node!",
+					}}
+			}
+
+			return jsonrpc.SingleResponseBody{
+				Result: getResultFromString(hexutil.Uint64(1000).String()),
+			}
+		},
+	})
+	defer healthyUpstream.Close()
+
+	upstreamConfigs := []config.UpstreamConfig{
+		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL, NodeType: config.Full},
+		{ID: "healthyNode", HTTPURL: healthyUpstream.URL, NodeType: config.Full},
+	}
+
+	conf := config.Config{
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: upstreamConfigs,
+			Groups:    nil,
+		}},
+		Global: config.GlobalConfig{
+			Routing: defaultRoutingConfig,
+		},
+	}
+
+	handler := startRouterAndHandler(t, conf)
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+
+		res, err := responseBody.(*jsonrpc.SingleResponseBody)
+
+		assert.True(t, err)
+		assert.Equal(t, 0, len(res.Result))
+		assert.Equal(t, "This is a failing fake node!", res.Error.Message)
+	}
+
+	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -361,7 +460,8 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux { //
 
 	dependencyContainer.RouterCollection.Start()
 
-	for dependencyContainer.RouterCollection.IsInitialized() == false {
+	// Poll until the router is initialized.
+	for !dependencyContainer.RouterCollection.IsInitialized() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
