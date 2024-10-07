@@ -44,13 +44,13 @@ var defaultRoutingConfig = config.RoutingConfig{
 	Latency: &config.LatencyConfig{
 		MethodLatencyThresholds: map[string]time.Duration{
 			"eth_call":    10000 * time.Millisecond,
-			"eth_getLogs": 2000 * time.Millisecond,
+			"eth_getLogs": 100 * time.Millisecond,
 		},
 		Threshold: 1000 * time.Millisecond,
 		Methods: []config.MethodConfig{
 			{
 				Name:      "eth_getLogs",
-				Threshold: 2000 * time.Millisecond,
+				Threshold: 100 * time.Millisecond,
 			},
 			{
 				Name:      "eth_call",
@@ -103,7 +103,13 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func getHandler(t *testing.T, methodName, errMsg string, errCode int) (*http.ServeMux, []*httptest.Server) {
+func getHandler(
+	t *testing.T,
+	methodName string, //nolint:unparam // Test method
+	errMsg string,
+	errCode int,
+	latency time.Duration,
+) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
@@ -115,7 +121,9 @@ func getHandler(t *testing.T, methodName, errMsg string, errCode int) (*http.Ser
 
 			numCalls++
 			if numCalls <= checks.MinNumRequestsForRate {
-				// Even if we return en error on the first MinNumRequestsForRate calls,
+				time.Sleep(latency)
+
+				// Even if we return an error or latency is too high  on the first MinNumRequestsForRate calls,
 				// the upstream will still be considered healthy.
 				return jsonrpc.SingleResponseBody{
 					Error: &jsonrpc.Error{
@@ -147,10 +155,10 @@ func getHandler(t *testing.T, methodName, errMsg string, errCode int) (*http.Ser
 	return startRouterAndHandler(t, conf), []*httptest.Server{healthyUpstream, unhealthyUpstream}
 }
 
-func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringDoesNotMatch(t *testing.T) {
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorButStaysHealthy(t *testing.T) {
 	methodName := "eth_getLogs" //nolint:goconst // Test method
 	errMsg := "This is a failing fake node!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 12345)
+	handler, upstreams := getHandler(t, methodName, errMsg, 12345, 0)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -184,10 +192,54 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := ""
+	handler, upstreams := getHandler(
+		t,
+		methodName,
+		errMsg,
+		22222,
+		// Add a slight delay to exceed the configured latency threshold.
+		defaultRoutingConfig.Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+	)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// High latency rate exceeds `config.DefaultLatencyTooHighRate`, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "Terrible internal server error occurred!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 54321)
+	handler, upstreams := getHandler(t, methodName, errMsg, 54321, 0)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -224,7 +276,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "What an error occurred!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 32010)
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0)
 
 	defer func() {
 		for _, upstream := range upstreams {
