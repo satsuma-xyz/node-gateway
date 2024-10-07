@@ -2,9 +2,10 @@ package checks
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var defaultUpstreamConfig = &config.UpstreamConfig{

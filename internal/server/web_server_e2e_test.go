@@ -102,12 +102,12 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testing.T) {
+func getHandler(t *testing.T) (*http.ServeMux, []*httptest.Server) {
+	t.Helper()
+
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
-	defer unhealthyUpstream.Close()
 
 	numCalls := 0
-
 	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
 		"eth_getLogs": func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
 			t.Helper()
@@ -127,7 +127,6 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testin
 			}
 		},
 	})
-	defer healthyUpstream.Close()
 
 	upstreamConfigs := []config.UpstreamConfig{
 		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL, NodeType: config.Full},
@@ -145,7 +144,17 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testin
 		},
 	}
 
-	handler := startRouterAndHandler(t, conf)
+	return startRouterAndHandler(t, conf), []*httptest.Server{healthyUpstream, unhealthyUpstream}
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testing.T) {
+	handler, upstreams := getHandler(t)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
 
 	for i := 0; i < checks.MinNumRequestsForRate; i++ {
 		statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
