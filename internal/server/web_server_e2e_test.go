@@ -102,7 +102,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func getHandler(t *testing.T) (*http.ServeMux, []*httptest.Server) {
+func getHandler(t *testing.T, errMsg string) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
@@ -118,7 +118,7 @@ func getHandler(t *testing.T) (*http.ServeMux, []*httptest.Server) {
 				// the upstream will still be considered healthy.
 				return jsonrpc.SingleResponseBody{
 					Error: &jsonrpc.Error{
-						Message: "This is a failing fake node!",
+						Message: errMsg,
 					}}
 			}
 
@@ -148,7 +148,8 @@ func getHandler(t *testing.T) (*http.ServeMux, []*httptest.Server) {
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testing.T) {
-	handler, upstreams := getHandler(t)
+	errMsg := "This is a failing fake node!"
+	handler, upstreams := getHandler(t, errMsg)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -165,11 +166,13 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled(t *testin
 
 		assert.True(t, err)
 		assert.Equal(t, 0, len(res.Result))
-		assert.Equal(t, "This is a failing fake node!", res.Error.Message)
+		assert.Equal(t, errMsg, res.Error.Message)
 	}
 
 	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_getLogs", handler)
 
+	// Even though the error rate exceeds the configured amount, the upstream is still considered healthy since
+	// the error message does not match the configured error string.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
