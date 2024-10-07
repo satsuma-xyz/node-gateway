@@ -103,7 +103,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func getHandler(t *testing.T, methodName, errMsg string) (*http.ServeMux, []*httptest.Server) {
+func getHandler(t *testing.T, methodName, errMsg string, errCode int) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
 	unhealthyUpstream := setUpUnhealthyUpstream(t)
@@ -120,6 +120,7 @@ func getHandler(t *testing.T, methodName, errMsg string) (*http.ServeMux, []*htt
 				return jsonrpc.SingleResponseBody{
 					Error: &jsonrpc.Error{
 						Message: errMsg,
+						Code:    errCode,
 					}}
 			}
 
@@ -147,9 +148,9 @@ func getHandler(t *testing.T, methodName, errMsg string) (*http.ServeMux, []*htt
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringDoesNotMatch(t *testing.T) {
-	methodName := "eth_getLogs"
+	methodName := "eth_getLogs" //nolint:goconst // Test method
 	errMsg := "This is a failing fake node!"
-	handler, upstreams := getHandler(t, methodName, errMsg)
+	handler, upstreams := getHandler(t, methodName, errMsg, 12345)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -183,10 +184,47 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
 
-func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) {
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "Terrible internal server error occurred!"
-	handler, upstreams := getHandler(t, methodName, errMsg)
+	handler, upstreams := getHandler(t, methodName, errMsg, 54321)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// The error rate exceeds the configured amount of 0.5, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
+	methodName := "eth_getLogs"
+	errMsg := "What an error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010)
 
 	defer func() {
 		for _, upstream := range upstreams {
