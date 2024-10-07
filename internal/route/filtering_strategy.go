@@ -25,21 +25,41 @@ func (s *FilteringRoutingStrategy) filter(
 	upstreamsByPriority types.PriorityToUpstreamsMap,
 	requestMetadata metadata.RequestMetadata,
 ) types.PriorityToUpstreamsMap {
+	return filterUpstreams(
+		upstreamsByPriority,
+		requestMetadata,
+		[]NodeFilter{s.NodeFilter},
+		s.Logger,
+	)
+}
+
+func filterUpstreams(
+	upstreamsByPriority types.PriorityToUpstreamsMap,
+	requestMetadata metadata.RequestMetadata,
+	nodeFilters []NodeFilter,
+	logger *zap.Logger,
+) types.PriorityToUpstreamsMap {
 	priorityToHealthyUpstreams := make(types.PriorityToUpstreamsMap)
+	nodeFilter := AndFilter{
+		filters: nodeFilters,
+		logger:  logger,
+	}
 
 	for priority, upstreamConfigs := range upstreamsByPriority {
-		s.Logger.Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamConfigs))
+		logger.Debug("Determining healthy upstreams at priority.", zap.Int("priority", priority), zap.Any("upstreams", upstreamConfigs))
 
 		filteredUpstreams := make([]*config.UpstreamConfig, 0)
 
 		for _, upstreamConfig := range upstreamConfigs {
-			ok := s.NodeFilter.Apply(requestMetadata, upstreamConfig, len(upstreamConfigs))
+			ok := nodeFilter.Apply(requestMetadata, upstreamConfig, len(upstreamConfigs))
 			if ok {
 				filteredUpstreams = append(filteredUpstreams, upstreamConfig)
 			}
 		}
 
-		priorityToHealthyUpstreams[priority] = filteredUpstreams
+		if len(filteredUpstreams) > 0 {
+			priorityToHealthyUpstreams[priority] = filteredUpstreams
+		}
 	}
 
 	return priorityToHealthyUpstreams

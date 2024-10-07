@@ -14,37 +14,15 @@ import (
 type NodeType string
 
 const (
-	DefaultBanWindow       = 5 * time.Minute
-	DefaultDetectionWindow = time.Minute
-	// DefaultMaxLatency is used when the latency threshold is not specified in the config.
-	// TODO(polsar): We should probably use a lower value.
-	DefaultMaxLatency                  = 10 * time.Second
+	DefaultBanWindow                   = 5 * time.Minute
+	DefaultDetectionWindow             = time.Minute
+	DefaultMaxLatency                  = 10 * time.Second // Default latency threshold
 	DefaultErrorRate                   = 0.25
 	DefaultLatencyTooHighRate          = 0.5 // TODO(polsar): Expose this parameter in the config.
 	Archive                   NodeType = "archive"
 	Full                      NodeType = "full"
-	// PassiveLatencyCheckMethod is a dummy method we use to measure the latency of an upstream RPC endpoint.
-	// https://docs.infura.io/api/networks/ethereum/json-rpc-methods/eth_chainid
-	PassiveLatencyCheckMethod = "eth_chainId" //nolint:gosec // No hardcoded credentials here.
-	// PassiveLatencyChecking indicates whether to use live (active) requests as data for the LatencyChecker (false)
-	// or synthetic (passive) periodic requests (true).
-	// TODO(polsar): This setting is currently not configurable via the YAML config file.
-	// TODO(polsar): We may also consider a hybrid request latency/error checking using both active and passive requests.
-	PassiveLatencyChecking = false
 )
 
-// UnhealthyReason is the reason why a health check failed. We use it to select the most appropriate upstream to route to
-// if all upstreams are unhealthy and the `alwaysRoute` option is true.
-type UnhealthyReason int
-
-const (
-	ReasonUnknownOrHealthy = iota
-	ReasonErrorRate
-	ReasonLatencyTooHighRate
-)
-
-// UpstreamConfig
-// TODO(polsar): Move the HealthStatus field to a new struct and embed this struct in it. Asana task: https://app.asana.com/0/1207397277805097/1208232039997185/f
 type UpstreamConfig struct {
 	Methods              MethodsConfig         `yaml:"methods"`
 	HealthCheckConfig    HealthCheckConfig     `yaml:"healthCheck"`
@@ -55,7 +33,6 @@ type UpstreamConfig struct {
 	GroupID              string                `yaml:"group"`
 	NodeType             NodeType              `yaml:"nodeType"`
 	RequestHeadersConfig []RequestHeaderConfig `yaml:"requestHeaders"`
-	HealthStatus         UnhealthyReason       // The default value of this field is 0 (ReasonUnknownOrHealthy).
 }
 
 func (c *UpstreamConfig) isValid(groups []GroupConfig) bool {
@@ -262,12 +239,7 @@ type MethodConfig struct {
 	Threshold time.Duration `yaml:"threshold"`
 }
 
-func (c *MethodConfig) isMethodConfigValid(passiveLatencyChecking bool) bool {
-	if passiveLatencyChecking {
-		// TODO(polsar): Validate the method name: https://ethereum.org/en/developers/docs/apis/json-rpc/
-		return !strings.EqualFold(c.Name, PassiveLatencyCheckMethod)
-	}
-
+func (c *MethodConfig) isMethodConfigValid() bool {
 	return true
 }
 
@@ -358,13 +330,13 @@ func (c *LatencyConfig) initialize(globalConfig *RoutingConfig) {
 	}
 }
 
-func (c *LatencyConfig) isLatencyConfigValid(passiveLatencyChecking bool) bool {
+func (c *LatencyConfig) isLatencyConfigValid() bool {
 	if c == nil {
 		return true
 	}
 
 	for _, method := range c.Methods {
-		if !method.isMethodConfigValid(passiveLatencyChecking) {
+		if !method.isMethodConfigValid() {
 			return false
 		}
 	}
@@ -373,14 +345,13 @@ func (c *LatencyConfig) isLatencyConfigValid(passiveLatencyChecking bool) bool {
 }
 
 type RoutingConfig struct {
-	AlwaysRoute            *bool          `yaml:"alwaysRoute"`
-	Errors                 *ErrorsConfig  `yaml:"errors"`
-	Latency                *LatencyConfig `yaml:"latency"`
-	DetectionWindow        *time.Duration `yaml:"detectionWindow"`
-	BanWindow              *time.Duration `yaml:"banWindow"`
-	MaxBlocksBehind        int            `yaml:"maxBlocksBehind"`
-	PassiveLatencyChecking bool
-	IsInitialized          bool
+	AlwaysRoute     *bool          `yaml:"alwaysRoute"`
+	Errors          *ErrorsConfig  `yaml:"errors"`
+	Latency         *LatencyConfig `yaml:"latency"`
+	DetectionWindow *time.Duration `yaml:"detectionWindow"`
+	BanWindow       *time.Duration `yaml:"banWindow"`
+	MaxBlocksBehind int            `yaml:"maxBlocksBehind"`
+	IsInitialized   bool
 }
 
 // IsEnhancedRoutingControlDefined returns true iff any of the enhanced routing control fields are specified
@@ -399,8 +370,6 @@ func (r *RoutingConfig) setDefaults(globalConfig *RoutingConfig, force bool) boo
 	if r.IsInitialized {
 		return true
 	}
-
-	r.PassiveLatencyChecking = PassiveLatencyChecking
 
 	if !force && !r.IsEnhancedRoutingControlDefined() && (globalConfig == nil || !globalConfig.IsEnhancedRoutingControlDefined()) {
 		// Routing config is not specified at either this or global level, so there is nothing to do.
@@ -475,7 +444,7 @@ func (r *RoutingConfig) isRoutingConfigValid() bool {
 	latency := r.Latency
 
 	if latency != nil {
-		isValid = isValid && latency.isLatencyConfigValid(r.PassiveLatencyChecking)
+		isValid = isValid && latency.isLatencyConfigValid()
 	}
 
 	return isValid
@@ -544,7 +513,6 @@ func (c *SingleChainConfig) isValid() bool {
 
 func (c *SingleChainConfig) setDefaults(globalConfig *GlobalConfig, isGlobalRoutingConfigSpecified bool) {
 	if !isGlobalRoutingConfigSpecified && !c.Routing.IsEnhancedRoutingControlDefined() {
-		c.Routing.PassiveLatencyChecking = PassiveLatencyChecking
 		return
 	}
 

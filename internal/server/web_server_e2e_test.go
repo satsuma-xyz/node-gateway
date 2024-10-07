@@ -10,18 +10,58 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/samber/lo"
+	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+func getRoutingConfig(alwaysRoute bool) *config.RoutingConfig {
+	return &config.RoutingConfig{
+		AlwaysRoute:     &alwaysRoute,
+		DetectionWindow: config.NewDuration(10 * time.Minute),
+		BanWindow:       config.NewDuration(100 * time.Millisecond),
+		Errors: &config.ErrorsConfig{
+			Rate: 0.5,
+			HTTPCodes: []string{
+				"5xx",
+				"420",
+			},
+			JSONRPCCodes: []string{
+				"32xxx",
+			},
+			ErrorStrings: []string{
+				"internal server error",
+			},
+		},
+		Latency: &config.LatencyConfig{
+			MethodLatencyThresholds: map[string]time.Duration{
+				"eth_call":    10000 * time.Millisecond,
+				"eth_getLogs": 100 * time.Millisecond,
+			},
+			Threshold: 1000 * time.Millisecond,
+			Methods: []config.MethodConfig{
+				{
+					Name:      "eth_getLogs",
+					Threshold: 100 * time.Millisecond,
+				},
+				{
+					Name:      "eth_call",
+					Threshold: 10000 * time.Millisecond,
+				},
+			},
+		},
+	}
+}
 
 func TestMain(m *testing.M) {
 	loggingConfig := zap.NewDevelopmentConfig()
@@ -60,8 +100,273 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler, false)
 
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func getHandler(
+	t *testing.T,
+	methodName string, //nolint:unparam // Test method
+	errMsg string,
+	errCode int,
+	latency time.Duration,
+	alwaysRoute bool,
+) (*http.ServeMux, []*httptest.Server) {
+	t.Helper()
+
+	unhealthyUpstream := setUpUnhealthyUpstream(t)
+
+	numCalls := 0
+	healthyUpstream := setUpHealthyUpstream(t, map[string]func(t *testing.T, request jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody{
+		methodName: func(t *testing.T, _ jsonrpc.SingleRequestBody) jsonrpc.SingleResponseBody {
+			t.Helper()
+
+			numCalls++
+			if numCalls <= checks.MinNumRequestsForRate {
+				time.Sleep(latency)
+
+				// Even if we return an error or latency is too high  on the first MinNumRequestsForRate calls,
+				// the upstream will still be considered healthy.
+				return jsonrpc.SingleResponseBody{
+					Error: &jsonrpc.Error{
+						Message: errMsg,
+						Code:    errCode,
+					}}
+			}
+
+			return jsonrpc.SingleResponseBody{
+				Result: getResultFromString(hexutil.Uint64(1000).String()),
+			}
+		},
+	})
+
+	upstreamConfigs := []config.UpstreamConfig{
+		{ID: "unhealthyNode", HTTPURL: unhealthyUpstream.URL, NodeType: config.Full},
+		{ID: "healthyNode", HTTPURL: healthyUpstream.URL, NodeType: config.Full},
+	}
+
+	conf := config.Config{
+		Chains: []config.SingleChainConfig{{
+			ChainName: config.TestChainName,
+			Upstreams: upstreamConfigs,
+			Groups:    nil,
+			Routing:   *getRoutingConfig(alwaysRoute),
+		}},
+	}
+
+	return startRouterAndHandler(t, conf), []*httptest.Server{healthyUpstream, unhealthyUpstream}
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorButStaysHealthy(t *testing.T) {
+	methodName := "eth_getLogs" //nolint:goconst // Test method
+	errMsg := "This is a failing fake node!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 12345, 0, false)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, _ := executeSingleRequest(
+			t,
+			config.TestChainName,
+			methodName,
+			handler,
+			false,
+		)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+
+		res, err := responseBody.(*jsonrpc.SingleResponseBody)
+
+		assert.True(t, err)
+		assert.Equal(t, 0, len(res.Result))
+		assert.Equal(t, errMsg, res.Error.Message)
+	}
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	// Even though the error rate exceeds the configured amount, the upstream is still considered healthy since
+	// the error message does not match the configured error string.
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := ""
+	handler, upstreams := getHandler(
+		t,
+		methodName,
+		errMsg,
+		22222,
+		// Add a slight delay to exceed the configured latency threshold.
+		getRoutingConfig(false).Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+		false,
+	)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// High latency rate exceeds `config.DefaultLatencyTooHighRate`, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails_AlwaysRoute(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := ""
+	handler, upstreams := getHandler(
+		t,
+		methodName,
+		errMsg,
+		22222,
+		// Add a slight delay to exceed the configured latency threshold.
+		getRoutingConfig(true).Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+		true,
+	)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) { //nolint:dupl // Test method
+	methodName := "eth_getLogs"
+	errMsg := "Terrible internal server error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 54321, 0, false)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// The error rate exceeds the configured amount of 0.5, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
+	methodName := "eth_getLogs"
+	errMsg := "What an error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0, false)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	// The error rate exceeds the configured amount of 0.5, so the upstream is considered unhealthy.
+	// Since `alwaysRoute` is disabled, we expect nil response on the next MinNumRequestsForRate requests.
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, responseBody, _, err := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+		assert.NotNil(t, err)
+		assert.True(t, strings.Contains(err.Error(), "No healthy upstreams"))
+		assert.Equal(t, http.StatusServiceUnavailable, statusCode)
+		assert.Nil(t, responseBody)
+	}
+
+	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches_AlwaysRoute(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := "What an error occurred!"
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0, true)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
@@ -94,7 +399,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 	handler := startRouterAndHandler(t, conf)
 
 	{
-		statusCode, responseBody, headers := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler)
+		statusCode, responseBody, headers, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler, false)
 
 		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
@@ -102,7 +407,7 @@ func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
 	}
 
 	{
-		statusCode, responseBody, headers := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler)
+		statusCode, responseBody, headers, _ := executeSingleRequest(t, "another_test_net", "eth_blockNumber", handler, false)
 
 		assert.Equal(t, http.StatusOK, statusCode)
 		assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.GetSubResponses()[0].Result)
@@ -179,12 +484,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 
 	handler := startRouterAndHandler(t, conf)
 
-	statusCode, responseBody, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 
-	statusCode, responseBody, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler)
+	statusCode, responseBody, _, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
@@ -260,7 +565,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 	handler := startRouterAndHandler(t, conf)
 
 	// Batch request where one request in the batch is stateful. This should go to archive.
-	statusCode, responseBody, _ := executeBatchRequest(t, config.TestChainName, []string{statefulMethod, nonStatefulMethod}, handler)
+	statusCode, responseBody, _, _ := executeBatchRequest(t, config.TestChainName, []string{statefulMethod, nonStatefulMethod}, handler)
 
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, 2, len(responseBody.GetSubResponses()))
@@ -279,7 +584,8 @@ func executeSingleRequest(
 	chainName string,
 	methodName string,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+	allowNilResponse bool,
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	singleRequest := jsonrpc.SingleRequestBody{
@@ -288,7 +594,7 @@ func executeSingleRequest(
 		ID:             lo.ToPtr[int64](1),
 	}
 
-	return executeRequest(t, chainName, &singleRequest, handler)
+	return executeRequest(t, chainName, &singleRequest, handler, allowNilResponse)
 }
 
 func executeBatchRequest(
@@ -296,7 +602,7 @@ func executeBatchRequest(
 	chainName string,
 	methodNames []string,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	requests := make([]jsonrpc.SingleRequestBody, 0)
@@ -312,7 +618,7 @@ func executeBatchRequest(
 
 	batchRequest := jsonrpc.BatchRequestBody{Requests: requests}
 
-	return executeRequest(t, chainName, &batchRequest, handler)
+	return executeRequest(t, chainName, &batchRequest, handler, false)
 }
 
 func executeRequest(
@@ -320,7 +626,8 @@ func executeRequest(
 	chainName string,
 	request jsonrpc.RequestBody,
 	handler *http.ServeMux,
-) (int, jsonrpc.ResponseBody, http.Header) {
+	allowNilResponse bool,
+) (int, jsonrpc.ResponseBody, http.Header, error) {
 	t.Helper()
 
 	requestBytes, _ := request.Encode()
@@ -332,16 +639,25 @@ func executeRequest(
 
 	handler.ServeHTTP(recorder, req)
 
-	result := recorder.Result()
+	result := recorder.Result() //nolint:bodyclose // Body is closed in the defer statement below.
 	resultBody, _ := io.ReadAll(result.Body)
 
-	defer result.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil { //nolint:errorlint // Wrong error.
+			t.Errorf("Error closing response body: %s", err)
+		}
+	}(result.Body)
 
 	responseBody, err := jsonrpc.DecodeResponseBody(resultBody)
-	assert.NoError(t, err)
-	require.NotNil(t, responseBody)
 
-	return result.StatusCode, responseBody, recorder.Header()
+	// TODO(polsar): These checks should be done by the individual tests. Refactor.
+	if !allowNilResponse {
+		assert.NoError(t, err)
+		require.NotNil(t, responseBody)
+	}
+
+	return result.StatusCode, responseBody, recorder.Header(), err
 }
 
 func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux { //nolint:gocritic // Legacy
@@ -356,7 +672,8 @@ func startRouterAndHandler(t *testing.T, conf config.Config) *http.ServeMux { //
 
 	dependencyContainer.RouterCollection.Start()
 
-	for dependencyContainer.RouterCollection.IsInitialized() == false {
+	// Poll until the router is initialized.
+	for !dependencyContainer.RouterCollection.IsInitialized() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
@@ -414,7 +731,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 	case "net_peerCount":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(10).String())}
 
-	case config.PassiveLatencyCheckMethod:
+	case "eth_chainId":
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(11).String())}
 
 	case "eth_getBlockByNumber":
@@ -424,7 +741,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 		})
 
 		return jsonrpc.SingleResponseBody{
-			Result: json.RawMessage(result),
+			Result: result,
 		}
 
 	case "eth_blockNumber":
@@ -454,7 +771,7 @@ func setUpUnhealthyUpstream(t *testing.T) *httptest.Server {
 		switch r := requestBody.(type) {
 		case *jsonrpc.SingleRequestBody:
 			switch requestBody.GetMethod() {
-			case "eth_syncing", "net_peerCount", config.PassiveLatencyCheckMethod, "eth_getBlockByNumber":
+			case "eth_syncing", "net_peerCount", "eth_chainId", "eth_getBlockByNumber":
 				responseBody = &jsonrpc.SingleResponseBody{Error: &jsonrpc.Error{Message: "This is a failing fake node!"}}
 				writeResponseBody(t, writer, responseBody)
 			default:
