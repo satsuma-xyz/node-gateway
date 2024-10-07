@@ -112,7 +112,7 @@ func getHandler(
 	errMsg string,
 	errCode int,
 	latency time.Duration,
-	alwaysRoute bool, //nolint:unparam // Test method
+	alwaysRoute bool,
 ) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
@@ -235,8 +235,40 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
 	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
 
-	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
 
+	assert.Equal(t, http.StatusOK, statusCode)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+}
+
+func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails_AlwaysRoute(t *testing.T) {
+	methodName := "eth_getLogs"
+	errMsg := ""
+	handler, upstreams := getHandler(
+		t,
+		methodName,
+		errMsg,
+		22222,
+		// Add a slight delay to exceed the configured latency threshold.
+		getRoutingConfig(true).Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+		true,
+	)
+
+	defer func() {
+		for _, upstream := range upstreams {
+			upstream.Close()
+		}
+	}()
+
+	for i := 0; i < checks.MinNumRequestsForRate; i++ {
+		statusCode, _, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+		assert.Equal(t, http.StatusOK, statusCode)
+	}
+
+	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
+
+	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
 	assert.Equal(t, http.StatusOK, statusCode)
 	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
 }
