@@ -316,19 +316,19 @@ func emitError(store *metadata.ChainMetadataStore, groupID, upstreamID string, e
 	store.ProcessErrorUpdate(groupID, upstreamID, err)
 }
 
-func Test_getFilterTypeName(t *testing.T) {
+func TestGetFilterTypeName(t *testing.T) {
 	Assert := assert.New(t)
 
 	Assert.Equal(
 		NodeFilterType("AlwaysPass"),
-		getFilterTypeName(AlwaysPass{}),
+		GetFilterTypeName(AlwaysPass{}),
 	)
 	Assert.Equal(
 		NodeFilterType("AlwaysFail"),
-		getFilterTypeName(AlwaysFail{}),
+		GetFilterTypeName(AlwaysFail{}),
 	)
 	Assert.Equal(
 		NodeFilterType("AndFilter"),
-		getFilterTypeName(&AndFilter{}),
+		GetFilterTypeName(&AndFilter{}),
 	)
 }

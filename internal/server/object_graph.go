@@ -28,7 +28,7 @@ type singleChainObjectGraph struct {
 }
 
 func wireSingleChainDependencies(
-	globalConfig config.GlobalConfig, //nolint:gocritic // Legacy
+	globalConfig *config.GlobalConfig,
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
 	rpcCache *cache.RPCCache,
@@ -47,11 +47,6 @@ func wireSingleChainDependencies(
 		logger,
 	)
 
-	alwaysRoute := false
-	if chainConfig.Routing.AlwaysRoute != nil {
-		alwaysRoute = *chainConfig.Routing.AlwaysRoute
-	}
-
 	enabledNodeFilters := []route.NodeFilterType{
 		route.Healthy,
 		route.MaxHeightForGroup,
@@ -65,10 +60,41 @@ func wireSingleChainDependencies(
 		logger,
 		&chainConfig.Routing,
 	)
-	routingStrategy := route.FilteringRoutingStrategy{
-		NodeFilter:      nodeFilter,
-		BackingStrategy: route.NewPriorityRoundRobinStrategy(logger, alwaysRoute),
-		Logger:          logger,
+
+	// Determine if we should always route even if no healthy upstreams are available.
+	alwaysRoute := false
+	if chainConfig.Routing.AlwaysRoute != nil {
+		alwaysRoute = *chainConfig.Routing.AlwaysRoute
+	}
+
+	// If we should always route, use AlwaysRouteFilteringStrategy. Otherwise, use FilteringRoutingStrategy.
+	backingStrategy := route.NewPriorityRoundRobinStrategy(logger)
+
+	var routingStrategy route.RoutingStrategy
+
+	errorFilter := route.IsErrorRateAcceptable{HealthCheckManager: healthCheckManager}
+	latencyFilter := route.IsLatencyAcceptable{HealthCheckManager: healthCheckManager}
+
+	if alwaysRoute {
+		routingStrategy = &route.AlwaysRouteFilteringStrategy{
+			NodeFilters: []route.NodeFilter{
+				nodeFilter,
+				&errorFilter,
+				&latencyFilter,
+			},
+			RemovableFilters: []route.NodeFilterType{
+				route.GetFilterTypeName(errorFilter),
+				route.GetFilterTypeName(latencyFilter),
+			},
+			BackingStrategy: backingStrategy,
+			Logger:          logger,
+		}
+	} else {
+		routingStrategy = &route.FilteringRoutingStrategy{
+			NodeFilter:      nodeFilter,
+			BackingStrategy: backingStrategy,
+			Logger:          logger,
+		}
 	}
 
 	router := route.NewRouter(
@@ -78,7 +104,7 @@ func wireSingleChainDependencies(
 		chainConfig.Groups,
 		chainMetadataStore,
 		healthCheckManager,
-		&routingStrategy,
+		routingStrategy,
 		metricContainer,
 		logger,
 		rpcCache,
@@ -114,7 +140,7 @@ func WireDependenciesForAllChains(
 		childLogger := rootLogger.With(zap.String("chainName", currentChainConfig.ChainName))
 
 		dependencyContainer := wireSingleChainDependencies(
-			gatewayConfig.Global,
+			&gatewayConfig.Global,
 			currentChainConfig,
 			childLogger,
 			rpcCache,

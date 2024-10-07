@@ -56,6 +56,13 @@ type healthCheckManager struct {
 		*metrics.Container,
 		*zap.Logger,
 	) types.Checker
+	newErrorCheck func(
+		*conf.UpstreamConfig,
+		*conf.RoutingConfig,
+		client.EthClientGetter,
+		*metrics.Container,
+		*zap.Logger,
+	) types.ErrorLatencyChecker
 	newLatencyCheck func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
@@ -92,7 +99,8 @@ func NewHealthCheckManager(
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
 		newSyncingCheck:     NewSyncingChecker,
-		newLatencyCheck:     NewErrorLatencyChecker,
+		newErrorCheck:       NewErrorChecker,
+		newLatencyCheck:     NewLatencyChecker,
 		blockHeightObserver: blockHeightObserver,
 		healthCheckTicker:   healthCheckTicker,
 		metricsContainer:    metricsContainer,
@@ -118,7 +126,16 @@ func (h *healthCheckManager) GetUpstreamStatus(upstreamID string) *types.Upstrea
 	panic(fmt.Sprintf("Upstream ID %s not found!", upstreamID))
 }
 
+func (h *healthCheckManager) GetErrorCheck(upstreamID string) types.ErrorLatencyChecker {
+	return h.GetUpstreamStatus(upstreamID).ErrorCheck
+}
+
+func (h *healthCheckManager) GetLatencyCheck(upstreamID string) types.ErrorLatencyChecker {
+	return h.GetUpstreamStatus(upstreamID).LatencyCheck
+}
+
 func (h *healthCheckManager) RecordRequest(upstreamID string, data *types.RequestData) {
+	h.GetUpstreamStatus(upstreamID).ErrorCheck.RecordRequest(data)
 	h.GetUpstreamStatus(upstreamID).LatencyCheck.RecordRequest(data)
 }
 
@@ -188,6 +205,22 @@ func (h *healthCheckManager) initializeChecks() {
 				)
 			}()
 
+			var errorCheck types.ErrorLatencyChecker
+
+			innerWG.Add(1)
+
+			go func() {
+				defer innerWG.Done()
+
+				errorCheck = h.newErrorCheck(
+					&config,
+					&h.routingConfig,
+					client.NewEthClient,
+					h.metricsContainer,
+					h.logger,
+				)
+			}()
+
 			var latencyCheck types.ErrorLatencyChecker
 
 			innerWG.Add(1)
@@ -213,6 +246,7 @@ func (h *healthCheckManager) initializeChecks() {
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
 				SyncingCheck:     syncingCheck,
+				ErrorCheck:       errorCheck,
 				LatencyCheck:     latencyCheck,
 			})
 			mutex.Unlock()
@@ -257,13 +291,6 @@ func (h *healthCheckManager) runChecksOnce() {
 			defer wg.Done()
 			c.RunCheck()
 		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
-
-		wg.Add(1)
-
-		go func(c types.ErrorLatencyChecker) {
-			defer wg.Done()
-			c.RunPassiveCheck()
-		}(h.GetUpstreamStatus(config.ID).LatencyCheck)
 	}
 
 	wg.Wait()

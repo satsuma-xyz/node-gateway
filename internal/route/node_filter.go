@@ -114,28 +114,26 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 	return true
 }
 
+type IsErrorRateAcceptable struct {
+	HealthCheckManager checks.HealthCheckManager
+}
+
+func (f *IsErrorRateAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
+	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
+	errorCheck, _ := upstreamStatus.ErrorCheck.(*checks.ErrorLatencyCheck)
+
+	return errorCheck.IsPassing(requestMetadata.Methods)
+}
+
 type IsLatencyAcceptable struct {
-	healthCheckManager checks.HealthCheckManager
-	logger             *zap.Logger
+	HealthCheckManager checks.HealthCheckManager
 }
 
 func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-
+	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
 	latencyCheck, _ := upstreamStatus.LatencyCheck.(*checks.ErrorLatencyCheck)
 
-	// TODO(polsar): If unhealthy, set the delta by which the check failed.
-	//  For example, if the configured rate is 0.25 and the current error rate is 0.27,
-	//  the delta is 0.27 - 0.25 = 0.02. This value can be used to rank upstreams by the
-	//  degree to which they are unhealthy. This would help us choose the upstream to
-	//  route to if all upstreams are unhealthy AND `alwaysRoute` config option is true.
-	upstreamConfig.HealthStatus = latencyCheck.GetUnhealthyReason(requestMetadata.Methods)
-
-	// TODO(polsar): Note that for ErrorLatencyCheck only, we always return true. The health status
-	//  of the upstream is instead contained in the struct's HealthStatus field. This is a bit
-	//  clunky. Eventually, we want to change the signature of the Apply method. This will require
-	//  significant refactoring.
-	return true
+	return latencyCheck.IsPassing(requestMetadata.Methods)
 }
 
 type IsCloseToGlobalMaxHeight struct {
@@ -298,15 +296,9 @@ func CreateSingleNodeFilter(
 			minimumPeerCount:   checks.MinimumPeerCount,
 		}
 
-		isLatencyAcceptable := IsLatencyAcceptable{
-			healthCheckManager: manager,
-			logger:             logger,
-		}
-
 		return &AndFilter{
 			filters: []NodeFilter{
 				&hasEnoughPeers,
-				&isLatencyAcceptable,
 			},
 			logger: logger,
 		}
@@ -328,6 +320,10 @@ func CreateSingleNodeFilter(
 		}
 	case MethodsAllowed:
 		return &AreMethodsAllowed{logger: logger}
+	case ErrorRateAcceptable:
+		panic("ErrorRateAcceptable filter is not implemented!")
+	case LatencyAcceptable:
+		panic("LatencyAcceptable filter is not implemented!")
 	default:
 		panic("Unknown filter type " + filterName + "!")
 	}
@@ -340,9 +336,11 @@ const (
 	NearGlobalMaxHeight NodeFilterType = "nearGlobalMaxHeight"
 	MaxHeightForGroup   NodeFilterType = "maxHeightForGroup"
 	MethodsAllowed      NodeFilterType = "methodsAllowed"
+	ErrorRateAcceptable NodeFilterType = "errorRateAcceptable"
+	LatencyAcceptable   NodeFilterType = "latencyAcceptable"
 )
 
-func getFilterTypeName(v interface{}) NodeFilterType {
+func GetFilterTypeName(v interface{}) NodeFilterType {
 	t := reflect.TypeOf(v)
 
 	// If it's a pointer, get the element type.
