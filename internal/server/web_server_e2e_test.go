@@ -25,39 +25,42 @@ import (
 	"go.uber.org/zap"
 )
 
-var defaultRoutingConfig = config.RoutingConfig{
-	DetectionWindow: config.NewDuration(10 * time.Minute),
-	BanWindow:       config.NewDuration(100 * time.Millisecond),
-	Errors: &config.ErrorsConfig{
-		Rate: 0.5,
-		HTTPCodes: []string{
-			"5xx",
-			"420",
-		},
-		JSONRPCCodes: []string{
-			"32xxx",
-		},
-		ErrorStrings: []string{
-			"internal server error",
-		},
-	},
-	Latency: &config.LatencyConfig{
-		MethodLatencyThresholds: map[string]time.Duration{
-			"eth_call":    10000 * time.Millisecond,
-			"eth_getLogs": 100 * time.Millisecond,
-		},
-		Threshold: 1000 * time.Millisecond,
-		Methods: []config.MethodConfig{
-			{
-				Name:      "eth_getLogs",
-				Threshold: 100 * time.Millisecond,
+func getRoutingConfig(alwaysRoute bool) *config.RoutingConfig {
+	return &config.RoutingConfig{
+		AlwaysRoute:     &alwaysRoute,
+		DetectionWindow: config.NewDuration(10 * time.Minute),
+		BanWindow:       config.NewDuration(100 * time.Millisecond),
+		Errors: &config.ErrorsConfig{
+			Rate: 0.5,
+			HTTPCodes: []string{
+				"5xx",
+				"420",
 			},
-			{
-				Name:      "eth_call",
-				Threshold: 10000 * time.Millisecond,
+			JSONRPCCodes: []string{
+				"32xxx",
+			},
+			ErrorStrings: []string{
+				"internal server error",
 			},
 		},
-	},
+		Latency: &config.LatencyConfig{
+			MethodLatencyThresholds: map[string]time.Duration{
+				"eth_call":    10000 * time.Millisecond,
+				"eth_getLogs": 100 * time.Millisecond,
+			},
+			Threshold: 1000 * time.Millisecond,
+			Methods: []config.MethodConfig{
+				{
+					Name:      "eth_getLogs",
+					Threshold: 100 * time.Millisecond,
+				},
+				{
+					Name:      "eth_call",
+					Threshold: 10000 * time.Millisecond,
+				},
+			},
+		},
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -109,6 +112,7 @@ func getHandler(
 	errMsg string,
 	errCode int,
 	latency time.Duration,
+	alwaysRoute bool, //nolint:unparam // Test method
 ) (*http.ServeMux, []*httptest.Server) {
 	t.Helper()
 
@@ -148,7 +152,7 @@ func getHandler(
 			ChainName: config.TestChainName,
 			Upstreams: upstreamConfigs,
 			Groups:    nil,
-			Routing:   defaultRoutingConfig,
+			Routing:   *getRoutingConfig(alwaysRoute),
 		}},
 	}
 
@@ -158,7 +162,7 @@ func getHandler(
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorButStaysHealthy(t *testing.T) {
 	methodName := "eth_getLogs" //nolint:goconst // Test method
 	errMsg := "This is a failing fake node!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 12345, 0)
+	handler, upstreams := getHandler(t, methodName, errMsg, 12345, 0, false)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -201,7 +205,8 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 		errMsg,
 		22222,
 		// Add a slight delay to exceed the configured latency threshold.
-		defaultRoutingConfig.Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+		getRoutingConfig(false).Latency.MethodLatencyThresholds[methodName]+10*time.Millisecond,
+		false,
 	)
 
 	defer func() {
@@ -228,7 +233,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 	}
 
 	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
-	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
 
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
@@ -239,7 +244,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "Terrible internal server error occurred!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 54321, 0)
+	handler, upstreams := getHandler(t, methodName, errMsg, 54321, 0, false)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -265,7 +270,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 	}
 
 	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
-	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
 
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
@@ -276,7 +281,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
 	methodName := "eth_getLogs"
 	errMsg := "What an error occurred!"
-	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0)
+	handler, upstreams := getHandler(t, methodName, errMsg, 32010, 0, false)
 
 	defer func() {
 		for _, upstream := range upstreams {
@@ -302,7 +307,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorCode
 	}
 
 	// We now have to wait for the ban window to expire. We add a slight delay to avoid clock skew.
-	time.Sleep(*defaultRoutingConfig.BanWindow + 10*time.Millisecond)
+	time.Sleep(*getRoutingConfig(false).BanWindow + 10*time.Millisecond)
 
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
