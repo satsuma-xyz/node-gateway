@@ -59,14 +59,12 @@ type healthCheckManager struct {
 	newErrorCheck func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
-		client.EthClientGetter,
 		*metrics.Container,
 		*zap.Logger,
 	) types.ErrorLatencyChecker
 	newLatencyCheck func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
-		client.EthClientGetter,
 		*metrics.Container,
 		*zap.Logger,
 	) types.ErrorLatencyChecker
@@ -215,7 +213,6 @@ func (h *healthCheckManager) initializeChecks() {
 				errorCheck = h.newErrorCheck(
 					&config,
 					&h.routingConfig,
-					client.NewEthClient,
 					h.metricsContainer,
 					h.logger,
 				)
@@ -231,7 +228,6 @@ func (h *healthCheckManager) initializeChecks() {
 				latencyCheck = h.newLatencyCheck(
 					&config,
 					&h.routingConfig,
-					client.NewEthClient,
 					h.metricsContainer,
 					h.logger,
 				)
