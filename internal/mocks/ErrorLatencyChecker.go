@@ -67,8 +67,21 @@ func (_c *ErrorLatencyChecker_IsPassing_Call) RunAndReturn(run func([]string) bo
 }
 
 // RecordRequest provides a mock function with given fields: data
-func (_m *ErrorLatencyChecker) RecordRequest(data *types.RequestData) {
-	_m.Called(data)
+func (_m *ErrorLatencyChecker) RecordRequest(data *types.RequestData) bool {
+	ret := _m.Called(data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RecordRequest")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(*types.RequestData) bool); ok {
+		r0 = rf(data)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
 }
 
 // ErrorLatencyChecker_RecordRequest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecordRequest'
@@ -89,12 +102,12 @@ func (_c *ErrorLatencyChecker_RecordRequest_Call) Run(run func(data *types.Reque
 	return _c
 }
 
-func (_c *ErrorLatencyChecker_RecordRequest_Call) Return() *ErrorLatencyChecker_RecordRequest_Call {
-	_c.Call.Return()
+func (_c *ErrorLatencyChecker_RecordRequest_Call) Return(_a0 bool) *ErrorLatencyChecker_RecordRequest_Call {
+	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *ErrorLatencyChecker_RecordRequest_Call) RunAndReturn(run func(*types.RequestData)) *ErrorLatencyChecker_RecordRequest_Call {
+func (_c *ErrorLatencyChecker_RecordRequest_Call) RunAndReturn(run func(*types.RequestData) bool) *ErrorLatencyChecker_RecordRequest_Call {
 	_c.Call.Return(run)
 	return _c
 }

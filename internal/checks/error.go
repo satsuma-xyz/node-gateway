@@ -174,10 +174,14 @@ func (c *ErrorCheck) IsPassing([]string) bool {
 	return true
 }
 
-func (c *ErrorCheck) RecordRequest(data *types.RequestData) {
+// RecordRequest records the request data for error checking. It returns true if we recorded an error.
+// Note that a request may have an error which we do not record, in which case this method returns false.
+func (c *ErrorCheck) RecordRequest(data *types.RequestData) bool {
 	if !c.isCheckEnabled {
-		return
+		return false
 	}
+
+	isError := false
 
 	errorString := ""
 	if data.Error != nil {
@@ -192,6 +196,8 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) {
 			"",
 			errorString,
 		))
+
+		isError = true
 	} else { // data.ResponseBody != nil
 		for _, resp := range data.ResponseBody.GetSubResponses() {
 			if resp.Error != nil {
@@ -203,6 +209,8 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) {
 						metrics.HTTPRequest,
 						data.Method,
 					).Inc()
+
+					isError = true
 
 					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
 					c.errorCircuitBreaker.RecordResponse(true) // JSON RPC subrequest error
@@ -218,4 +226,6 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) {
 		c.upstreamConfig.HTTPURL,
 		data.Method,
 	).Set(float64(data.Latency.Milliseconds()))
+
+	return isError
 }
