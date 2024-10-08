@@ -22,4 +22,4 @@ build/
 .idea
 
 # Temporary files
-/__pycache__/
+__pycache__/
