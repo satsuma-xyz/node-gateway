@@ -24,7 +24,6 @@ type BlockHeightCheck struct {
 	logger              *zap.Logger
 	blockHeight         uint64
 	useWSForBlockHeight bool
-	ShouldRun           bool // TODO(polsar): Add config parameter to control whether this check should run.
 }
 
 type BlockHeightObserver interface {
@@ -90,10 +89,6 @@ func (c *BlockHeightCheck) initializeHTTP() {
 }
 
 func (c *BlockHeightCheck) RunCheck() {
-	if !c.ShouldRun {
-		return
-	}
-
 	if !c.useWSForBlockHeight || (c.useWSForBlockHeight && c.webSocketError != nil) {
 		if c.httpClient == nil {
 			c.initializeHTTP()
@@ -136,7 +131,7 @@ func (c *BlockHeightCheck) runCheckHTTP() {
 }
 
 func (c *BlockHeightCheck) IsPassing(maxBlockHeight uint64) bool {
-	if c.ShouldRun && (c.blockHeightError != nil || c.blockHeight < maxBlockHeight) {
+	if c.blockHeightError != nil || c.blockHeight < maxBlockHeight {
 		c.logger.Debug("BlockHeightCheck is not passing.", zap.String("upstreamID", c.upstreamConfig.ID), zap.Any("blockHeight", c.blockHeight), zap.Error(c.blockHeightError))
 
 		return false
