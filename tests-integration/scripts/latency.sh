@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source test-scripts/common.sh
+source scripts/common.sh
 
 # This will cause both primary upstreams (ports 3333 & 4444) to be marked as unhealthy
 # due to high latency rate. We need at least 3 failed requests to each upstream

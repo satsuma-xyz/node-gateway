@@ -1,25 +1,53 @@
+## Setup
+
+All commands must be run from this directory, except RPC gateway, which must be run from the repository root.
+
+After running a test, `git diff` shows the difference between the expected output and the actual output.
+If the diff is empty, the test passed.
+
 ```zsh
+cd tests-integration
+
 # Start test servers.
-# TODO(polsar): Ports are not immediately available after stopping servers.
+# WARNING: Ports are not immediately available after stopping servers via Ctrl+C.
+#  Wait a minute or so before starting them again.
 ./start_servers.sh
+```
 
-# Start node gateway with routing control DISABLED.
-LOG_LEVEL=debug go run cmd/gateway/main.go config-disabled.yml
+**You must restart the gateway after each test run to clear the state!**
 
-# Start node gateway with routing control ENABLED.
-LOG_LEVEL=debug go run cmd/gateway/main.go config.yml
+## Testing With Routing Control Disabled
 
-# Start node gateway with routing control ENABLED and with `alwaysRoute` option.
-LOG_LEVEL=debug go run cmd/gateway/main.go config-always-route.yml
+```zsh
+LOG_LEVEL=debug go run cmd/gateway/main.go tests-integration/configs/config-disabled.yml
 
-# Run tests. Git should show no diff after running these tests.
-# YOU MUST RESTART THE GATEWAY AFTER EACH TEST RUN TO CLEAR THE STATE!
-# TODO(polsar): Add a test script for error rate routing based on matching JSON RPC codes.
-./test-scripts/test-http-error.sh > test-scripts-output-enabled/test-http-error.txt
-./test-scripts/test-http-error.sh > test-scripts-output-enabled/test-http-error-always-route.txt
+./scripts/http-error.sh > expected-output/routing-disabled/http-error.txt
+./scripts/error-string.sh > expected-output/routing-disabled/error-string.txt
+./scripts/error-string-and-http.sh > expected-output/routing-disabled/error-string-and-http.txt
+./scripts/latency.sh > expected-output/routing-disabled/latency.txt
+./scripts/latency-override.sh > expected-output/routing-disabled/latency-override.txt
+````
 
-./test-scripts/test-error-string.sh
-./test-scripts/test-error-string-and-http.sh
-./test-scripts/test-latency.sh
-./test-scripts/test-latency-override.sh
+## Testing With Routing Control Enabled
+
+```zsh
+LOG_LEVEL=debug go run cmd/gateway/main.go tests-integration/configs/config.yml
+
+./scripts/http-error.sh > expected-output/routing-enabled/http-error.txt
+./scripts/error-string.sh > expected-output/routing-enabled/error-string.txt
+./scripts/error-string-and-http.sh > expected-output/routing-enabled/error-string-and-http.txt
+./scripts/latency.sh > expected-output/routing-enabled/latency.txt
+./scripts/latency-override.sh > expected-output/routing-enabled/latency-override.txt
+```
+
+## Testing With Routing Control Enabled and `alwaysRoute` Option
+
+```zsh
+LOG_LEVEL=debug go run cmd/gateway/main.go tests-integration/configs/config-always-route.yml
+
+./scripts/http-error.sh > expected-output/routing-enabled-always-route/http-error.txt
+./scripts/error-string.sh > expected-output/routing-enabled-always-route/error-string.txt
+./scripts/error-string-and-http.sh > expected-output/routing-enabled-always-route/error-string-and-http.txt
+./scripts/latency.sh > expected-output/routing-enabled-always-route/latency.txt
+./scripts/latency-override.sh > expected-output/routing-enabled-always-route/latency-override.txt
 ```
