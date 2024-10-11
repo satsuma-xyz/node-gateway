@@ -10,7 +10,7 @@ import (
 
 const (
 	PercentPerFrac        = 100
-	MinNumRequestsForRate = 4 // The minimum number of requests required to compute the error rate.
+	MinNumRequestsForRate = 3 // The minimum number of requests required to compute the error rate.
 )
 
 // NewCircuitBreaker abstracts away the rather complex circuitbreaker.Builder API.
