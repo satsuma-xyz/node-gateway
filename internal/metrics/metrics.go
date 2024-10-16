@@ -249,27 +249,6 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "method"},
 	)
 
-	errorLatencyStatusCheckRequests = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "healthcheck",
-			Name:      "latency_check_requests",
-			Help:      "Total latency check requests made.",
-		},
-		[]string{"chain_name", "upstream_id", "url", "method"},
-	)
-
-	errorLatencyStatusCheckDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "healthcheck",
-			Name:      "latency_check_duration_seconds",
-			Help:      "Latency of latency check requests.",
-			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40},
-		},
-		[]string{"chain_name", "upstream_id", "url", "method"},
-	)
-
 	errorLatencyStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
@@ -363,8 +342,6 @@ func NewContainer(chainName string) *Container {
 	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
 
 	result.ErrorLatency = errorLatencyStatus.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckRequests = errorLatencyStatusCheckRequests.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckDuration = errorLatencyStatusCheckDuration.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckErrors = errorLatencyStatusCheckErrors.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckHighLatencies = errorLatencyStatusHighLatencies.MustCurryWith(presetLabels)
 
