@@ -215,6 +215,13 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) bool {
 					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
 					c.errorCircuitBreaker.RecordResponse(true) // JSON RPC subrequest error
 				} else {
+					c.metricsContainer.ErrorLatencyCheckNoErrors.WithLabelValues(
+						c.upstreamConfig.ID,
+						c.upstreamConfig.HTTPURL,
+						metrics.HTTPRequest,
+						data.Method,
+					).Inc()
+
 					c.errorCircuitBreaker.RecordResponse(false) // JSON RPC subrequest OK
 				}
 			}

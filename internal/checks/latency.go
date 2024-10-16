@@ -170,6 +170,13 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) bool {
 			).Inc()
 
 			isHighLatency = true
+		} else {
+			c.metricsContainer.ErrorLatencyCheckOkLatencies.WithLabelValues(
+				c.upstreamConfig.ID,
+				c.upstreamConfig.HTTPURL,
+				metrics.HTTPRequest,
+				data.Method,
+			).Inc()
 		}
 	}
 

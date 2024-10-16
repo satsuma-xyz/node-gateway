@@ -259,12 +259,32 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
+	errorLatencyStatusCheckNoErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_no_errors",
+			Help:      "No errors of upstream requests.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
+	)
+
 	errorLatencyStatusHighLatencies = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_high_latency",
 			Help:      "Latency of upstream too high.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
+	)
+
+	errorLatencyStatusOkLatencies = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_ok_latency",
+			Help:      "Latency of upstream OK.",
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
@@ -305,9 +325,9 @@ type Container struct {
 	SyncStatusCheckErrors   *prometheus.CounterVec
 
 	ErrorLatency                   *prometheus.GaugeVec
-	ErrorLatencyCheckRequests      *prometheus.CounterVec
-	ErrorLatencyCheckDuration      prometheus.ObserverVec
+	ErrorLatencyCheckNoErrors      *prometheus.CounterVec
 	ErrorLatencyCheckErrors        *prometheus.CounterVec
+	ErrorLatencyCheckOkLatencies   *prometheus.CounterVec
 	ErrorLatencyCheckHighLatencies *prometheus.CounterVec
 }
 
@@ -343,7 +363,9 @@ func NewContainer(chainName string) *Container {
 
 	result.ErrorLatency = errorLatencyStatus.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckErrors = errorLatencyStatusCheckErrors.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckNoErrors = errorLatencyStatusCheckNoErrors.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckHighLatencies = errorLatencyStatusHighLatencies.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckOkLatencies = errorLatencyStatusOkLatencies.MustCurryWith(presetLabels)
 
 	return result
 }
