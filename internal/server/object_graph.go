@@ -72,8 +72,14 @@ func wireSingleChainDependencies(
 
 	var routingStrategy route.RoutingStrategy
 
-	errorFilter := route.IsErrorRateAcceptable{HealthCheckManager: healthCheckManager}
-	latencyFilter := route.IsLatencyAcceptable{HealthCheckManager: healthCheckManager}
+	errorFilter := route.IsErrorRateAcceptable{
+		HealthCheckManager: healthCheckManager,
+		MetricsContainer:   metricContainer,
+	}
+	latencyFilter := route.IsLatencyAcceptable{
+		HealthCheckManager: healthCheckManager,
+		MetricsContainer:   metricContainer,
+	}
 
 	// These should be ordered from most important to least important.
 	nodeFilters := []route.NodeFilter{

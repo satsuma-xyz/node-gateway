@@ -21,11 +21,11 @@ const (
 
 	// Metric labels
 
-	// General health check error types
+	// HTTPInit General health check error types
 	HTTPInit    = "httpInit"
 	HTTPRequest = "httpReq"
 
-	// BlockHeightCheck-specific errors
+	// WSSubscribe BlockHeightCheck-specific errors
 	WSSubscribe = "wsSubscribe"
 	WSError     = "wsError"
 )
@@ -239,6 +239,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
+	// Enhanced routing control metrics
 	errorLatencyStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
@@ -253,8 +254,8 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "latency_check_errors",
-			Help:      "Errors of upstream requests.",
+			Name:      "error_check_has_errors",
+			Help:      "Number of errors of upstream requests.",
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
@@ -263,10 +264,30 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
-			Name:      "latency_check_no_errors",
-			Help:      "No errors of upstream requests.",
+			Name:      "error_check_no_errors",
+			Help:      "Number of no errors of upstream requests.",
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
+	)
+
+	errorLatencyStatusCheckErrorsIsPassing = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "error_check_is_passing",
+			Help:      "Number of passing error checks.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
+	)
+
+	errorLatencyStatusCheckErrorsIsFailing = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "error_check_is_failing",
+			Help:      "Number of failing error checks.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
 	errorLatencyStatusHighLatencies = promauto.NewCounterVec(
@@ -285,6 +306,26 @@ var (
 			Subsystem: "healthcheck",
 			Name:      "latency_check_ok_latency",
 			Help:      "Latency of upstream OK.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
+	)
+
+	errorLatencyStatusCheckLatencyIsPassing = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_is_passing",
+			Help:      "Number of passing latency checks.",
+		},
+		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
+	)
+
+	errorLatencyStatusCheckLatencyIsFailing = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: "healthcheck",
+			Name:      "latency_check_is_failing",
+			Help:      "Number of failing latency checks.",
 		},
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
@@ -324,11 +365,16 @@ type Container struct {
 	SyncStatusCheckDuration prometheus.ObserverVec
 	SyncStatusCheckErrors   *prometheus.CounterVec
 
-	ErrorLatency                   *prometheus.GaugeVec
-	ErrorLatencyCheckNoErrors      *prometheus.CounterVec
-	ErrorLatencyCheckErrors        *prometheus.CounterVec
-	ErrorLatencyCheckOkLatencies   *prometheus.CounterVec
-	ErrorLatencyCheckHighLatencies *prometheus.CounterVec
+	// Enhanced routing control metrics
+	ErrorLatency                      *prometheus.GaugeVec
+	ErrorLatencyCheckNoErrors         *prometheus.CounterVec
+	ErrorLatencyCheckErrors           *prometheus.CounterVec
+	ErrorLatencyCheckErrorsIsPassing  *prometheus.CounterVec
+	ErrorLatencyCheckErrorsIsFailing  *prometheus.CounterVec
+	ErrorLatencyCheckOkLatencies      *prometheus.CounterVec
+	ErrorLatencyCheckHighLatencies    *prometheus.CounterVec
+	ErrorLatencyCheckLatencyIsPassing *prometheus.CounterVec
+	ErrorLatencyCheckLatencyIsFailing *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -364,8 +410,12 @@ func NewContainer(chainName string) *Container {
 	result.ErrorLatency = errorLatencyStatus.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckErrors = errorLatencyStatusCheckErrors.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckNoErrors = errorLatencyStatusCheckNoErrors.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckErrorsIsPassing = errorLatencyStatusCheckErrorsIsPassing.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckErrorsIsFailing = errorLatencyStatusCheckErrorsIsFailing.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckHighLatencies = errorLatencyStatusHighLatencies.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckOkLatencies = errorLatencyStatusOkLatencies.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckLatencyIsPassing = errorLatencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
+	result.ErrorLatencyCheckLatencyIsFailing = errorLatencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
 
 	return result
 }
