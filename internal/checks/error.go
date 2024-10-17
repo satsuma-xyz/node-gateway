@@ -203,7 +203,7 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) bool {
 			if resp.Error != nil {
 				// Do not ignore this response even if it does not correspond to an RPC request.
 				if c.isError("", strconv.Itoa(resp.Error.Code), resp.Error.Message) {
-					c.metricsContainer.ErrorLatencyCheckErrors.WithLabelValues(
+					c.metricsContainer.ErrorCheckErrors.WithLabelValues(
 						c.upstreamConfig.ID,
 						c.upstreamConfig.HTTPURL,
 						metrics.HTTPRequest,
@@ -215,17 +215,29 @@ func (c *ErrorCheck) RecordRequest(data *types.RequestData) bool {
 					// Even though this is a single HTTP request, we count each RPC JSON subresponse error.
 					c.errorCircuitBreaker.RecordResponse(true) // JSON RPC subrequest error
 				} else {
+					// We have an error, but it is not one we are interested in.
+					c.metricsContainer.ErrorCheckNoErrors.WithLabelValues(
+						c.upstreamConfig.ID,
+						c.upstreamConfig.HTTPURL,
+						metrics.HTTPRequest,
+						data.Method,
+					).Inc()
+
 					c.errorCircuitBreaker.RecordResponse(false) // JSON RPC subrequest OK
 				}
+			} else {
+				// We don't have an error.
+				c.metricsContainer.ErrorCheckNoErrors.WithLabelValues(
+					c.upstreamConfig.ID,
+					c.upstreamConfig.HTTPURL,
+					metrics.HTTPRequest,
+					data.Method,
+				).Inc()
+
+				c.errorCircuitBreaker.RecordResponse(false) // JSON RPC subrequest OK
 			}
 		}
 	}
-
-	c.metricsContainer.ErrorLatency.WithLabelValues(
-		c.upstreamConfig.ID,
-		c.upstreamConfig.HTTPURL,
-		data.Method,
-	).Set(float64(data.Latency.Milliseconds()))
 
 	return isError
 }

@@ -162,7 +162,7 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) bool {
 		latencyCircuitBreaker.RecordLatency(data.Latency)
 
 		if data.Latency >= latencyCircuitBreaker.GetThreshold() {
-			c.metricsContainer.ErrorLatencyCheckHighLatencies.WithLabelValues(
+			c.metricsContainer.LatencyCheckHighLatencies.WithLabelValues(
 				c.upstreamConfig.ID,
 				c.upstreamConfig.HTTPURL,
 				metrics.HTTPRequest,
@@ -170,14 +170,15 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) bool {
 			).Inc()
 
 			isHighLatency = true
+		} else {
+			c.metricsContainer.LatencyCheckOkLatencies.WithLabelValues(
+				c.upstreamConfig.ID,
+				c.upstreamConfig.HTTPURL,
+				metrics.HTTPRequest,
+				data.Method,
+			).Inc()
 		}
 	}
-
-	c.metricsContainer.ErrorLatency.WithLabelValues(
-		c.upstreamConfig.ID,
-		c.upstreamConfig.HTTPURL,
-		data.Method,
-	).Set(float64(data.Latency.Milliseconds()))
 
 	return isHighLatency
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/metadata"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -124,20 +125,68 @@ func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config
 
 type IsErrorRateAcceptable struct {
 	HealthCheckManager checks.HealthCheckManager
+	MetricsContainer   *metrics.Container
 }
 
 func (f *IsErrorRateAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	return upstreamStatus.ErrorCheck.IsPassing(requestMetadata.Methods)
+	isPassing := upstreamStatus.ErrorCheck.IsPassing(requestMetadata.Methods)
+
+	if isPassing {
+		f.MetricsContainer.ErrorCheckErrorsIsPassing.WithLabelValues(
+			upstreamConfig.ID,
+			upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+		).Inc()
+	} else {
+		f.MetricsContainer.ErrorCheckErrorsIsFailing.WithLabelValues(
+			upstreamConfig.ID,
+			upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+		).Inc()
+	}
+
+	return isPassing
 }
 
 type IsLatencyAcceptable struct {
 	HealthCheckManager checks.HealthCheckManager
+	MetricsContainer   *metrics.Container
 }
 
 func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
 	upstreamStatus := f.HealthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-	return upstreamStatus.LatencyCheck.IsPassing(requestMetadata.Methods)
+	isPassing := upstreamStatus.LatencyCheck.IsPassing(requestMetadata.Methods)
+
+	var method string
+
+	// We can only meaningfully record latency metric for a method if exactly one method is being called.
+	switch {
+	case len(requestMetadata.Methods) == 0:
+		method = "unknown"
+	case len(requestMetadata.Methods) > 1:
+		method = "multiple"
+	default:
+		method = requestMetadata.Methods[0]
+	}
+
+	if isPassing {
+		f.MetricsContainer.LatencyCheckLatencyIsPassing.WithLabelValues(
+			upstreamConfig.ID,
+			upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+			method,
+		).Inc()
+	} else {
+		f.MetricsContainer.LatencyCheckLatencyIsFailing.WithLabelValues(
+			upstreamConfig.ID,
+			upstreamConfig.HTTPURL,
+			metrics.HTTPRequest,
+			method,
+		).Inc()
+	}
+
+	return isPassing
 }
 
 type IsCloseToGlobalMaxHeight struct {
