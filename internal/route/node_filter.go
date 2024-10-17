@@ -133,13 +133,13 @@ func (f *IsErrorRateAcceptable) Apply(requestMetadata metadata.RequestMetadata, 
 	isPassing := upstreamStatus.ErrorCheck.IsPassing(requestMetadata.Methods)
 
 	if isPassing {
-		f.MetricsContainer.ErrorLatencyCheckErrorsIsPassing.WithLabelValues(
+		f.MetricsContainer.ErrorCheckErrorsIsPassing.WithLabelValues(
 			upstreamConfig.ID,
 			upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
 		).Inc()
 	} else {
-		f.MetricsContainer.ErrorLatencyCheckErrorsIsFailing.WithLabelValues(
+		f.MetricsContainer.ErrorCheckErrorsIsFailing.WithLabelValues(
 			upstreamConfig.ID,
 			upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
@@ -171,14 +171,14 @@ func (f *IsLatencyAcceptable) Apply(requestMetadata metadata.RequestMetadata, up
 	}
 
 	if isPassing {
-		f.MetricsContainer.ErrorLatencyCheckLatencyIsPassing.WithLabelValues(
+		f.MetricsContainer.LatencyCheckLatencyIsPassing.WithLabelValues(
 			upstreamConfig.ID,
 			upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,
 			method,
 		).Inc()
 	} else {
-		f.MetricsContainer.ErrorLatencyCheckLatencyIsFailing.WithLabelValues(
+		f.MetricsContainer.LatencyCheckLatencyIsFailing.WithLabelValues(
 			upstreamConfig.ID,
 			upstreamConfig.HTTPURL,
 			metrics.HTTPRequest,

@@ -240,7 +240,7 @@ var (
 	)
 
 	// Enhanced routing control metrics
-	errorLatencyStatusCheckErrors = promauto.NewCounterVec(
+	errorStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -250,7 +250,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	errorLatencyStatusCheckNoErrors = promauto.NewCounterVec(
+	errorStatusCheckNoErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -260,7 +260,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	errorLatencyStatusCheckErrorsIsPassing = promauto.NewCounterVec(
+	errorStatusCheckErrorsIsPassing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -270,7 +270,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
-	errorLatencyStatusCheckErrorsIsFailing = promauto.NewCounterVec(
+	errorStatusCheckErrorsIsFailing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -280,7 +280,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType"},
 	)
 
-	errorLatencyStatusHighLatencies = promauto.NewCounterVec(
+	latencyStatusHighLatencies = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -290,7 +290,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	errorLatencyStatusOkLatencies = promauto.NewCounterVec(
+	latencyStatusOkLatencies = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -300,7 +300,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	errorLatencyStatusCheckLatencyIsPassing = promauto.NewCounterVec(
+	latencyStatusCheckLatencyIsPassing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -310,7 +310,7 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	errorLatencyStatusCheckLatencyIsFailing = promauto.NewCounterVec(
+	latencyStatusCheckLatencyIsFailing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: "healthcheck",
@@ -356,14 +356,14 @@ type Container struct {
 	SyncStatusCheckErrors   *prometheus.CounterVec
 
 	// Enhanced routing control metrics
-	ErrorLatencyCheckNoErrors         *prometheus.CounterVec
-	ErrorLatencyCheckErrors           *prometheus.CounterVec
-	ErrorLatencyCheckErrorsIsPassing  *prometheus.CounterVec
-	ErrorLatencyCheckErrorsIsFailing  *prometheus.CounterVec
-	ErrorLatencyCheckOkLatencies      *prometheus.CounterVec
-	ErrorLatencyCheckHighLatencies    *prometheus.CounterVec
-	ErrorLatencyCheckLatencyIsPassing *prometheus.CounterVec
-	ErrorLatencyCheckLatencyIsFailing *prometheus.CounterVec
+	ErrorCheckNoErrors           *prometheus.CounterVec
+	ErrorCheckErrors             *prometheus.CounterVec
+	ErrorCheckErrorsIsPassing    *prometheus.CounterVec
+	ErrorCheckErrorsIsFailing    *prometheus.CounterVec
+	LatencyCheckOkLatencies      *prometheus.CounterVec
+	LatencyCheckHighLatencies    *prometheus.CounterVec
+	LatencyCheckLatencyIsPassing *prometheus.CounterVec
+	LatencyCheckLatencyIsFailing *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -396,14 +396,14 @@ func NewContainer(chainName string) *Container {
 	result.SyncStatusCheckDuration = syncStatusCheckDuration.MustCurryWith(presetLabels)
 	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
 
-	result.ErrorLatencyCheckErrors = errorLatencyStatusCheckErrors.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckNoErrors = errorLatencyStatusCheckNoErrors.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckErrorsIsPassing = errorLatencyStatusCheckErrorsIsPassing.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckErrorsIsFailing = errorLatencyStatusCheckErrorsIsFailing.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckHighLatencies = errorLatencyStatusHighLatencies.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckOkLatencies = errorLatencyStatusOkLatencies.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckLatencyIsPassing = errorLatencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
-	result.ErrorLatencyCheckLatencyIsFailing = errorLatencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
+	result.ErrorCheckErrors = errorStatusCheckErrors.MustCurryWith(presetLabels)
+	result.ErrorCheckNoErrors = errorStatusCheckNoErrors.MustCurryWith(presetLabels)
+	result.ErrorCheckErrorsIsPassing = errorStatusCheckErrorsIsPassing.MustCurryWith(presetLabels)
+	result.ErrorCheckErrorsIsFailing = errorStatusCheckErrorsIsFailing.MustCurryWith(presetLabels)
+	result.LatencyCheckHighLatencies = latencyStatusHighLatencies.MustCurryWith(presetLabels)
+	result.LatencyCheckOkLatencies = latencyStatusOkLatencies.MustCurryWith(presetLabels)
+	result.LatencyCheckLatencyIsPassing = latencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
+	result.LatencyCheckLatencyIsFailing = latencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
 
 	return result
 }
