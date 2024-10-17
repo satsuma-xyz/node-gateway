@@ -240,16 +240,6 @@ var (
 	)
 
 	// Enhanced routing control metrics
-	errorLatencyStatus = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: metricsNamespace,
-			Subsystem: "healthcheck",
-			Name:      "latency",
-			Help:      "Latency of upstream.",
-		},
-		[]string{"chain_name", "upstream_id", "url", "method"},
-	)
-
 	errorLatencyStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
@@ -366,7 +356,6 @@ type Container struct {
 	SyncStatusCheckErrors   *prometheus.CounterVec
 
 	// Enhanced routing control metrics
-	ErrorLatency                      *prometheus.GaugeVec
 	ErrorLatencyCheckNoErrors         *prometheus.CounterVec
 	ErrorLatencyCheckErrors           *prometheus.CounterVec
 	ErrorLatencyCheckErrorsIsPassing  *prometheus.CounterVec
@@ -407,7 +396,6 @@ func NewContainer(chainName string) *Container {
 	result.SyncStatusCheckDuration = syncStatusCheckDuration.MustCurryWith(presetLabels)
 	result.SyncStatusCheckErrors = syncStatusCheckErrors.MustCurryWith(presetLabels)
 
-	result.ErrorLatency = errorLatencyStatus.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckErrors = errorLatencyStatusCheckErrors.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckNoErrors = errorLatencyStatusCheckNoErrors.MustCurryWith(presetLabels)
 	result.ErrorLatencyCheckErrorsIsPassing = errorLatencyStatusCheckErrorsIsPassing.MustCurryWith(presetLabels)

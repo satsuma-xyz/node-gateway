@@ -180,11 +180,5 @@ func (c *LatencyCheck) RecordRequest(data *types.RequestData) bool {
 		}
 	}
 
-	c.metricsContainer.ErrorLatency.WithLabelValues(
-		c.upstreamConfig.ID,
-		c.upstreamConfig.HTTPURL,
-		data.Method,
-	).Set(float64(data.Latency.Milliseconds()))
-
 	return isHighLatency
 }
