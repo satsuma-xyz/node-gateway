@@ -1,8 +1,11 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"reflect"
 	"time"
 
 	"github.com/go-redis/cache/v9"
@@ -76,4 +79,58 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	}
 
 	return result, cached, nil
+}
+
+func (c *RPCCache) HandleRequestParallel(
+	chainName string,
+	ttl time.Duration,
+	reqBody jsonrpc.SingleRequestBody,
+	originFunc func() (*jsonrpc.SingleResponseBody, error),
+) (json.RawMessage, bool, error) {
+	var (
+		cached = true
+		result json.RawMessage
+	)
+
+	ctx := context.Background()
+
+	key := c.CreateRequestKey(chainName, reqBody)
+	err := c.Get(ctx, key, &result) // Attempt to fetch from cache
+	if err == nil {
+		return result, cached, nil // Return if cache hit
+	}
+
+	// Cache miss, proceed with the request to origin
+	cached = false
+	respBody, err := originFunc()
+	if err != nil {
+		return nil, cached, err
+	}
+
+	result = respBody.Result
+
+	// Perform cache set asynchronously
+	go func() {
+		existingResult := json.RawMessage{}
+		if err := c.Get(ctx, key, &existingResult); err == nil {
+			if !jsonEqual(existingResult, result) {
+				log.Printf("Cache inconsistency detected for key %s", key)
+			}
+			return // Do not overwrite existing key
+		}
+		err = c.Set(&cache.Item{Key: c.CreateRequestKey(chainName, reqBody), Value: &result, TTL: ttl})
+		if err != nil {
+			log.Println("error setting cache", err)
+		}
+	}()
+
+	return result, cached, nil
+}
+
+// jsonEqual checks if two JSON values are equal
+func jsonEqual(a, b json.RawMessage) bool {
+	var j1, j2 interface{}
+	_ = json.Unmarshal(a, &j1)
+	_ = json.Unmarshal(b, &j2)
+	return reflect.DeepEqual(j1, j2)
 }
