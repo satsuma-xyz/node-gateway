@@ -139,7 +139,7 @@ func WireDependenciesForAllChains(
 	gatewayConfig config.Config, //nolint:gocritic // Legacy
 	rootLogger *zap.Logger,
 ) ObjectGraph {
-	rpcCache := cache.NewRPCCache(gatewayConfig.Global.Cache.Redis)
+	rpcCache := cache.NewRPCCache(gatewayConfig.Global.Cache.Redis, metrics.NewContainer("all-chains"))
 
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))

@@ -364,6 +364,11 @@ type Container struct {
 	LatencyCheckHighLatencies    *prometheus.CounterVec
 	LatencyCheckLatencyIsPassing *prometheus.CounterVec
 	LatencyCheckLatencyIsFailing *prometheus.CounterVec
+
+	// RPC request metrics
+	CacheMiss                   *prometheus.CounterVec
+	CacheQueryCacheMissDuration prometheus.ObserverVec
+	CacheRequestsInFlight       *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {

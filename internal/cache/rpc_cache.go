@@ -18,7 +18,7 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-func NewRPCCache(url string) *RPCCache {
+func NewRPCCache(url string, metricsContainer *metrics.Container) *RPCCache {
 	if url == "" {
 		return nil
 	}
@@ -33,15 +33,25 @@ func NewRPCCache(url string) *RPCCache {
 		zap.L().Error("failed to register redis cache collector", zap.Error(err))
 	}
 
+	return FromClient(rdb, metricsContainer)
+}
+
+func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
-		cache.New(&cache.Options{
+		cache: cache.New(&cache.Options{
 			Redis: rdb,
 		}),
+		metricsContainer: metricsContainer,
 	}
 }
 
 type RPCCache struct {
-	*cache.Cache
+	cache            *cache.Cache
+	metricsContainer *metrics.Container
+}
+
+func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
+	return c.cache.Marshal(value)
 }
 
 func (c *RPCCache) ShouldCacheMethod(method string) bool {
@@ -59,6 +69,12 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		result json.RawMessage
 	)
 
+	// Counts requests in flight. If it's spiking that means that a lot of requests are for the same key.
+	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
+	c.metricsContainer.CacheRequestsInFlight.With(prometheus.Labels{"request": reqBody.Method}).Inc()
+
+	start := time.Now()
+
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
 	// Do() is executed on cache misses or if the cache is down.
@@ -66,17 +82,20 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// Once() uses request coalescing (single in-flight request to origin even if there are
 	// multiple identical incoming requests), which means returned errors
 	// could be coming from other goroutines.
-	err := c.Once(&cache.Item{
+	err := c.cache.Once(&cache.Item{
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
 			cached = false
 
+			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
+			c.metricsContainer.CacheQueryCacheMissDuration.With(prometheus.Labels{"request": reqBody.Method}).Observe(time.Since(start).Seconds())
 			respBody, err := originFunc()
 			if err != nil {
 				return nil, err
 			}
+			c.metricsContainer.CacheMiss.With(prometheus.Labels{"request": reqBody.Method}).Inc()
 			return &respBody.Result, nil
 		},
 	})
