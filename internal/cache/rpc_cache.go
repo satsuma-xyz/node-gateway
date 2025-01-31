@@ -69,9 +69,11 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		result json.RawMessage
 	)
 
+	labels := prometheus.Labels{"request": reqBody.Method, "chain": chainName}
+
 	// Counts requests in flight. If it's spiking that means that a lot of requests are for the same key.
 	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
-	c.metricsContainer.CacheRequestsInFlight.With(prometheus.Labels{"request": reqBody.Method}).Inc()
+	c.metricsContainer.CacheRequestsInFlight.With(labels).Inc()
 
 	start := time.Now()
 
@@ -90,18 +92,21 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 			cached = false
 
 			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
-			c.metricsContainer.CacheQueryCacheMissDuration.With(prometheus.Labels{"request": reqBody.Method}).Observe(time.Since(start).Seconds())
+			c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(time.Since(start).Seconds())
 			respBody, err := originFunc()
 			if err != nil {
 				return nil, err
 			}
-			c.metricsContainer.CacheMiss.With(prometheus.Labels{"request": reqBody.Method}).Inc()
+			c.metricsContainer.CacheMiss.With(labels).Inc()
 			return &respBody.Result, nil
 		},
 	})
 
 	if err != nil {
 		return nil, cached, err
+	}
+	if !cached {
+		c.metricsContainer.CacheWriteDuration.With(labels).Observe(float64(time.Since(start)))
 	}
 
 	return result, cached, nil

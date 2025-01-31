@@ -368,6 +368,7 @@ type Container struct {
 	// RPC request metrics
 	CacheMiss                   *prometheus.CounterVec
 	CacheQueryCacheMissDuration prometheus.ObserverVec
+	CacheWriteDuration          prometheus.ObserverVec
 	CacheRequestsInFlight       *prometheus.CounterVec
 }
 
