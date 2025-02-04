@@ -76,6 +76,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	c.metricsContainer.CacheRequestsInFlight.With(labels).Inc()
 
 	start := time.Now()
+	var cacheLookupDuration, originDuration time.Duration
 
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
