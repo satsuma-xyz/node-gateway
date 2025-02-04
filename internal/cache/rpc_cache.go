@@ -69,14 +69,15 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		result json.RawMessage
 	)
 
-	labels := prometheus.Labels{"request": reqBody.Method, "chain": chainName}
+	labels := prometheus.Labels{"request": reqBody.Method, "chain_name": chainName}
 
 	// Counts requests in flight. If it's spiking that means that a lot of requests are for the same key.
 	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
 	c.metricsContainer.CacheRequestsInFlight.With(labels).Inc()
 
 	start := time.Now()
-	var cacheLookupDuration, originDuration time.Duration
+
+	var cacheMissDuration, originDuration time.Duration
 
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
@@ -93,15 +94,15 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 			cached = false
 
 			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
-			cacheLookupDuration = time.Since(start)
-         		c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(cacheLookupDuration.Seconds())
-        	        originStart := time.Now()
+			cacheMissDuration = time.Since(start) // Time spent on cache lookup
+			c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(cacheMissDuration.Seconds())
+			
+			originStart := time.Now()
 			respBody, err := originFunc()
-			originDuration = time.Since(originStart)
+			originDuration = time.Since(originStart) // Time spent on origin function
 			if err != nil {
 				return nil, err
 			}
-			c.metricsContainer.CacheMiss.With(labels).Inc()
 			return &respBody.Result, nil
 		},
 	})
@@ -110,8 +111,11 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		return nil, cached, err
 	}
 
-	if !cached {
-		writeDuration := time.Since(start) - cacheLookupDuration - originDuration
+	if cached {
+		cacheHitDuration := time.Since(start) // Time spent on cache lookup
+		c.metricsContainer.CacheQueryCacheHitDuration.With(labels).Observe(cacheHitDuration.Seconds())
+	} else {
+		writeDuration := time.Since(start) - cacheMissDuration - originDuration
 		c.metricsContainer.CacheWriteDuration.With(labels).Observe(writeDuration.Seconds())
 	}
 
