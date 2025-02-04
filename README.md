@@ -136,6 +136,11 @@ go test -v -coverprofile=cover.out ./... && go tool cover -html=cover.out
 
 This project relies on [golangci-lint](https://github.com/golangci/golangci-lint) for linting. You can set up an [integration with your code editor](https://golangci-lint.run/usage/integrations/) to run lint checks locally.
 
+To run in CLI:
+```
+golangci-lint run
+```
+
 #### Commit messages
 
 All commit messages should follow the [conventional commit format](https://conventionalcommits.org).
