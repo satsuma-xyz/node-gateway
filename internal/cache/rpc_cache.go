@@ -13,8 +13,6 @@ import (
 	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
-
-	"go.uber.org/zap"
 )
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
