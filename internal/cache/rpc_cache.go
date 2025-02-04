@@ -71,7 +71,6 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		TTL:   ttl,
 		Do: func(cachedItem *cache.Item) (interface{}, error) {
 			cached = false
-			zap.L().Warn("CACHE MISS.", zap.Any("cacheItem", cachedItem))
 
 			respBody, err := originFunc()
 			if err != nil {
@@ -80,12 +79,6 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 			return &respBody.Result, nil
 		},
 	})
-
-	if cached {
-		zap.L().Warn("CACHE SET.", zap.Any("key", c.CreateRequestKey(chainName, reqBody)))
-	}
-
-	c.Stats()
 
 	if err != nil {
 		return nil, cached, err
