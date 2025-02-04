@@ -106,6 +106,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	if err != nil {
 		return nil, cached, err
 	}
+
 	if !cached {
 		c.metricsContainer.CacheWriteDuration.With(labels).Observe(float64(time.Since(start)))
 	}
