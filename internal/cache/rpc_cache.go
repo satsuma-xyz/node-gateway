@@ -13,6 +13,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"go.uber.org/zap"
 )
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
@@ -28,7 +29,9 @@ func NewRPCCache(url string) *RPCCache {
 	})
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
-	prometheus.MustRegister(collector)
+	if err := prometheus.Register(collector); err != nil {
+		zap.L().Error("failed to register redis cache collector", zap.Error(err))
+	}
 
 	return &RPCCache{
 		cache.New(&cache.Options{
