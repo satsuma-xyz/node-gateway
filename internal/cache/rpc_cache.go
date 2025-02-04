@@ -92,7 +92,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 			cached = false
 
 			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
-			c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(time.Since(start).Seconds())
+			cacheLookupDuration = time.Since(start)
+         		c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(cacheLookupDuration.Seconds())
 			respBody, err := originFunc()
 			if err != nil {
 				return nil, err
