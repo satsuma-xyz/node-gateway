@@ -110,7 +110,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	}
 
 	if !cached {
-		c.metricsContainer.CacheWriteDuration.With(labels).Observe(float64(time.Since(start)))
+		writeDuration := time.Since(start) - cacheLookupDuration - originDuration
+		c.metricsContainer.CacheWriteDuration.With(labels).Observe(writeDuration.Seconds())
 	}
 
 	return result, cached, nil
