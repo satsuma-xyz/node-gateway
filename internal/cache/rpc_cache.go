@@ -69,7 +69,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
-		Do: func(cachedItem *cache.Item) (interface{}, error) {
+		Do: func(*cache.Item) (interface{}, error) {
 			cached = false
 
 			respBody, err := originFunc()
