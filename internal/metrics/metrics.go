@@ -346,7 +346,7 @@ var (
 		prometheus.HistogramOpts{
 			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
-			Name:      "query_cache_write_duration_seconds",
+			Name:      "write_cache_duration_seconds",
 			Help:      "Histogram of cache write latencies.",
 			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
 		},
