@@ -24,7 +24,7 @@ import (
 )
 
 func TestRetrieveOrCacheRequest(t *testing.T) {
-	redisClient, redisClientMock := redismock.NewClientMock()
+	redisClient, redisClientMock := redismock.NewClusterMock()
 	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
@@ -103,7 +103,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
+	redisClient, _ := redismock.NewClusterMock()
 	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 500,
@@ -145,7 +145,7 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
+	redisClient, _ := redismock.NewClusterMock()
 	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
@@ -188,7 +188,7 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
+	redisClient, _ := redismock.NewClusterMock()
 	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
@@ -230,7 +230,7 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 }
 
 func TestUseCache(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
+	redisClient, _ := redismock.NewClusterMock()
 	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
 
 	requestBody := &jsonrpc.SingleRequestBody{

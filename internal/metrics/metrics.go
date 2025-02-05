@@ -322,7 +322,7 @@ var (
 
 	cacheQueryCacheMissDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
 			Name:      "query_cache_miss_duration_seconds",
 			Help:      "Histogram of cache miss query latencies.",
@@ -333,7 +333,7 @@ var (
 
 	cacheQueryCacheHitDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
 			Name:      "query_cache_hit_duration_seconds",
 			Help:      "Histogram of cache hit query latencies.",
@@ -344,7 +344,7 @@ var (
 
 	cacheWriteDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
 			Name:      "query_cache_write_duration_seconds",
 			Help:      "Histogram of cache write latencies.",
@@ -355,7 +355,7 @@ var (
 
 	cacheQueryCacheRequestsInFlight = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
 			Name:      "query_cache_requests_in_flight",
 			Help:      "Number of queries in flight.",

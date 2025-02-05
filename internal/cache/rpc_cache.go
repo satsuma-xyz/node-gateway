@@ -18,7 +18,7 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-func NewRPCCache(url string, metricsContainer *metrics.Container) *RPCCache {
+func CreateRedisClient(url string) *redis.ClusterClient {
 	if url == "" {
 		return nil
 	}
@@ -30,13 +30,13 @@ func NewRPCCache(url string, metricsContainer *metrics.Container) *RPCCache {
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
 	if err := prometheus.Register(collector); err != nil {
-		zap.L().Error("failed to register redis cache collector", zap.Error(err))
+		zap.L().Error("failed to register redis cache otel collector", zap.Error(err))
 	}
 
-	return FromClient(rdb, metricsContainer)
+	return rdb
 }
 
-func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+func FromClient(rdb *redis.ClusterClient, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: rdb,
@@ -69,11 +69,9 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		result json.RawMessage
 	)
 
-	labels := prometheus.Labels{"request": reqBody.Method, "chain_name": chainName}
-
 	// Counts requests in flight. If it's spiking that means that a lot of requests are for the same key.
 	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
-	c.metricsContainer.CacheRequestsInFlight.With(labels).Inc()
+	c.metricsContainer.CacheRequestsInFlight.WithLabelValues(reqBody.Method).Inc()
 
 	start := time.Now()
 
@@ -95,7 +93,9 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 
 			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
 			cacheMissDuration = time.Since(start) // Time spent on cache lookup
-			c.metricsContainer.CacheQueryCacheMissDuration.With(labels).Observe(cacheMissDuration.Seconds())
+			c.metricsContainer.CacheQueryCacheMissDuration.
+				WithLabelValues(reqBody.Method).
+				Observe(cacheMissDuration.Seconds())
 
 			originStart := time.Now()
 			respBody, err := originFunc()
@@ -113,10 +113,14 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 
 	if cached {
 		cacheHitDuration := time.Since(start) // Time spent on cache lookup
-		c.metricsContainer.CacheQueryCacheHitDuration.With(labels).Observe(cacheHitDuration.Seconds())
+		c.metricsContainer.CacheQueryCacheHitDuration.
+			WithLabelValues(reqBody.Method).
+			Observe(cacheHitDuration.Seconds())
 	} else {
 		writeDuration := time.Since(start) - cacheMissDuration - originDuration
-		c.metricsContainer.CacheWriteDuration.With(labels).Observe(writeDuration.Seconds())
+		c.metricsContainer.CacheWriteDuration.
+			WithLabelValues(reqBody.Method).
+			Observe(writeDuration.Seconds())
 	}
 
 	return result, cached, nil
