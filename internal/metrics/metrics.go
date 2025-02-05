@@ -442,7 +442,6 @@ func NewContainer(chainName string) *Container {
 	result.LatencyCheckLatencyIsPassing = latencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
 	result.LatencyCheckLatencyIsFailing = latencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
 
-	// result.CacheQueryCacheMissDuration = cacheQueryCacheMissDuration.MustCurryWith(presetLabels)
 	result.CacheReadDuration = cacheReadDuration.MustCurryWith(presetLabels)
 	result.CacheWriteDuration = cacheWriteDuration.MustCurryWith(presetLabels)
 	result.CacheRequestsInFlight = cacheQueryCacheRequestsInFlight.MustCurryWith(presetLabels)
