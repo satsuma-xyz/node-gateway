@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/satsuma-data/node-gateway/internal/cache"
 	"github.com/satsuma-data/node-gateway/internal/checks"
 	"github.com/satsuma-data/node-gateway/internal/client"
@@ -31,7 +32,7 @@ func wireSingleChainDependencies(
 	globalConfig *config.GlobalConfig,
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
-	rpcCache *cache.RPCCache,
+	redisClient *redis.ClusterClient,
 ) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
@@ -106,6 +107,8 @@ func wireSingleChainDependencies(
 		}
 	}
 
+	rpcCache := cache.FromClient(redisClient, metricContainer)
+
 	router := route.NewRouter(
 		chainConfig.ChainName,
 		chainConfig.Cache,
@@ -139,7 +142,7 @@ func WireDependenciesForAllChains(
 	gatewayConfig config.Config, //nolint:gocritic // Legacy
 	rootLogger *zap.Logger,
 ) ObjectGraph {
-	rpcCache := cache.NewRPCCache(gatewayConfig.Global.Cache.Redis)
+	redisClient := cache.CreateRedisClient(gatewayConfig.Global.Cache.Redis)
 
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
@@ -152,7 +155,7 @@ func WireDependenciesForAllChains(
 			&gatewayConfig.Global,
 			currentChainConfig,
 			childLogger,
-			rpcCache,
+			redisClient,
 		)
 
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)

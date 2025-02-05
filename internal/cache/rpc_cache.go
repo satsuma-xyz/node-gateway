@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/cache/v9"
@@ -18,30 +19,49 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-func NewRPCCache(url string) *RPCCache {
+var redisDialTimeout = 100 * time.Millisecond
+var redisReadTimeout = 100 * time.Millisecond
+var redisWriteTimeout = 100 * time.Millisecond
+var redisPoolTimeout = 100 * time.Millisecond
+
+func CreateRedisClient(url string) *redis.ClusterClient {
 	if url == "" {
 		return nil
 	}
 
 	rdb := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs:     []string{url},
-		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13},
+		Addrs:        []string{url},
+		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS13},
+		DialTimeout:  redisDialTimeout,
+		ReadTimeout:  redisReadTimeout,
+		WriteTimeout: redisWriteTimeout,
+		PoolTimeout:  redisPoolTimeout,
 	})
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
 	if err := prometheus.Register(collector); err != nil {
-		zap.L().Error("failed to register redis cache collector", zap.Error(err))
+		zap.L().Error("failed to register redis cache otel collector", zap.Error(err))
 	}
 
+	return rdb
+}
+
+func FromClient(rdb *redis.ClusterClient, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
-		cache.New(&cache.Options{
+		cache: cache.New(&cache.Options{
 			Redis: rdb,
 		}),
+		metricsContainer: metricsContainer,
 	}
 }
 
 type RPCCache struct {
-	*cache.Cache
+	cache            *cache.Cache
+	metricsContainer *metrics.Container
+}
+
+func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
+	return c.cache.Marshal(value)
 }
 
 func (c *RPCCache) ShouldCacheMethod(method string) bool {
@@ -59,6 +79,14 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		result json.RawMessage
 	)
 
+	// Counts requests in flight. If it's spiking that means that a lot of requests are for the same key.
+	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
+	c.metricsContainer.CacheRequestsInFlight.WithLabelValues(reqBody.Method).Inc()
+
+	start := time.Now()
+
+	var cacheMissDuration, originDuration time.Duration
+
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
 	// Do() is executed on cache misses or if the cache is down.
@@ -66,14 +94,22 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// Once() uses request coalescing (single in-flight request to origin even if there are
 	// multiple identical incoming requests), which means returned errors
 	// could be coming from other goroutines.
-	err := c.Once(&cache.Item{
+	err := c.cache.Once(&cache.Item{
 		Key:   c.CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
 			cached = false
 
+			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
+			cacheMissDuration = time.Since(start) // Time spent on cache lookup
+			c.metricsContainer.CacheReadDuration.
+				WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
+				Observe(cacheMissDuration.Seconds())
+
+			originStart := time.Now()
 			respBody, err := originFunc()
+			originDuration = time.Since(originStart) // Time spent on origin function
 			if err != nil {
 				return nil, err
 			}
@@ -83,6 +119,18 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 
 	if err != nil {
 		return nil, cached, err
+	}
+
+	if cached {
+		cacheHitDuration := time.Since(start) // Time spent on cache lookup
+		c.metricsContainer.CacheReadDuration.
+			WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
+			Observe(cacheHitDuration.Seconds())
+	} else {
+		writeDuration := time.Since(start) - cacheMissDuration - originDuration
+		c.metricsContainer.CacheWriteDuration.
+			WithLabelValues(reqBody.Method).
+			Observe(writeDuration.Seconds())
 	}
 
 	return result, cached, nil

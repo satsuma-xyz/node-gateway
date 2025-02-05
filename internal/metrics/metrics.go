@@ -320,6 +320,38 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
+	cacheReadDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "read_cache_duration_seconds",
+			Help:      "Histogram of cache read latencies.",
+			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
+		},
+		[]string{"chain_name", "method", "cache_hit"},
+	)
+
+	cacheWriteDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "write_cache_duration_seconds",
+			Help:      "Histogram of cache write latencies.",
+			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
+		},
+		[]string{"chain_name", "method"},
+	)
+
+	cacheQueryCacheRequestsInFlight = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "query_cache_requests_in_flight",
+			Help:      "Number of queries in flight.",
+		},
+		[]string{"chain_name", "method"},
+	)
+
 	// System metrics
 	fileDescriptorsUsed = promauto.NewGauge(
 		prometheus.GaugeOpts{
@@ -364,6 +396,11 @@ type Container struct {
 	LatencyCheckHighLatencies    *prometheus.CounterVec
 	LatencyCheckLatencyIsPassing *prometheus.CounterVec
 	LatencyCheckLatencyIsFailing *prometheus.CounterVec
+
+	// RPC request metrics
+	CacheReadDuration     prometheus.ObserverVec
+	CacheWriteDuration    prometheus.ObserverVec
+	CacheRequestsInFlight *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -404,6 +441,10 @@ func NewContainer(chainName string) *Container {
 	result.LatencyCheckOkLatencies = latencyStatusOkLatencies.MustCurryWith(presetLabels)
 	result.LatencyCheckLatencyIsPassing = latencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
 	result.LatencyCheckLatencyIsFailing = latencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
+
+	result.CacheReadDuration = cacheReadDuration.MustCurryWith(presetLabels)
+	result.CacheWriteDuration = cacheWriteDuration.MustCurryWith(presetLabels)
+	result.CacheRequestsInFlight = cacheQueryCacheRequestsInFlight.MustCurryWith(presetLabels)
 
 	return result
 }
