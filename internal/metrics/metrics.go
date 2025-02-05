@@ -320,17 +320,6 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	// cacheQueryCacheMissDuration = promauto.NewHistogramVec(
-	// 	prometheus.HistogramOpts{
-	// 		Namespace: MetricsNamespace,
-	// 		Subsystem: "redis_cache",
-	// 		Name:      "query_cache_miss_duration_seconds",
-	// 		Help:      "Histogram of cache miss query latencies.",
-	// 		Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
-	// 	},
-	// 	[]string{"chain_name", "method"},
-	// )
-
 	cacheReadDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: MetricsNamespace,
@@ -409,10 +398,9 @@ type Container struct {
 	LatencyCheckLatencyIsFailing *prometheus.CounterVec
 
 	// RPC request metrics
-	CacheReadDuration prometheus.ObserverVec
-	// CacheQueryCacheHitDuration  prometheus.ObserverVec
-	CacheWriteDuration          prometheus.ObserverVec
-	CacheRequestsInFlight       *prometheus.CounterVec
+	CacheReadDuration     prometheus.ObserverVec
+	CacheWriteDuration    prometheus.ObserverVec
+	CacheRequestsInFlight *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
