@@ -320,26 +320,26 @@ var (
 		[]string{"chain_name", "upstream_id", "url", "errorType", "method"},
 	)
 
-	cacheQueryCacheMissDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: MetricsNamespace,
-			Subsystem: "redis_cache",
-			Name:      "query_cache_miss_duration_seconds",
-			Help:      "Histogram of cache miss query latencies.",
-			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
-		},
-		[]string{"chain_name", "method"},
-	)
+	// cacheQueryCacheMissDuration = promauto.NewHistogramVec(
+	// 	prometheus.HistogramOpts{
+	// 		Namespace: MetricsNamespace,
+	// 		Subsystem: "redis_cache",
+	// 		Name:      "query_cache_miss_duration_seconds",
+	// 		Help:      "Histogram of cache miss query latencies.",
+	// 		Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
+	// 	},
+	// 	[]string{"chain_name", "method"},
+	// )
 
-	cacheQueryCacheHitDuration = promauto.NewHistogramVec(
+	cacheReadDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: MetricsNamespace,
 			Subsystem: "redis_cache",
-			Name:      "query_cache_hit_duration_seconds",
-			Help:      "Histogram of cache hit query latencies.",
+			Name:      "read_cache_duration_seconds",
+			Help:      "Histogram of cache read latencies.",
 			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
 		},
-		[]string{"chain_name", "method"},
+		[]string{"chain_name", "method", "cache_hit"},
 	)
 
 	cacheWriteDuration = promauto.NewHistogramVec(
@@ -409,8 +409,8 @@ type Container struct {
 	LatencyCheckLatencyIsFailing *prometheus.CounterVec
 
 	// RPC request metrics
-	CacheQueryCacheMissDuration prometheus.ObserverVec
-	CacheQueryCacheHitDuration  prometheus.ObserverVec
+	CacheReadDuration prometheus.ObserverVec
+	// CacheQueryCacheHitDuration  prometheus.ObserverVec
 	CacheWriteDuration          prometheus.ObserverVec
 	CacheRequestsInFlight       *prometheus.CounterVec
 }
@@ -454,8 +454,8 @@ func NewContainer(chainName string) *Container {
 	result.LatencyCheckLatencyIsPassing = latencyStatusCheckLatencyIsPassing.MustCurryWith(presetLabels)
 	result.LatencyCheckLatencyIsFailing = latencyStatusCheckLatencyIsFailing.MustCurryWith(presetLabels)
 
-	result.CacheQueryCacheMissDuration = cacheQueryCacheMissDuration.MustCurryWith(presetLabels)
-	result.CacheQueryCacheHitDuration = cacheQueryCacheHitDuration.MustCurryWith(presetLabels)
+	// result.CacheQueryCacheMissDuration = cacheQueryCacheMissDuration.MustCurryWith(presetLabels)
+	result.CacheReadDuration = cacheReadDuration.MustCurryWith(presetLabels)
 	result.CacheWriteDuration = cacheWriteDuration.MustCurryWith(presetLabels)
 	result.CacheRequestsInFlight = cacheQueryCacheRequestsInFlight.MustCurryWith(presetLabels)
 

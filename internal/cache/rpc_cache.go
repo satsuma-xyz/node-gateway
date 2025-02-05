@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/cache/v9"
@@ -93,8 +94,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 
 			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
 			cacheMissDuration = time.Since(start) // Time spent on cache lookup
-			c.metricsContainer.CacheQueryCacheMissDuration.
-				WithLabelValues(reqBody.Method).
+			c.metricsContainer.CacheReadDuration.
+				WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
 				Observe(cacheMissDuration.Seconds())
 
 			originStart := time.Now()
@@ -113,8 +114,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 
 	if cached {
 		cacheHitDuration := time.Since(start) // Time spent on cache lookup
-		c.metricsContainer.CacheQueryCacheHitDuration.
-			WithLabelValues(reqBody.Method).
+		c.metricsContainer.CacheReadDuration.
+			WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
 			Observe(cacheHitDuration.Seconds())
 	} else {
 		writeDuration := time.Since(start) - cacheMissDuration - originDuration
