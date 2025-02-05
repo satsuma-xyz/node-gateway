@@ -1,14 +1,19 @@
 package cache
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/cache/v9"
+	"github.com/prometheus/client_golang/prometheus"
+	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
+	"github.com/satsuma-data/node-gateway/internal/metrics"
+	"go.uber.org/zap"
 )
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
@@ -18,11 +23,15 @@ func NewRPCCache(url string) *RPCCache {
 		return nil
 	}
 
-	// If we start seeing slow cached requests due to network issues,
-	// change DialTimeout, ReadTimeout, and WriteTimeout options.
-	rdb := redis.NewClient(&redis.Options{
-		Addr: url,
+	rdb := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:     []string{url},
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13},
 	})
+
+	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
+	if err := prometheus.Register(collector); err != nil {
+		zap.L().Error("failed to register redis cache collector", zap.Error(err))
+	}
 
 	return &RPCCache{
 		cache.New(&cache.Options{
@@ -63,6 +72,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
 			cached = false
+
 			respBody, err := originFunc()
 			if err != nil {
 				return nil, err

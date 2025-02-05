@@ -15,7 +15,7 @@ import (
 
 const (
 	DefaultPort                 = 9090
-	metricsNamespace            = "node_gateway"
+	MetricsNamespace            = "node_gateway"
 	defaultReadHeaderTimeout    = 10 * time.Second
 	systemStatsEmissionInterval = 60 * time.Second
 
@@ -35,7 +35,7 @@ var (
 
 	rpcRequestsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "server",
 			Name:      "rpc_requests",
 			Help:      "Count of total RPC requests.",
@@ -45,7 +45,7 @@ var (
 
 	rpcRequestsDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "server",
 			Name:      "rpc_request_duration_seconds",
 			Help:      "Histogram of RPC request latencies.",
@@ -56,7 +56,7 @@ var (
 
 	rpcResponseSizes = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "server",
 			Name:      "rpc_response_size_bytes",
 			Help:      "Histogram of RPC response sizes.",
@@ -69,7 +69,7 @@ var (
 
 	upstreamRPCRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "router",
 			Name:      "upstream_rpc_requests",
 			Help:      "Count of total RPC requests forwarded to upstreams.",
@@ -80,7 +80,7 @@ var (
 
 	upstreamRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "router",
 			Name:      "upstream_rpc_request_errors",
 			Help:      "Count of total errors when forwarding RPC requests to upstreams.",
@@ -91,7 +91,7 @@ var (
 
 	upstreamJSONRPCRequestErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "router",
 			Name:      "upstream_jsonrpc_request_errors",
 			Help: "Count of total errors when forwarding RPC requests to upstreams, including ones in batches. " +
@@ -103,7 +103,7 @@ var (
 
 	upstreamRPCDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "router",
 			Name:      "upstream_rpc_duration_seconds",
 			Help:      "Latency of RPC requests forwarded to upstreams.",
@@ -117,7 +117,7 @@ var (
 
 	blockHeight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "block_height",
 			Help:      "Block height of upstream.",
@@ -127,7 +127,7 @@ var (
 
 	blockHeightCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "block_height_check",
 			Help:      "Total block height requests made.",
@@ -137,7 +137,7 @@ var (
 
 	blockHeightCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "block_height_check_duration_seconds",
 			Help:      "Latency of block height requests.",
@@ -148,7 +148,7 @@ var (
 
 	blockHeightCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "block_height_check_errors",
 			Help:      "Errors when retrieving block height of upstream.",
@@ -158,7 +158,7 @@ var (
 
 	peerCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "peer_count",
 			Help:      "Block height of upstream.",
@@ -168,7 +168,7 @@ var (
 
 	peerCountCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "peer_count_check_requests",
 			Help:      "Total peer count requests made.",
@@ -178,7 +178,7 @@ var (
 
 	peerCountCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "peer_count_check_duration_seconds",
 			Help:      "Latency of peer count requests.",
@@ -189,7 +189,7 @@ var (
 
 	peerCountCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "peer_count_check_errors",
 			Help:      "Errors when retrieving peer count of upstream.",
@@ -200,7 +200,7 @@ var (
 	// Use 0 or 1
 	syncStatus = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "sync_status",
 			Help:      "Sync Status of upstream.",
@@ -210,7 +210,7 @@ var (
 
 	syncStatusCheckRequests = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "sync_status_check_requests",
 			Help:      "Total sync status requests made.",
@@ -220,7 +220,7 @@ var (
 
 	syncStatusCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "sync_status_check_duration_seconds",
 			Help:      "Latency of sync status requests.",
@@ -231,7 +231,7 @@ var (
 
 	syncStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "sync_status_check_errors",
 			Help:      "Errors when retrieving sync status of upstream.",
@@ -242,7 +242,7 @@ var (
 	// Enhanced routing control metrics
 	errorStatusCheckErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "error_check_has_errors",
 			Help:      "Number of errors of upstream requests.",
@@ -252,7 +252,7 @@ var (
 
 	errorStatusCheckNoErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "error_check_no_errors",
 			Help:      "Number of no errors of upstream requests.",
@@ -262,7 +262,7 @@ var (
 
 	errorStatusCheckErrorsIsPassing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "error_check_is_passing",
 			Help:      "Number of passing error checks.",
@@ -272,7 +272,7 @@ var (
 
 	errorStatusCheckErrorsIsFailing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "error_check_is_failing",
 			Help:      "Number of failing error checks.",
@@ -282,7 +282,7 @@ var (
 
 	latencyStatusHighLatencies = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_high_latency",
 			Help:      "Latency of upstream too high.",
@@ -292,7 +292,7 @@ var (
 
 	latencyStatusOkLatencies = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_ok_latency",
 			Help:      "Latency of upstream OK.",
@@ -302,7 +302,7 @@ var (
 
 	latencyStatusCheckLatencyIsPassing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_is_passing",
 			Help:      "Number of passing latency checks.",
@@ -312,7 +312,7 @@ var (
 
 	latencyStatusCheckLatencyIsFailing = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Subsystem: "healthcheck",
 			Name:      "latency_check_is_failing",
 			Help:      "Number of failing latency checks.",
@@ -323,7 +323,7 @@ var (
 	// System metrics
 	fileDescriptorsUsed = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: metricsNamespace,
+			Namespace: MetricsNamespace,
 			Name:      "file_descriptors_used",
 			Help:      "Count of Unix file descriptors used.",
 		},
