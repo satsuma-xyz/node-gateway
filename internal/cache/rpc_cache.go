@@ -21,6 +21,7 @@ var methodsToCache = []string{"eth_getTransactionReceipt"}
 
 var redisDialTimeout = 100 * time.Millisecond
 var redisReadTimeout = 100 * time.Millisecond
+var redisWriteTimeout = 100 * time.Millisecond
 var redisPoolTimeout = 100 * time.Millisecond
 
 func CreateRedisClient(url string) *redis.ClusterClient {
@@ -29,11 +30,12 @@ func CreateRedisClient(url string) *redis.ClusterClient {
 	}
 
 	rdb := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs:       []string{url},
-		TLSConfig:   &tls.Config{MinVersion: tls.VersionTLS13},
-		DialTimeout: redisDialTimeout,
-		ReadTimeout: redisReadTimeout,
-		PoolTimeout: redisPoolTimeout,
+		Addrs:        []string{url},
+		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS13},
+		DialTimeout:  redisDialTimeout,
+		ReadTimeout:  redisReadTimeout,
+		WriteTimeout: redisWriteTimeout,
+		PoolTimeout:  redisPoolTimeout,
 	})
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
