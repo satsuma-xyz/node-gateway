@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -24,14 +23,13 @@ var redisReadTimeout = 100 * time.Millisecond
 var redisWriteTimeout = 100 * time.Millisecond
 var redisPoolTimeout = 100 * time.Millisecond
 
-func CreateRedisClient(url string) *redis.ClusterClient {
+func CreateRedisClient(url string) *redis.Client {
 	if url == "" {
 		return nil
 	}
 
-	rdb := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs:        []string{url},
-		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS13},
+	rdb := redis.NewClient(&redis.Options{
+		Addr:         url,
 		DialTimeout:  redisDialTimeout,
 		ReadTimeout:  redisReadTimeout,
 		WriteTimeout: redisWriteTimeout,
@@ -46,7 +44,7 @@ func CreateRedisClient(url string) *redis.ClusterClient {
 	return rdb
 }
 
-func FromClient(rdb *redis.ClusterClient, metricsContainer *metrics.Container) *RPCCache {
+func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: rdb,

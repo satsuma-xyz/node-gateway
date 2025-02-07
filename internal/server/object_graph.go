@@ -32,7 +32,7 @@ func wireSingleChainDependencies(
 	globalConfig *config.GlobalConfig,
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
-	redisClient *redis.ClusterClient,
+	redisClient *redis.Client,
 ) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
