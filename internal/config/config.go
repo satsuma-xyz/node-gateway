@@ -185,7 +185,9 @@ func (c *GlobalConfig) setDefaults() bool {
 }
 
 type CacheConfig struct {
-	Redis string `yaml:"redis"`
+	Redis       string `yaml:"redis"`       // Kept for backwards compatibility
+	RedisReader string `yaml:"redisReader"` // Endpoint for read operations
+	RedisWriter string `yaml:"redisWriter"` // Endpoint for write operations
 }
 
 // ErrorsConfig

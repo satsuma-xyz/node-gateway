@@ -11,6 +11,7 @@ import (
 	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
@@ -22,6 +23,15 @@ var redisDialTimeout = 100 * time.Millisecond
 var redisReadTimeout = 100 * time.Millisecond
 var redisWriteTimeout = 100 * time.Millisecond
 var redisPoolTimeout = 100 * time.Millisecond
+
+func GetRedisAddresses(cfg config.CacheConfig) (readerAddr, writerAddr string) {
+	// If new style config is provided, use those values
+	if cfg.RedisReader != "" && cfg.RedisWriter != "" {
+		return cfg.RedisReader, cfg.RedisWriter
+	}
+
+	return cfg.Redis, cfg.Redis
+}
 
 func CreateRedisClient(url string) *redis.Client {
 	if url == "" {
@@ -44,13 +54,18 @@ func CreateRedisClient(url string) *redis.Client {
 	return rdb
 }
 
-func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+// Reader unused for now, will address in next PR
+func FromClients(_, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
-			Redis: rdb,
+			Redis: writer,
 		}),
 		metricsContainer: metricsContainer,
 	}
+}
+
+func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+	return FromClients(rdb, rdb, metricsContainer)
 }
 
 type RPCCache struct {

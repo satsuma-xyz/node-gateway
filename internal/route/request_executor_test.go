@@ -24,8 +24,8 @@ import (
 )
 
 func TestRetrieveOrCacheRequest(t *testing.T) {
-	redisClient, redisClientMock := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, redisClientMock := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":"hello"}`)),
@@ -103,8 +103,8 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 500,
 		Body:       io.NopCloser(strings.NewReader("error")),
@@ -145,8 +145,8 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","error":{"code":1,"message":"RPC error"}}`)),
@@ -188,8 +188,8 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":null}`)),
@@ -230,8 +230,8 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 }
 
 func TestUseCache(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 
 	requestBody := &jsonrpc.SingleRequestBody{
 		ID:             lo.ToPtr[int64](1),
