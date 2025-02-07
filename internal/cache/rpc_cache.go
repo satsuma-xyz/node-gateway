@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -54,12 +55,13 @@ func CreateRedisClient(url string) *redis.Client {
 	return rdb
 }
 
-// Reader unused for now, will address in next PR
-func FromClients(_, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: writer,
 		}),
+		readClient:       reader,
+		writeClient:      writer,
 		metricsContainer: metricsContainer,
 	}
 }
@@ -70,7 +72,59 @@ func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCach
 
 type RPCCache struct {
 	cache            *cache.Cache
+	readClient       *redis.Client
+	writeClient      *redis.Client
 	metricsContainer *metrics.Container
+}
+
+func (c *RPCCache) get(ctx context.Context, key string) (json.RawMessage, error) {
+	start := time.Now()
+	cmd := c.readClient.Get(ctx, key)
+	result, err := cmd.Result()
+	cacheMiss := err == redis.Nil
+	duration := time.Since(start)
+
+	// Record metrics
+	c.metricsContainer.CacheReadDuration.
+		WithLabelValues("cache_get", strconv.FormatBool(!cacheMiss)).
+		Observe(duration.Seconds())
+
+	if cacheMiss {
+		return nil, err
+	}
+
+	if err != nil {
+		c.metricsContainer.CacheErrors.WithLabelValues("get").Inc()
+		zap.L().Error("cache get error",
+			zap.Error(err),
+			zap.String("key", key),
+			zap.Duration("duration", duration))
+
+		return nil, err
+	}
+
+	return json.RawMessage(result), nil
+}
+
+func (c *RPCCache) set(ctx context.Context, key string, value *json.RawMessage, ttl time.Duration) {
+	start := time.Now()
+	cmd := c.writeClient.Set(ctx, key, value, ttl)
+	err := cmd.Err()
+	duration := time.Since(start)
+
+	// Record metrics
+	c.metricsContainer.CacheWriteDuration.
+		WithLabelValues("cache_set").
+		Observe(duration.Seconds())
+
+	if err != nil {
+		c.metricsContainer.CacheErrors.WithLabelValues("set").Inc()
+		zap.L().Error("cache set error",
+			zap.Error(err),
+			zap.String("key", key),
+			zap.Duration("duration", duration),
+			zap.Duration("ttl", ttl))
+	}
 }
 
 func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
@@ -96,10 +150,6 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// If there's a too many requests in flight, and redis latency is high it means that the cache is down.
 	c.metricsContainer.CacheRequestsInFlight.WithLabelValues(reqBody.Method).Inc()
 
-	start := time.Now()
-
-	var cacheMissDuration, originDuration time.Duration
-
 	// Even if the cache is down, redis-cache will route to the origin
 	// properly without returning an error.
 	// Do() is executed on cache misses or if the cache is down.
@@ -114,15 +164,8 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		Do: func(*cache.Item) (interface{}, error) {
 			cached = false
 
-			// Capturing the duration from when the request to redis was initiated to when we detect a cache miss.
-			cacheMissDuration = time.Since(start) // Time spent on cache lookup
-			c.metricsContainer.CacheReadDuration.
-				WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
-				Observe(cacheMissDuration.Seconds())
-
-			originStart := time.Now()
 			respBody, err := originFunc()
-			originDuration = time.Since(originStart) // Time spent on origin function
+
 			if err != nil {
 				return nil, err
 			}
@@ -134,17 +177,49 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 		return nil, cached, err
 	}
 
-	if cached {
-		cacheHitDuration := time.Since(start) // Time spent on cache lookup
-		c.metricsContainer.CacheReadDuration.
-			WithLabelValues(reqBody.Method, strconv.FormatBool(cached)).
-			Observe(cacheHitDuration.Seconds())
-	} else {
-		writeDuration := time.Since(start) - cacheMissDuration - originDuration
-		c.metricsContainer.CacheWriteDuration.
-			WithLabelValues(reqBody.Method).
-			Observe(writeDuration.Seconds())
+	return result, cached, nil
+}
+
+// Non coalesced requests
+// Use the redis clients instead of the Cache struct
+func (c *RPCCache) HandleRequestParallel(
+	chainName string,
+	ttl time.Duration,
+	reqBody jsonrpc.SingleRequestBody,
+	originFunc func() (*jsonrpc.SingleResponseBody, error),
+) (json.RawMessage, bool, error) {
+	var (
+		cached = true
+	)
+
+	ctx := context.Background()
+
+	key := c.CreateRequestKey(chainName, reqBody)
+	result, err := c.get(ctx, key) // Attempt to fetch from cache
+
+	if err == nil {
+		return result, cached, nil
 	}
+
+	// Cache miss or error, proceed with the request to origin
+	cached = false
+	respBody, err := originFunc()
+
+	if err != nil {
+		return nil, cached, err
+	}
+
+	result = respBody.Result
+
+	// Perform cache set asynchronously
+	go func() {
+		c.set(
+			ctx,
+			key,
+			&result,
+			ttl,
+		)
+	}()
 
 	return result, cached, nil
 }

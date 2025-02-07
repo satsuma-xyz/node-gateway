@@ -360,6 +360,16 @@ var (
 			Help:      "Count of Unix file descriptors used.",
 		},
 	)
+
+	cacheErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "errors_total",
+			Help:      "Total number of cache operation errors by operation type",
+		},
+		[]string{"chain_name", "operation"},
+	)
 )
 
 type Container struct {
@@ -401,6 +411,7 @@ type Container struct {
 	CacheReadDuration     prometheus.ObserverVec
 	CacheWriteDuration    prometheus.ObserverVec
 	CacheRequestsInFlight *prometheus.CounterVec
+	CacheErrors           *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -445,6 +456,7 @@ func NewContainer(chainName string) *Container {
 	result.CacheReadDuration = cacheReadDuration.MustCurryWith(presetLabels)
 	result.CacheWriteDuration = cacheWriteDuration.MustCurryWith(presetLabels)
 	result.CacheRequestsInFlight = cacheQueryCacheRequestsInFlight.MustCurryWith(presetLabels)
+	result.CacheErrors = cacheErrors.MustCurryWith(presetLabels)
 
 	return result
 }
