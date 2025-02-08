@@ -86,7 +86,7 @@ func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.Raw
 			strconv.FormatBool(!cacheMiss)).
 		Observe(duration.Seconds())
 
-	zap.L().Warn("cache_get",
+	zap.L().Debug("cache_get",
 		zap.String("jsonRPCMethod", jsonRPCMethod),
 		zap.Bool("cacheHit", !cacheMiss),
 		zap.String("key", key),
@@ -121,7 +121,7 @@ func (c *RPCCache) set(ctx context.Context, key, jsonRPCMethod string, value jso
 		WithLabelValues(jsonRPCMethod).
 		Observe(duration.Seconds())
 
-	zap.L().Warn("cache_set",
+	zap.L().Debug("cache_set",
 		zap.String("key", key),
 		zap.String("jsonRPCMethod", jsonRPCMethod),
 		zap.Any("value", value),
