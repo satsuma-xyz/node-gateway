@@ -73,7 +73,7 @@ func TestHandleRequestParallel(t *testing.T) {
 			name: "cache_miss_success",
 			mockSetup: func() {
 				redisReadClientMock.ExpectGet(cacheKey).SetErr(redis.Nil)
-				redisWriteClientMock.ExpectSet(cacheKey, expectedResult, ttl).SetVal("OK")
+				redisWriteClientMock.ExpectSet(cacheKey, string(expectedResult), ttl).SetVal("OK")
 			},
 			originResponse: &jsonrpc.SingleResponseBody{
 				Result: expectedResult,
