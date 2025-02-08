@@ -32,7 +32,8 @@ func wireSingleChainDependencies(
 	globalConfig *config.GlobalConfig,
 	chainConfig *config.SingleChainConfig,
 	logger *zap.Logger,
-	redisClient *redis.Client,
+	redisReader *redis.Client,
+	redisWriter *redis.Client,
 ) singleChainObjectGraph {
 	metricContainer := metrics.NewContainer(chainConfig.ChainName)
 	chainMetadataStore := metadata.NewChainMetadataStore()
@@ -107,7 +108,7 @@ func wireSingleChainDependencies(
 		}
 	}
 
-	rpcCache := cache.FromClient(redisClient, metricContainer)
+	rpcCache := cache.FromClients(redisReader, redisWriter, metricContainer)
 
 	router := route.NewRouter(
 		chainConfig.ChainName,
@@ -142,7 +143,10 @@ func WireDependenciesForAllChains(
 	gatewayConfig config.Config, //nolint:gocritic // Legacy
 	rootLogger *zap.Logger,
 ) ObjectGraph {
-	redisClient := cache.CreateRedisClient(gatewayConfig.Global.Cache.Redis)
+	readerAddr, writerAddr := gatewayConfig.Global.Cache.GetRedisAddresses()
+
+	redisReader := cache.CreateRedisClient(readerAddr)
+	redisWriter := cache.CreateRedisClient(writerAddr)
 
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
@@ -155,7 +159,8 @@ func WireDependenciesForAllChains(
 			&gatewayConfig.Global,
 			currentChainConfig,
 			childLogger,
-			redisClient,
+			redisReader,
+			redisWriter,
 		)
 
 		singleChainDependencies = append(singleChainDependencies, dependencyContainer)

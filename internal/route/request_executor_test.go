@@ -24,8 +24,8 @@ import (
 )
 
 func TestRetrieveOrCacheRequest(t *testing.T) {
-	redisClient, redisClientMock := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, redisClientMock := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":"hello"}`)),
@@ -63,8 +63,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	redisClientMock.ExpectGet(cacheKey).SetErr(errors.New("error"))
 	// The cache has custom marshaling to pack the cache efficiently.
 	raw := json.RawMessage(`"hello"`)
-	expected, _ := rpcCache.Marshal(raw)
-	redisClientMock.ExpectSet(cacheKey, expected, cacheConfig.TTL).SetVal("OK")
+	redisClientMock.ExpectSet(cacheKey, string(raw), cacheConfig.TTL).SetVal("OK")
 
 	jsonRPCResponseBody, httpResponse, cached, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
@@ -77,6 +76,9 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	assert.Equal(t, httpResp.StatusCode, httpResponse.StatusCode)
 	assert.False(t, cached)
 
+	// Add small sleep to allow async cache set to complete
+	time.Sleep(5 * time.Millisecond)
+
 	// Send a new request with new ID.
 	// The results should be cached.
 	requestBody.ID = lo.ToPtr[int64](20)
@@ -84,7 +86,7 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	httpReq, _ = http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
 	// SetVal simulates returned value on a Get cache hit.
-	redisClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(expected).String())
+	redisClientMock.ExpectGet(cacheKey).SetVal(string(raw))
 
 	jsonRPCResponseBody, httpResponse, cached, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
@@ -103,8 +105,8 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 500,
 		Body:       io.NopCloser(strings.NewReader("error")),
@@ -145,8 +147,8 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","error":{"code":1,"message":"RPC error"}}`)),
@@ -188,8 +190,8 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 }
 
 func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	httpResp := &http.Response{
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":null}`)),
@@ -230,8 +232,8 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 }
 
 func TestUseCache(t *testing.T) {
-	redisClient, _ := redismock.NewClusterMock()
-	rpcCache := cache.FromClient(redisClient, metrics.NewContainer(config.TestChainName))
+	redisClient, _ := redismock.NewClientMock()
+	rpcCache := cache.FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 
 	requestBody := &jsonrpc.SingleRequestBody{
 		ID:             lo.ToPtr[int64](1),

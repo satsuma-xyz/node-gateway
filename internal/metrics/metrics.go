@@ -328,7 +328,7 @@ var (
 			Help:      "Histogram of cache read latencies.",
 			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
 		},
-		[]string{"chain_name", "method", "cache_hit"},
+		[]string{"chain_name", "json_rpc_method", "cache_hit"},
 	)
 
 	cacheWriteDuration = promauto.NewHistogramVec(
@@ -339,9 +339,10 @@ var (
 			Help:      "Histogram of cache write latencies.",
 			Buckets:   []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1, 5, 10},
 		},
-		[]string{"chain_name", "method"},
+		[]string{"chain_name", "json_rpc_method"},
 	)
 
+	// Intended to be used when using request coalescing with the go-redis/cache library
 	cacheQueryCacheRequestsInFlight = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: MetricsNamespace,
@@ -349,7 +350,17 @@ var (
 			Name:      "query_cache_requests_in_flight",
 			Help:      "Number of queries in flight.",
 		},
-		[]string{"chain_name", "method"},
+		[]string{"chain_name", "json_rpc_method"},
+	)
+
+	cacheErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "errors_total",
+			Help:      "Total number of cache operation errors by operation type",
+		},
+		[]string{"chain_name", "operation"},
 	)
 
 	// System metrics
@@ -401,6 +412,7 @@ type Container struct {
 	CacheReadDuration     prometheus.ObserverVec
 	CacheWriteDuration    prometheus.ObserverVec
 	CacheRequestsInFlight *prometheus.CounterVec
+	CacheErrors           *prometheus.CounterVec
 }
 
 func NewContainer(chainName string) *Container {
@@ -445,6 +457,7 @@ func NewContainer(chainName string) *Container {
 	result.CacheReadDuration = cacheReadDuration.MustCurryWith(presetLabels)
 	result.CacheWriteDuration = cacheWriteDuration.MustCurryWith(presetLabels)
 	result.CacheRequestsInFlight = cacheQueryCacheRequestsInFlight.MustCurryWith(presetLabels)
+	result.CacheErrors = cacheErrors.MustCurryWith(presetLabels)
 
 	return result
 }
