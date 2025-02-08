@@ -190,6 +190,15 @@ type CacheConfig struct {
 	RedisWriter string `yaml:"redisWriter"` // Endpoint for write operations
 }
 
+func (cfg *CacheConfig) GetRedisAddresses() (readerAddr, writerAddr string) {
+	// If new style config is provided, use those values
+	if cfg.RedisReader != "" && cfg.RedisWriter != "" {
+		return cfg.RedisReader, cfg.RedisWriter
+	}
+
+	return cfg.Redis, cfg.Redis
+}
+
 // ErrorsConfig
 // TODO(polsar): Add the minimum number of requests in the detection window required to apply the error rate.
 type ErrorsConfig struct {

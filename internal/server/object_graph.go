@@ -143,7 +143,7 @@ func WireDependenciesForAllChains(
 	gatewayConfig config.Config, //nolint:gocritic // Legacy
 	rootLogger *zap.Logger,
 ) ObjectGraph {
-	readerAddr, writerAddr := cache.GetRedisAddresses(gatewayConfig.Global.Cache)
+	readerAddr, writerAddr := gatewayConfig.Global.Cache.GetRedisAddresses()
 
 	redisReader := cache.CreateRedisClient(readerAddr)
 	redisWriter := cache.CreateRedisClient(writerAddr)

@@ -161,7 +161,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 		return singleRespBody, nil
 	}
 
-	val, cached, err := r.cache.HandleRequest(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
+	val, cached, err := r.cache.HandleRequestParallel(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
 
 	if err != nil {
 		switch err := err.(type) {

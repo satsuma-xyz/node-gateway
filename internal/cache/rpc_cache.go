@@ -12,7 +12,6 @@ import (
 	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
-	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
@@ -20,19 +19,10 @@ import (
 
 var methodsToCache = []string{"eth_getTransactionReceipt"}
 
-var redisDialTimeout = 100 * time.Millisecond
-var redisReadTimeout = 100 * time.Millisecond
-var redisWriteTimeout = 100 * time.Millisecond
+var redisDialTimeout = 2 * time.Second
+var redisReadTimeout = 500 * time.Millisecond
+var redisWriteTimeout = 500 * time.Millisecond
 var redisPoolTimeout = 100 * time.Millisecond
-
-func GetRedisAddresses(cfg config.CacheConfig) (readerAddr, writerAddr string) {
-	// If new style config is provided, use those values
-	if cfg.RedisReader != "" && cfg.RedisWriter != "" {
-		return cfg.RedisReader, cfg.RedisWriter
-	}
-
-	return cfg.Redis, cfg.Redis
-}
 
 func CreateRedisClient(url string) *redis.Client {
 	if url == "" {
@@ -56,6 +46,10 @@ func CreateRedisClient(url string) *redis.Client {
 }
 
 func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+	if reader == nil || writer == nil {
+		return nil
+	}
+
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: writer,
@@ -77,17 +71,26 @@ type RPCCache struct {
 	metricsContainer *metrics.Container
 }
 
-func (c *RPCCache) get(ctx context.Context, key string) (json.RawMessage, error) {
+func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.RawMessage, error) {
 	start := time.Now()
 	cmd := c.readClient.Get(ctx, key)
+	duration := time.Since(start)
+
 	result, err := cmd.Result()
 	cacheMiss := err == redis.Nil
-	duration := time.Since(start)
 
 	// Record metrics
 	c.metricsContainer.CacheReadDuration.
-		WithLabelValues("cache_get", strconv.FormatBool(!cacheMiss)).
+		WithLabelValues(
+			jsonRPCMethod,
+			strconv.FormatBool(!cacheMiss)).
 		Observe(duration.Seconds())
+
+	zap.L().Warn("cache_get",
+		zap.String("jsonRPCMethod", jsonRPCMethod),
+		zap.Bool("cacheHit", !cacheMiss),
+		zap.String("key", key),
+		zap.Int64("durationMs", duration.Milliseconds()))
 
 	if cacheMiss {
 		return nil, err
@@ -95,10 +98,10 @@ func (c *RPCCache) get(ctx context.Context, key string) (json.RawMessage, error)
 
 	if err != nil {
 		c.metricsContainer.CacheErrors.WithLabelValues("get").Inc()
-		zap.L().Error("cache get error",
+		zap.L().Error("cache_get error",
 			zap.Error(err),
 			zap.String("key", key),
-			zap.Duration("duration", duration))
+			zap.Int64("durationMs", duration.Milliseconds()))
 
 		return nil, err
 	}
@@ -106,24 +109,33 @@ func (c *RPCCache) get(ctx context.Context, key string) (json.RawMessage, error)
 	return json.RawMessage(result), nil
 }
 
-func (c *RPCCache) set(ctx context.Context, key string, value *json.RawMessage, ttl time.Duration) {
+func (c *RPCCache) set(ctx context.Context, key, jsonRPCMethod string, value json.RawMessage, ttl time.Duration) {
 	start := time.Now()
-	cmd := c.writeClient.Set(ctx, key, value, ttl)
-	err := cmd.Err()
+	cmd := c.writeClient.Set(ctx, key, string(value), ttl)
 	duration := time.Since(start)
+
+	err := cmd.Err()
 
 	// Record metrics
 	c.metricsContainer.CacheWriteDuration.
-		WithLabelValues("cache_set").
+		WithLabelValues(jsonRPCMethod).
 		Observe(duration.Seconds())
+
+	zap.L().Warn("cache_set",
+		zap.String("key", key),
+		zap.String("jsonRPCMethod", jsonRPCMethod),
+		zap.Any("value", value),
+		zap.Int64("durationMs", duration.Milliseconds()),
+		zap.Any("ttl", ttl))
 
 	if err != nil {
 		c.metricsContainer.CacheErrors.WithLabelValues("set").Inc()
-		zap.L().Error("cache set error",
+		zap.L().Error("cache_set error",
 			zap.Error(err),
 			zap.String("key", key),
-			zap.Duration("duration", duration),
-			zap.Duration("ttl", ttl))
+			zap.Any("value", value),
+			zap.Int64("durationMs", duration.Milliseconds()),
+			zap.Any("ttl", ttl))
 	}
 }
 
@@ -139,6 +151,7 @@ func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.Single
 	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
+// Uses the go-redis/cache library
 func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody jsonrpc.SingleRequestBody, originFunc func() (*jsonrpc.SingleResponseBody, error)) (json.RawMessage, bool, error) {
 	var (
 		// Technically could be a coalesced request as well.
@@ -181,7 +194,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 }
 
 // Non coalesced requests
-// Use the redis clients instead of the Cache struct
+// Uses the redis clients instead of the go-redis/cache library
 func (c *RPCCache) HandleRequestParallel(
 	chainName string,
 	ttl time.Duration,
@@ -195,7 +208,7 @@ func (c *RPCCache) HandleRequestParallel(
 	ctx := context.Background()
 
 	key := c.CreateRequestKey(chainName, reqBody)
-	result, err := c.get(ctx, key) // Attempt to fetch from cache
+	result, err := c.get(ctx, key, reqBody.Method) // Attempt to fetch from cache
 
 	if err == nil {
 		return result, cached, nil
@@ -216,7 +229,8 @@ func (c *RPCCache) HandleRequestParallel(
 		c.set(
 			ctx,
 			key,
-			&result,
+			reqBody.Method,
+			result,
 			ttl,
 		)
 	}()
