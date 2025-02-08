@@ -185,7 +185,18 @@ func (c *GlobalConfig) setDefaults() bool {
 }
 
 type CacheConfig struct {
-	Redis string `yaml:"redis"`
+	Redis       string `yaml:"redis"`       // Kept for backwards compatibility
+	RedisReader string `yaml:"redisReader"` // Endpoint for read operations
+	RedisWriter string `yaml:"redisWriter"` // Endpoint for write operations
+}
+
+func (cfg *CacheConfig) GetRedisAddresses() (readerAddr, writerAddr string) {
+	// If new style config is provided, use those values
+	if cfg.RedisReader != "" && cfg.RedisWriter != "" {
+		return cfg.RedisReader, cfg.RedisWriter
+	}
+
+	return cfg.Redis, cfg.Redis
 }
 
 // ErrorsConfig

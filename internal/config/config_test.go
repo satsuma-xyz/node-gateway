@@ -1246,3 +1246,62 @@ func TestParseConfig_InvalidYaml(t *testing.T) {
 		t.Errorf("Expected error parsing invalid YAML.")
 	}
 }
+
+func TestCacheConfig_GetRedisAddresses(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      CacheConfig
+		wantReader  string
+		wantWriter  string
+		description string
+	}{
+		{
+			name: "legacy_config",
+			config: CacheConfig{
+				Redis: "localhost:6379",
+			},
+			wantReader:  "localhost:6379",
+			wantWriter:  "localhost:6379",
+			description: "Should use Redis field for both when only legacy config provided",
+		},
+		{
+			name: "split_config",
+			config: CacheConfig{
+				RedisReader: "reader:6379",
+				RedisWriter: "writer:6379",
+			},
+			wantReader:  "reader:6379",
+			wantWriter:  "writer:6379",
+			description: "Should use separate addresses when both reader and writer specified",
+		},
+		{
+			name: "mixed_config",
+			config: CacheConfig{
+				Redis:       "legacy:6379",
+				RedisReader: "reader:6379",
+				RedisWriter: "writer:6379",
+			},
+			wantReader:  "reader:6379",
+			wantWriter:  "writer:6379",
+			description: "Should prefer new config over legacy when both present",
+		},
+		{
+			name: "partial_config",
+			config: CacheConfig{
+				Redis:       "legacy:6379",
+				RedisReader: "reader:6379",
+			},
+			wantReader:  "legacy:6379",
+			wantWriter:  "legacy:6379",
+			description: "Should fall back to legacy when new config is incomplete",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader, writer := tt.config.GetRedisAddresses()
+			assert.Equal(t, tt.wantReader, reader, tt.description)
+			assert.Equal(t, tt.wantWriter, writer, tt.description)
+		})
+	}
+}
