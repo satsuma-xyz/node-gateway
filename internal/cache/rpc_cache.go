@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -23,6 +24,7 @@ var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
 var redisPoolTimeout = 100 * time.Millisecond
+var redisPoolSize = runtime.NumCPU() * 30
 
 func CreateRedisClient(url string) *redis.Client {
 	if url == "" {
@@ -35,6 +37,7 @@ func CreateRedisClient(url string) *redis.Client {
 		ReadTimeout:  redisReadTimeout,
 		WriteTimeout: redisWriteTimeout,
 		PoolTimeout:  redisPoolTimeout,
+		PoolSize:     redisPoolSize,
 	})
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
