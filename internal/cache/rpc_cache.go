@@ -131,7 +131,7 @@ func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.Raw
 
 func (c *RPCCache) set(ctx context.Context, key, jsonRPCMethod string, value json.RawMessage, ttl time.Duration) {
 	start := time.Now()
-	cmd := c.writeClient.Set(ctx, key, string(value), ttl)
+	cmd := c.writeClient.SetNX(ctx, key, string(value), ttl)
 	duration := time.Since(start)
 
 	err := cmd.Err()
