@@ -59,11 +59,12 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 
 	httpReq, _ := http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
-	cacheKey := rpcCache.CreateRequestKey("mainnet", requestBody)
+	cacheKey := cache.CreateRequestKey("mainnet", requestBody)
 	redisClientMock.ExpectGet(cacheKey).SetErr(errors.New("error"))
 	// The cache has custom marshaling to pack the cache efficiently.
 	raw := json.RawMessage(`"hello"`)
-	redisClientMock.ExpectSet(cacheKey, string(raw), cacheConfig.TTL).SetVal("OK")
+	rawBytes, _ := rpcCache.Marshal(raw)
+	redisClientMock.ExpectSetNX(cacheKey, rawBytes, cacheConfig.TTL).SetVal(true)
 
 	jsonRPCResponseBody, httpResponse, cached, _ := executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 
@@ -86,7 +87,8 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 	httpReq, _ = http.NewRequestWithContext(ctx, "POST", configToRoute.HTTPURL, bytes.NewReader(bodyBytes))
 
 	// SetVal simulates returned value on a Get cache hit.
-	redisClientMock.ExpectGet(cacheKey).SetVal(string(raw))
+	rpcCache.DeleteFromLocalCache(cacheKey)
+	redisClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(rawBytes).String())
 
 	jsonRPCResponseBody, httpResponse, cached, _ = executor.retrieveOrCacheRequest(httpReq, requestBody, &configToRoute)
 

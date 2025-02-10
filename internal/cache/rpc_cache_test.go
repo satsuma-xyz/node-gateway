@@ -27,13 +27,11 @@ func TestShouldCacheMethod(t *testing.T) {
 }
 
 func TestCreateRequestKey(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
-	cache := FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	singleRequestBody := jsonrpc.SingleRequestBody{
 		Method: "eth_getTransactionReceipt",
 		Params: []any{"0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1"},
 	}
-	assert.Equal(t, "mainnet:eth_getTransactionReceipt:[0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1]", cache.CreateRequestKey("mainnet", singleRequestBody))
+	assert.Equal(t, "mainnet:eth_getTransactionReceipt:[0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1]", CreateRequestKey("mainnet", singleRequestBody))
 }
 
 func TestHandleRequestParallel(t *testing.T) {
@@ -48,11 +46,13 @@ func TestHandleRequestParallel(t *testing.T) {
 		Method: "eth_getTransactionReceipt",
 		Params: []any{"0x123"},
 	}
-	cacheKey := cache.CreateRequestKey(chainName, reqBody)
+	cacheKey := CreateRequestKey(chainName, reqBody)
 	expectedResult := json.RawMessage(`{"test":"value"}`)
+	expectedResultBytes, _ := cache.Marshal(expectedResult)
 
 	tests := []struct {
 		mockSetup      func()
+		after          func()
 		originResponse *jsonrpc.SingleResponseBody
 		originError    error
 		name           string
@@ -63,7 +63,11 @@ func TestHandleRequestParallel(t *testing.T) {
 		{
 			name: "cache_hit",
 			mockSetup: func() {
-				redisReadClientMock.ExpectGet(cacheKey).SetVal(string(expectedResult))
+				redisReadClientMock.ExpectGet(cacheKey).SetVal(bytes.NewBuffer(expectedResultBytes).String())
+			},
+			after: func() {
+				cache.cacheRead.DeleteFromLocalCache(cacheKey)
+				cache.cacheWrite.DeleteFromLocalCache(cacheKey)
 			},
 			wantCached:  true,
 			wantError:   false,
@@ -73,7 +77,11 @@ func TestHandleRequestParallel(t *testing.T) {
 			name: "cache_miss_success",
 			mockSetup: func() {
 				redisReadClientMock.ExpectGet(cacheKey).SetErr(redis.Nil)
-				redisWriteClientMock.ExpectSet(cacheKey, string(expectedResult), ttl).SetVal("OK")
+				redisWriteClientMock.ExpectSetNX(cacheKey, expectedResultBytes, ttl).SetVal(true)
+			},
+			after: func() {
+				cache.cacheRead.DeleteFromLocalCache(cacheKey)
+				cache.cacheWrite.DeleteFromLocalCache(cacheKey)
 			},
 			originResponse: &jsonrpc.SingleResponseBody{
 				Result: expectedResult,
@@ -87,6 +95,7 @@ func TestHandleRequestParallel(t *testing.T) {
 			mockSetup: func() {
 				redisReadClientMock.ExpectGet(cacheKey).SetErr(redis.Nil)
 			},
+			after:       func() {},
 			originError: errors.New("origin error"),
 			wantCached:  false,
 			wantError:   true,
@@ -97,6 +106,10 @@ func TestHandleRequestParallel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockSetup()
+
+			if tt.after != nil {
+				defer tt.after()
+			}
 
 			originFunc := func() (*jsonrpc.SingleResponseBody, error) {
 				if tt.originError != nil {

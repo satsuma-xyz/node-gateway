@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"strconv"
 	"time"
 
@@ -22,9 +23,19 @@ var methodsToCache = []string{"eth_getTransactionReceipt"}
 var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
-var redisPoolTimeout = 100 * time.Millisecond
 
-func CreateRedisClient(url string) *redis.Client {
+var localCacheSize = 1000
+var localCacheTTL = 10 * time.Second
+
+func CreateRedisReaderClient(url string) *redis.Client {
+	return createRedisClient(url, "reader")
+}
+
+func CreateRedisWriterClient(url string) *redis.Client {
+	return createRedisClient(url, "writer")
+}
+
+func createRedisClient(url, clientType string) *redis.Client {
 	if url == "" {
 		return nil
 	}
@@ -34,10 +45,17 @@ func CreateRedisClient(url string) *redis.Client {
 		DialTimeout:  redisDialTimeout,
 		ReadTimeout:  redisReadTimeout,
 		WriteTimeout: redisWriteTimeout,
-		PoolTimeout:  redisPoolTimeout,
+		OnConnect: func(_ context.Context, _ *redis.Conn) error {
+			zap.L().Info("established new connection to redis", zap.String("url", url))
+			metrics.CacheConnections.WithLabelValues(url).Inc()
+			return nil
+		},
 	})
 
-	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
+	collector := redisprometheus.NewCollector(
+		metrics.MetricsNamespace,
+		fmt.Sprintf("redis_cache_%s", clientType),
+		rdb)
 	if err := prometheus.Register(collector); err != nil {
 		zap.L().Error("failed to register redis cache otel collector", zap.Error(err))
 	}
@@ -50,12 +68,22 @@ func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Contain
 		return nil
 	}
 
+	localCache := cache.NewTinyLFU(localCacheSize, localCacheTTL)
+
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: writer,
 		}),
-		readClient:       reader,
-		writeClient:      writer,
+		// Wrap the redis clients in a cache.Cache to use the go-redis/cache library
+		// The library offers faster serialization/deserialization, and local caching.
+		cacheRead: cache.New(&cache.Options{
+			Redis:      reader,
+			LocalCache: localCache,
+		}),
+		cacheWrite: cache.New(&cache.Options{
+			Redis:      writer,
+			LocalCache: localCache,
+		}),
 		metricsContainer: metricsContainer,
 	}
 }
@@ -65,19 +93,20 @@ func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCach
 }
 
 type RPCCache struct {
-	cache            *cache.Cache
-	readClient       *redis.Client
-	writeClient      *redis.Client
+	cache            *cache.Cache // Legacy
+	cacheRead        *cache.Cache
+	cacheWrite       *cache.Cache
 	metricsContainer *metrics.Container
 }
 
 func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.RawMessage, error) {
+	var result json.RawMessage
+
 	start := time.Now()
-	cmd := c.readClient.Get(ctx, key)
+	err := c.cacheRead.Get(ctx, key, &result)
 	duration := time.Since(start)
 
-	result, err := cmd.Result()
-	cacheMiss := err == redis.Nil
+	cacheMiss := err == cache.ErrCacheMiss
 
 	// Record metrics
 	c.metricsContainer.CacheReadDuration.
@@ -106,15 +135,19 @@ func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.Raw
 		return nil, err
 	}
 
-	return json.RawMessage(result), nil
+	return result, nil
 }
 
 func (c *RPCCache) set(ctx context.Context, key, jsonRPCMethod string, value json.RawMessage, ttl time.Duration) {
 	start := time.Now()
-	cmd := c.writeClient.Set(ctx, key, string(value), ttl)
+	err := c.cacheWrite.Set(&cache.Item{
+		Ctx:   ctx,
+		Key:   key,
+		Value: value,
+		SetNX: true,
+		TTL:   ttl,
+	})
 	duration := time.Since(start)
-
-	err := cmd.Err()
 
 	// Record metrics
 	c.metricsContainer.CacheWriteDuration.
@@ -147,7 +180,13 @@ func (c *RPCCache) ShouldCacheMethod(method string) bool {
 	return lo.Contains(methodsToCache, method)
 }
 
-func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
+// Use for testing
+func (c *RPCCache) DeleteFromLocalCache(key string) {
+	c.cacheRead.DeleteFromLocalCache(key)
+	c.cacheWrite.DeleteFromLocalCache(key)
+}
+
+func CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
 	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
@@ -171,7 +210,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// multiple identical incoming requests), which means returned errors
 	// could be coming from other goroutines.
 	err := c.cache.Once(&cache.Item{
-		Key:   c.CreateRequestKey(chainName, reqBody),
+		Key:   CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
@@ -207,7 +246,7 @@ func (c *RPCCache) HandleRequestParallel(
 
 	ctx := context.Background()
 
-	key := c.CreateRequestKey(chainName, reqBody)
+	key := CreateRequestKey(chainName, reqBody)
 	result, err := c.get(ctx, key, reqBody.Method) // Attempt to fetch from cache
 
 	if err == nil {
@@ -224,16 +263,18 @@ func (c *RPCCache) HandleRequestParallel(
 
 	result = respBody.Result
 
-	// Perform cache set asynchronously
-	go func() {
-		c.set(
-			ctx,
-			key,
-			reqBody.Method,
-			result,
-			ttl,
-		)
-	}()
+	if result != nil {
+		// Perform cache set asynchronously
+		go func() {
+			c.set(
+				ctx,
+				key,
+				reqBody.Method,
+				result,
+				ttl,
+			)
+		}()
+	}
 
 	return result, cached, nil
 }

@@ -145,8 +145,8 @@ func WireDependenciesForAllChains(
 ) ObjectGraph {
 	readerAddr, writerAddr := gatewayConfig.Global.Cache.GetRedisAddresses()
 
-	redisReader := cache.CreateRedisClient(readerAddr)
-	redisWriter := cache.CreateRedisClient(writerAddr)
+	redisReader := cache.CreateRedisReaderClient(readerAddr)
+	redisWriter := cache.CreateRedisWriterClient(writerAddr)
 
 	singleChainDependencies := make([]singleChainObjectGraph, 0, len(gatewayConfig.Chains))
 	routers := make([]route.Router, 0, len(gatewayConfig.Chains))
