@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
+
 	"strconv"
 	"time"
 
@@ -23,8 +23,9 @@ var methodsToCache = []string{"eth_getTransactionReceipt"}
 var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
-var redisPoolTimeout = 100 * time.Millisecond
-var redisPoolSize = runtime.NumCPU() * 30
+
+// var redisPoolTimeout = 100 * time.Millisecond
+// var redisPoolSize = runtime.NumCPU() * 30
 
 func CreateRedisClient(url string) *redis.Client {
 	if url == "" {
@@ -36,8 +37,13 @@ func CreateRedisClient(url string) *redis.Client {
 		DialTimeout:  redisDialTimeout,
 		ReadTimeout:  redisReadTimeout,
 		WriteTimeout: redisWriteTimeout,
-		PoolTimeout:  redisPoolTimeout,
-		PoolSize:     redisPoolSize,
+		// PoolTimeout:  redisPoolTimeout,
+		// PoolSize:     redisPoolSize,
+		OnConnect: func(_ context.Context, _ *redis.Conn) error {
+			zap.L().Info("established new connection to redis", zap.String("url", url))
+			metrics.CacheConnections.WithLabelValues(url).Inc()
+			return nil
+		},
 	})
 
 	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)

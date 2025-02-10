@@ -363,6 +363,16 @@ var (
 		[]string{"chain_name", "operation"},
 	)
 
+	CacheConnections = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: MetricsNamespace,
+			Subsystem: "redis_cache",
+			Name:      "connections_total",
+			Help:      "Total number of Redis connections established",
+		},
+		[]string{"url"},
+	)
+
 	// System metrics
 	fileDescriptorsUsed = promauto.NewGauge(
 		prometheus.GaugeOpts{
