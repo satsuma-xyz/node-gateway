@@ -24,6 +24,9 @@ var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
 
+var localCacheSize = 1000
+var localCacheTTL = 15 * time.Second
+
 // var redisPoolTimeout = 100 * time.Millisecond
 // var redisPoolSize = runtime.NumCPU() * 30
 
@@ -70,12 +73,22 @@ func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Contain
 		return nil
 	}
 
+	localCache := cache.NewTinyLFU(localCacheSize, localCacheTTL)
+
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
 			Redis: writer,
 		}),
-		readClient:       reader,
-		writeClient:      writer,
+		// Wrap the redis clients in a cache.Cache to use the go-redis/cache library
+		// The library offers faster serialization/deserialization, and local caching.
+		cacheRead: cache.New(&cache.Options{
+			Redis:      reader,
+			LocalCache: localCache,
+		}),
+		cacheWrite: cache.New(&cache.Options{
+			Redis:      writer,
+			LocalCache: localCache,
+		}),
 		metricsContainer: metricsContainer,
 	}
 }
@@ -85,19 +98,20 @@ func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCach
 }
 
 type RPCCache struct {
-	cache            *cache.Cache
-	readClient       *redis.Client
-	writeClient      *redis.Client
+	cache            *cache.Cache // Legacy
+	cacheRead        *cache.Cache
+	cacheWrite       *cache.Cache
 	metricsContainer *metrics.Container
 }
 
 func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.RawMessage, error) {
+	var result json.RawMessage
+
 	start := time.Now()
-	cmd := c.readClient.Get(ctx, key)
+	err := c.cacheRead.Get(ctx, key, &result)
 	duration := time.Since(start)
 
-	result, err := cmd.Result()
-	cacheMiss := err == redis.Nil
+	cacheMiss := err == cache.ErrCacheMiss
 
 	// Record metrics
 	c.metricsContainer.CacheReadDuration.
@@ -126,15 +140,19 @@ func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.Raw
 		return nil, err
 	}
 
-	return json.RawMessage(result), nil
+	return result, nil
 }
 
 func (c *RPCCache) set(ctx context.Context, key, jsonRPCMethod string, value json.RawMessage, ttl time.Duration) {
 	start := time.Now()
-	cmd := c.writeClient.SetNX(ctx, key, string(value), ttl)
+	err := c.cacheWrite.Set(&cache.Item{
+		Ctx:   ctx,
+		Key:   key,
+		Value: value,
+		SetNX: true,
+		TTL:   ttl,
+	})
 	duration := time.Since(start)
-
-	err := cmd.Err()
 
 	// Record metrics
 	c.metricsContainer.CacheWriteDuration.
@@ -167,7 +185,13 @@ func (c *RPCCache) ShouldCacheMethod(method string) bool {
 	return lo.Contains(methodsToCache, method)
 }
 
-func (c *RPCCache) CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
+// Use for testing
+func (c *RPCCache) DeleteFromLocalCache(key string) {
+	c.cacheRead.DeleteFromLocalCache(key)
+	c.cacheWrite.DeleteFromLocalCache(key)
+}
+
+func CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
 	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
 }
 
@@ -191,7 +215,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 	// multiple identical incoming requests), which means returned errors
 	// could be coming from other goroutines.
 	err := c.cache.Once(&cache.Item{
-		Key:   c.CreateRequestKey(chainName, reqBody),
+		Key:   CreateRequestKey(chainName, reqBody),
 		Value: &result,
 		TTL:   ttl,
 		Do: func(*cache.Item) (interface{}, error) {
@@ -227,7 +251,7 @@ func (c *RPCCache) HandleRequestParallel(
 
 	ctx := context.Background()
 
-	key := c.CreateRequestKey(chainName, reqBody)
+	key := CreateRequestKey(chainName, reqBody)
 	result, err := c.get(ctx, key, reqBody.Method) // Attempt to fetch from cache
 
 	if err == nil {
@@ -244,16 +268,18 @@ func (c *RPCCache) HandleRequestParallel(
 
 	result = respBody.Result
 
-	// Perform cache set asynchronously
-	go func() {
-		c.set(
-			ctx,
-			key,
-			reqBody.Method,
-			result,
-			ttl,
-		)
-	}()
+	if result != nil {
+		// Perform cache set asynchronously
+		go func() {
+			c.set(
+				ctx,
+				key,
+				reqBody.Method,
+				result,
+				ttl,
+			)
+		}()
+	}
 
 	return result, cached, nil
 }
