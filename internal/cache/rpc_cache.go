@@ -27,7 +27,15 @@ var redisWriteTimeout = 500 * time.Millisecond
 // var redisPoolTimeout = 100 * time.Millisecond
 // var redisPoolSize = runtime.NumCPU() * 30
 
-func CreateRedisClient(url string) *redis.Client {
+func CreateRedisReaderClient(url string) *redis.Client {
+	return createRedisClient(url, "reader")
+}
+
+func CreateRedisWriterClient(url string) *redis.Client {
+	return createRedisClient(url, "writer")
+}
+
+func createRedisClient(url, clientType string) *redis.Client {
 	if url == "" {
 		return nil
 	}
@@ -46,7 +54,10 @@ func CreateRedisClient(url string) *redis.Client {
 		},
 	})
 
-	collector := redisprometheus.NewCollector(metrics.MetricsNamespace, "redis_cache", rdb)
+	collector := redisprometheus.NewCollector(
+		metrics.MetricsNamespace,
+		fmt.Sprintf("redis_cache_%s", clientType),
+		rdb)
 	if err := prometheus.Register(collector); err != nil {
 		zap.L().Error("failed to register redis cache otel collector", zap.Error(err))
 	}
