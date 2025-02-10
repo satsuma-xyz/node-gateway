@@ -27,9 +27,6 @@ var redisWriteTimeout = 500 * time.Millisecond
 var localCacheSize = 1000
 var localCacheTTL = 10 * time.Second
 
-// var redisPoolTimeout = 100 * time.Millisecond
-// var redisPoolSize = runtime.NumCPU() * 30
-
 func CreateRedisReaderClient(url string) *redis.Client {
 	return createRedisClient(url, "reader")
 }
@@ -48,8 +45,6 @@ func createRedisClient(url, clientType string) *redis.Client {
 		DialTimeout:  redisDialTimeout,
 		ReadTimeout:  redisReadTimeout,
 		WriteTimeout: redisWriteTimeout,
-		// PoolTimeout:  redisPoolTimeout,
-		// PoolSize:     redisPoolSize,
 		OnConnect: func(_ context.Context, _ *redis.Conn) error {
 			zap.L().Info("established new connection to redis", zap.String("url", url))
 			metrics.CacheConnections.WithLabelValues(url).Inc()
