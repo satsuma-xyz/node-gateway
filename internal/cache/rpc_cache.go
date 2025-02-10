@@ -25,7 +25,7 @@ var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
 
 var localCacheSize = 1000
-var localCacheTTL = 2 * time.Second
+var localCacheTTL = 10 * time.Second
 
 // var redisPoolTimeout = 100 * time.Millisecond
 // var redisPoolSize = runtime.NumCPU() * 30
