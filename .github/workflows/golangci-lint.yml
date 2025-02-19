@@ -3,7 +3,7 @@ name: Lint code
 on:
   pull_request:
     branches:
-      - '**'
+      - "**"
   push:
     branches:
       - main
@@ -22,5 +22,5 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.55.2
+          version: v1.64.5
           args: ./...
