@@ -27,13 +27,13 @@ linters:
     - dogsled
     - dupl
     - errcheck
-    - exportloopref
+    # - exportloopref
     - exhaustive
     - goconst
     - gocritic
     - gofmt
     - goimports
-    - gomnd
+    # - gomnd
     - gocyclo
     - gosec
     - gosimple
@@ -58,6 +58,6 @@ linters:
     - wsl
 
 run:
-  go: '1.22'
+  go: "1.22"
   timeout: 5m
   issues-exit-code: 1

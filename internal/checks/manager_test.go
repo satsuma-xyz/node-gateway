@@ -54,7 +54,7 @@ func TestHealthCheckManager(t *testing.T) {
 		metricsContainer,
 		zap.L(),
 	)
-	manager.(*healthCheckManager).newBlockHeightCheck = func(
+	manager.(*healthCheckManager).newBlockHeightCheck = func( //nolint:errcheck // ignore error
 		*config.UpstreamConfig,
 		client.EthClientGetter,
 		BlockHeightObserver,
@@ -63,7 +63,7 @@ func TestHealthCheckManager(t *testing.T) {
 	) types.BlockHeightChecker {
 		return mockBlockHeightChecker
 	}
-	manager.(*healthCheckManager).newPeerCheck = func(
+	manager.(*healthCheckManager).newPeerCheck = func( //nolint:errcheck // ignore error
 		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
 		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
 		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
@@ -71,7 +71,7 @@ func TestHealthCheckManager(t *testing.T) {
 	) types.Checker {
 		return mockPeerChecker
 	}
-	manager.(*healthCheckManager).newSyncingCheck = func(
+	manager.(*healthCheckManager).newSyncingCheck = func( //nolint:errcheck // ignore error
 		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
 		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
 		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy

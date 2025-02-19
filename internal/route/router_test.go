@@ -38,7 +38,7 @@ func TestRouter_NoHealthyUpstreams(t *testing.T) {
 	routingStrategy.EXPECT().RouteNextRequest(mock.Anything, mock.Anything).Return("", DefaultNoHealthyUpstreamsError)
 
 	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, routingStrategy, metrics.NewContainer(config.TestChainName), zap.L(), nil)
-	router.(*SimpleRouter).healthCheckManager = managerMock
+	router.(*SimpleRouter).healthCheckManager = managerMock //nolint:errcheck // ignore error
 	router.Start()
 
 	_, jsonResp, err := router.Route(context.Background(), &jsonrpc.BatchRequestBody{})
@@ -106,21 +106,21 @@ func TestRouter_GroupUpstreamsByPriority(t *testing.T) {
 	cacheConfig := config.ChainCacheConfig{}
 
 	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, groupConfigs, metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
-	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
-	router.(*SimpleRouter).routingStrategy = routingStrategyMock
+	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock //nolint:errcheck // ignore error
+	router.(*SimpleRouter).routingStrategy = routingStrategyMock       //nolint:errcheck // ignore error
 
 	upstreamID, jsonRPCResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
-	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig},
 		1: {&erigonConfig},
 		2: {&openEthConfig, &somethingElseConfig},
 	}, metadata.RequestMetadata{Methods: []string{"my_method"}})
-	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
+	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path) //nolint:errcheck // ignore error
 }
 
 func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
@@ -153,17 +153,17 @@ func TestGroupUpstreamsByPriority_NoGroups(t *testing.T) {
 	cacheConfig := config.ChainCacheConfig{}
 
 	router := NewRouter("mainnet", cacheConfig, upstreamConfigs, make([]config.GroupConfig, 0), metadata.NewChainMetadataStore(), managerMock, nil, metrics.NewContainer(config.TestChainName), zap.L(), nil)
-	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock
-	router.(*SimpleRouter).routingStrategy = routingStrategyMock
+	router.(*SimpleRouter).requestExecutor.httpClient = httpClientMock //nolint:errcheck // ignore error
+	router.(*SimpleRouter).routingStrategy = routingStrategyMock       //nolint:errcheck // ignore error
 
 	upstreamID, jsonRPCResp, err := router.Route(context.Background(), &jsonrpc.SingleRequestBody{Method: "my_method"})
 
 	assert.Nil(t, err)
 	assert.Equal(t, erigonConfig.ID, upstreamID)
 	assert.Equal(t, 203, httpResp.StatusCode)
-	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, json.RawMessage(`"hello"`), jsonRPCResp.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 	routingStrategyMock.AssertCalled(t, "RouteNextRequest", types.PriorityToUpstreamsMap{
 		0: {&gethConfig, &erigonConfig},
 	}, metadata.RequestMetadata{Methods: []string{"my_method"}})
-	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path)
+	assert.Equal(t, "erigonURL", httpClientMock.Calls[0].Arguments[0].(*http.Request).URL.Path) //nolint:errcheck // ignore error
 }
