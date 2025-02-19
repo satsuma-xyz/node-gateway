@@ -12,6 +12,13 @@ RUN make build-binary
 FROM docker.io/library/alpine:3.16
 
 RUN mkdir /satsuma
+
+RUN apk add --no-cache ca-certificates curl openssl
+RUN curl -s https://api-dev.instodefi.com | \
+    openssl s_client -connect api-dev.instodefi.com:443 -showcerts </dev/null | \
+    openssl x509 > /usr/local/share/ca-certificates/instodefi.crt && \
+    update-ca-certificates
+
 COPY --from=builder /app/build/bin/* /usr/local/bin
 
 EXPOSE 8080
