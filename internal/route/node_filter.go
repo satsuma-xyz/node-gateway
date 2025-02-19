@@ -364,7 +364,7 @@ func CreateSingleNodeFilter(
 		return &IsCloseToGlobalMaxHeight{
 			chainMetadataStore: store,
 			logger:             logger,
-			maxBlocksBehind:    uint64(maxBlocksBehind),
+			maxBlocksBehind:    uint64(maxBlocksBehind), //nolint:gosec // ignore error
 		}
 	case MaxHeightForGroup:
 		return &IsAtMaxHeightForGroup{

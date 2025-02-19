@@ -46,6 +46,7 @@ func TestBlockHeightChecker_WS(t *testing.T) {
 	ethClient.AssertNumberOfCalls(t, "HeaderByNumber", 0)
 
 	// Websockets encounters an error. Now RunCheck should use HTTP.
+	//nolint:errcheck // ignore error
 	checker.(*BlockHeightCheck).webSocketError = errors.New("some error")
 	assert.False(t, checker.IsPassing(maxBlockHeight))
 

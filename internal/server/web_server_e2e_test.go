@@ -104,8 +104,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream(t *testing.T) {
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, "eth_blockNumber", handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	//nolint:errcheck // We know the response is valid.
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // We know the response is valid.
 }
 
 func getHandler(
@@ -195,8 +194,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorButS
 	// Even though the error rate exceeds the configured amount, the upstream is still considered healthy since
 	// the error message does not match the configured error string.
 	assert.Equal(t, http.StatusOK, statusCode)
-	//nolint:errcheck // We know the response is valid.
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // We know the response is valid.
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails(t *testing.T) {
@@ -241,8 +239,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	//nolint:errcheck // We know the response is valid.
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // We know the response is valid.
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFails_AlwaysRoute(t *testing.T) {
@@ -274,7 +271,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_LatencyFa
 
 	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStringMatches(t *testing.T) { //nolint:dupl // Test method
@@ -311,7 +308,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_ErrorStri
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches(t *testing.T) { //nolint:dupl // Test method
@@ -348,7 +345,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorC
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, methodName, handler, true)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 }
 
 func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorCodeMatches_AlwaysRoute(t *testing.T) {
@@ -372,7 +369,7 @@ func TestServeHTTP_ForwardsToSoleHealthyUpstream_RoutingControlEnabled_RpcErrorC
 
 	// Even though the upstream is unhealthy, the request is still forwarded to it since `alwaysRoute` is enabled.
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(1000).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck // ignore error
 }
 
 func TestServeHTTP_ForwardsToCorrectUpstreamForChainName(t *testing.T) {
@@ -438,8 +435,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 			t.Logf("Serving method %s from full node as expected", nonStatefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				//nolint:errcheck // We know the response is valid.
-				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()),
+				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), //nolint:gosec // ignore error
 				ID:     *request.ID,
 			}
 		},
@@ -452,8 +448,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				//nolint:errcheck // We know the response is valid.
-				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()),
+				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), //nolint:gosec // ignore error
 				ID:     *request.ID,
 			}
 		},
@@ -493,12 +488,12 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulness(t *testing.T) {
 	statusCode, responseBody, _, _ := executeSingleRequest(t, config.TestChainName, statefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck,gosec // ignore error
 
 	statusCode, responseBody, _, _ = executeSingleRequest(t, config.TestChainName, nonStatefulMethod, handler, false)
 
 	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result)
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), responseBody.(*jsonrpc.SingleResponseBody).Result) //nolint:errcheck,gosec // ignore error
 }
 
 func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.T) {
@@ -530,7 +525,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 			t.Logf("Serving method %s from archive node as expected.", statefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()),
+				Result: getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), //nolint:gosec // ignore error
 				ID:     *request.ID,
 			}
 		},
@@ -539,7 +534,7 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 			t.Logf("Serving method %s from archive node as expected.", nonStatefulMethod)
 
 			return jsonrpc.SingleResponseBody{
-				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()),
+				Result: getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), //nolint:gosec // ignore error
 				ID:     *request.ID,
 			}
 		},
@@ -581,9 +576,8 @@ func TestServeHTTP_ForwardsToCorrectNodeTypeBasedOnStatefulnessBatch(t *testing.
 		idsToExpectedResult[response.ID] = response.Result
 	}
 
-	//nolint:errcheck // We know the response is valid.
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), idsToExpectedResult[0])
-	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), idsToExpectedResult[1])
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedTransactionCount).String()), idsToExpectedResult[0]) //nolint:gosec // ignore error
+	assert.Equal(t, getResultFromString(hexutil.Uint64(expectedBlockTxCount).String()), idsToExpectedResult[1])     //nolint:gosec // ignore error
 }
 
 func executeSingleRequest(
@@ -752,7 +746,7 @@ func handleSingleRequest(t *testing.T, request jsonrpc.SingleRequestBody,
 		}
 
 	case "eth_blockNumber":
-		//nolint:errcheck // We know the response is valid.
+		//nolint:gosec // ignore error
 		return jsonrpc.SingleResponseBody{Result: getResultFromString(hexutil.Uint64(latestBlockNumber).String())}
 
 	default:
