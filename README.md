@@ -28,7 +28,7 @@ for dApp developers, traders, and stakers.
 #### Run with Docker
 
 ```sh
-git clone https://github.com/satsuma-data/node-gateway.git
+git clone git@github.com:satsuma-xyz/node-gateway.git
 cd node-gateway
 cp configs/config.sample.yml config.yml
 
@@ -108,26 +108,31 @@ go test -v ./...
 ```
 
 Running all tests that match regexp `TestHealthCheckManager`:
+
 ```sh
 go test -v -run TestHealthCheckManager ./...
 ```
 
 Running all tests in a specific package that match regexp `TestHealthCheckManager`:
+
 ```sh
 go test -v github.com/satsuma-data/node-gateway/internal/route -run 'Test_RemoveFilters*'
 ```
 
 Running a specific test:
+
 ```sh
 go test -v github.com/satsuma-data/node-gateway/internal/route -run Test_RemoveFilters_RemoveNone
 ```
 
 To measure test code coverage, install the following tool and run the above `go test` command with the `-cover` flag:
+
 ```sh
 go get golang.org/x/tools/cmd/cover
 ```
 
 You can generate HTML coverage report and open it in your browser by running:
+
 ```sh
 go test -v -coverprofile=cover.out ./... && go tool cover -html=cover.out
 ```
@@ -137,6 +142,7 @@ go test -v -coverprofile=cover.out ./... && go tool cover -html=cover.out
 This project relies on [golangci-lint](https://github.com/golangci/golangci-lint) for linting. You can set up an [integration with your code editor](https://golangci-lint.run/usage/integrations/) to run lint checks locally.
 
 To run in CLI:
+
 ```
 golangci-lint run
 ```
