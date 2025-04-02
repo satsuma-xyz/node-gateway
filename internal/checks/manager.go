@@ -50,7 +50,7 @@ type healthCheckManager struct {
 		*zap.Logger,
 	) types.BlockHeightChecker
 	upstreamIDToStatus map[string]*types.UpstreamStatus
-	newErrorCheck func(
+	newErrorCheck      func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
 		*metrics.Container,
