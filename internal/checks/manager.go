@@ -50,12 +50,6 @@ type healthCheckManager struct {
 		*zap.Logger,
 	) types.BlockHeightChecker
 	upstreamIDToStatus map[string]*types.UpstreamStatus
-	newSyncingCheck    func(
-		*conf.UpstreamConfig,
-		client.EthClientGetter,
-		*metrics.Container,
-		*zap.Logger,
-	) types.Checker
 	newErrorCheck func(
 		*conf.UpstreamConfig,
 		*conf.RoutingConfig,
@@ -96,7 +90,6 @@ func NewHealthCheckManager(
 		globalRoutingConfig: globalRoutingConfig,
 		newBlockHeightCheck: NewBlockHeightChecker,
 		newPeerCheck:        NewPeerChecker,
-		newSyncingCheck:     NewSyncingChecker,
 		newErrorCheck:       NewErrorChecker,
 		newLatencyCheck:     NewLatencyChecker,
 		blockHeightObserver: blockHeightObserver,
@@ -190,21 +183,6 @@ func (h *healthCheckManager) initializeChecks() {
 				)
 			}()
 
-			var syncingCheck types.Checker
-
-			innerWG.Add(1)
-
-			go func() {
-				defer innerWG.Done()
-
-				syncingCheck = h.newSyncingCheck(
-					&config,
-					client.NewEthClient,
-					h.metricsContainer,
-					h.logger,
-				)
-			}()
-
 			var errorCheck types.ErrorLatencyChecker
 
 			innerWG.Add(1)
@@ -243,7 +221,6 @@ func (h *healthCheckManager) initializeChecks() {
 				GroupID:          config.GroupID,
 				BlockHeightCheck: blockHeightCheck,
 				PeerCheck:        peerCheck,
-				SyncingCheck:     syncingCheck,
 				ErrorCheck:       errorCheck,
 				LatencyCheck:     latencyCheck,
 			})
@@ -282,13 +259,6 @@ func (h *healthCheckManager) runChecksOnce() {
 			defer wg.Done()
 			c.RunCheck()
 		}(h.GetUpstreamStatus(config.ID).PeerCheck)
-
-		wg.Add(1)
-
-		go func(c types.Checker) {
-			defer wg.Done()
-			c.RunCheck()
-		}(h.GetUpstreamStatus(config.ID).SyncingCheck)
 	}
 
 	wg.Wait()

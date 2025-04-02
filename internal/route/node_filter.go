@@ -90,39 +90,6 @@ func (f *HasEnoughPeers) Apply(_ metadata.RequestMetadata, upstreamConfig *confi
 	return true
 }
 
-type IsDoneSyncing struct {
-	healthCheckManager checks.HealthCheckManager
-	logger             *zap.Logger
-}
-
-func (f *IsDoneSyncing) Apply(_ metadata.RequestMetadata, upstreamConfig *config.UpstreamConfig, _ int) bool {
-	upstreamStatus := f.healthCheckManager.GetUpstreamStatus(upstreamConfig.ID)
-
-	isSyncingCheck, _ := upstreamStatus.SyncingCheck.(*checks.SyncingCheck)
-
-	if isSyncingCheck.ShouldRun {
-		if isSyncingCheck.Err != nil {
-			f.logger.Debug(
-				"IsDoneSyncing failed: most recent health check did not succeed.",
-				zap.Error(isSyncingCheck.Err),
-				zap.String("UpstreamID", upstreamConfig.ID),
-			)
-
-			return false
-		}
-
-		if !isSyncingCheck.IsSyncing {
-			return true
-		}
-
-		f.logger.Debug("Upstream is still syncing!", zap.String("UpstreamID", upstreamConfig.ID))
-
-		return false
-	}
-
-	return true
-}
-
 type IsErrorRateAcceptable struct {
 	HealthCheckManager checks.HealthCheckManager
 	MetricsContainer   *metrics.Container
