@@ -194,7 +194,7 @@ func CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) s
 	for i, v := range requestBody.Params {
 		elements[i] = fmt.Sprintf("%v", v)
 	}
-	
+
 	paramsStr = "[" + strings.Join(elements, ",") + "]"
 
 	return fmt.Sprintf("%s:%s:%s", chainName, requestBody.Method, paramsStr)
