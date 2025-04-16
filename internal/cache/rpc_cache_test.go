@@ -20,18 +20,26 @@ func TestShouldCacheMethod(t *testing.T) {
 	redisClient, _ := redismock.NewClientMock()
 	cache := FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
 	assert.True(t, cache.ShouldCacheMethod("eth_getTransactionReceipt"))
+	assert.True(t, cache.ShouldCacheMethod("eth_getBlockByHash"))
 
-	assert.False(t, cache.ShouldCacheMethod("eth_getBlockByHash"))
 	assert.False(t, cache.ShouldCacheMethod("eth_getBlockByNumber"))
 	assert.False(t, cache.ShouldCacheMethod("eth_getLogs"))
 }
 
-func TestCreateRequestKey(t *testing.T) {
+func TestCreateRequestKeyGetTransactionReceipt(t *testing.T) {
 	singleRequestBody := jsonrpc.SingleRequestBody{
 		Method: "eth_getTransactionReceipt",
 		Params: []any{"0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1"},
 	}
 	assert.Equal(t, "mainnet:eth_getTransactionReceipt:[0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1]", CreateRequestKey("mainnet", singleRequestBody))
+}
+
+func TestCreateRequestKeyGetBlockByHash(t *testing.T) {
+	singleRequestBody := jsonrpc.SingleRequestBody{
+		Method: "eth_getBlockByHash",
+		Params: []any{"0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1", false},
+	}
+	assert.Equal(t, "mainnet:eth_getBlockByHash:[0x3a6f67beb73d07b1dd10c12de79767b6009f7b351ba1fe6282040aa6c57afef1,false]", CreateRequestKey("mainnet", singleRequestBody))
 }
 
 func TestHandleRequestParallel(t *testing.T) {
