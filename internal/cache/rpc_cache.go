@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"strconv"
 	"time"
@@ -18,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var methodsToCache = []string{"eth_getTransactionReceipt"}
+var methodsToCache = []string{"eth_getTransactionReceipt", "eth_getBlockByHash"}
 
 var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
@@ -187,7 +188,16 @@ func (c *RPCCache) DeleteFromLocalCache(key string) {
 }
 
 func CreateRequestKey(chainName string, requestBody jsonrpc.SingleRequestBody) string {
-	return fmt.Sprintf("%s:%s:%v", chainName, requestBody.Method, requestBody.Params)
+	var paramsStr string
+
+	elements := make([]string, len(requestBody.Params))
+	for i, v := range requestBody.Params {
+		elements[i] = fmt.Sprintf("%v", v)
+	}
+
+	paramsStr = "[" + strings.Join(elements, ",") + "]"
+
+	return fmt.Sprintf("%s:%s:%s", chainName, requestBody.Method, paramsStr)
 }
 
 // Uses the go-redis/cache library
