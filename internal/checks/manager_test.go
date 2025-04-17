@@ -22,11 +22,9 @@ func TestHealthCheckManager(t *testing.T) {
 
 	mockBlockHeightChecker := mocks.NewBlockHeightChecker(t)
 	mockPeerChecker := mocks.NewChecker(t)
-	mockSyncingChecker := mocks.NewChecker(t)
 
 	mockBlockHeightChecker.Mock.On("RunCheck").Return(nil)
 	mockPeerChecker.Mock.On("RunCheck").Return(nil)
-	mockSyncingChecker.Mock.On("RunCheck").Return(nil)
 
 	configs := []config.UpstreamConfig{
 		{
@@ -71,14 +69,6 @@ func TestHealthCheckManager(t *testing.T) {
 	) types.Checker {
 		return mockPeerChecker
 	}
-	manager.(*healthCheckManager).newSyncingCheck = func( //nolint:errcheck // ignore error
-		upstreamConfig *config.UpstreamConfig, //nolint:nolintlint,revive // Legacy
-		clientGetter client.EthClientGetter, //nolint:nolintlint,revive // Legacy
-		metricsContainer *metrics.Container, //nolint:nolintlint,revive // Legacy
-		logger *zap.Logger, //nolint:nolintlint,revive // Legacy
-	) types.Checker {
-		return mockSyncingChecker
-	}
 
 	manager.StartHealthChecks()
 
@@ -87,7 +77,6 @@ func TestHealthCheckManager(t *testing.T) {
 	}, 1*time.Second, time.Millisecond)
 
 	mockPeerChecker.AssertNumberOfCalls(t, "RunCheck", 1)
-	mockSyncingChecker.AssertNumberOfCalls(t, "RunCheck", 1)
 	mockBlockHeightChecker.AssertNumberOfCalls(t, "RunCheck", 1)
 
 	tickerChan <- time.Now()
@@ -97,6 +86,5 @@ func TestHealthCheckManager(t *testing.T) {
 	}, 1*time.Second, time.Millisecond)
 
 	mockPeerChecker.AssertNumberOfCalls(t, "RunCheck", 2)
-	mockSyncingChecker.AssertNumberOfCalls(t, "RunCheck", 2)
 	mockBlockHeightChecker.AssertNumberOfCalls(t, "RunCheck", 2)
 }
