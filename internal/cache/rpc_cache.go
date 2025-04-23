@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var methodsToCache = []string{"eth_getTransactionReceipt", "eth_getBlockByHash"}
+var methodsToCache = []string{"eth_getTransactionReceipt", "eth_getBlockByHash", "eth_getBlockReceipts"}
 
 var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
