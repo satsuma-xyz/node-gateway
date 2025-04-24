@@ -1327,12 +1327,12 @@ func TestCacheConfig_GetRedisAddresses(t *testing.T) {
 
 func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 	tests := []struct {
-		name           string
 		config         ChainCacheConfig
+		name           string
 		method         string
+		description    string
 		expectedTTL    time.Duration
 		expectedMinTTL time.Duration
-		description    string
 	}{
 		{
 			name: "default_ttl_only",

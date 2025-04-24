@@ -20,10 +20,10 @@ import (
 
 type RequestExecutor struct {
 	httpClient  client.HTTPClient
+	cacheConfig config.ChainCacheConfig
 	logger      *zap.Logger
 	cache       *cache.RPCCache
 	chainName   string
-	cacheConfig config.ChainCacheConfig
 }
 
 type HandledError struct {

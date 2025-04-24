@@ -35,15 +35,11 @@ func TestRetrieveOrCacheRequest(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":"hello"}`)),
 	}
 
-	cacheConfig := config.ChainCacheConfig{
-		TTL: 6 * time.Second,
-	}
-
 	httpClientMock := mocks.NewHTTPClient(t)
 	// We only expect the mock to be called once.
 	// The second call to retrieveOrCacheRequest should be cached.
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
+	executor := RequestExecutor{httpClientMock, cacheConfig, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -118,13 +114,9 @@ func TestRetrieveOrCacheRequest_OriginError(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader("error")),
 	}
 
-	cacheConfig := config.ChainCacheConfig{
-		TTL: 6 * time.Second,
-	}
-
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
+	executor := RequestExecutor{httpClientMock, cacheConfig, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -159,13 +151,10 @@ func TestRetrieveOrCacheRequest_JSONRPCError(t *testing.T) {
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","error":{"code":1,"message":"RPC error"}}`)),
 	}
-	cacheConfig := config.ChainCacheConfig{
-		TTL: 6 * time.Second,
-	}
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
+	executor := RequestExecutor{httpClientMock, cacheConfig, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -202,13 +191,10 @@ func TestRetrieveOrCacheRequest_NullResultError(t *testing.T) {
 		StatusCode: 200,
 		Body:       io.NopCloser(strings.NewReader(`{"id":1,"jsonrpc":"2.0","result":null}`)),
 	}
-	cacheConfig := config.ChainCacheConfig{
-		TTL: 6 * time.Second,
-	}
 
 	httpClientMock := mocks.NewHTTPClient(t)
 	httpClientMock.On("Do", mock.Anything).Return(httpResp, nil).Once()
-	executor := RequestExecutor{httpClientMock, zap.L(), rpcCache, "mainnet", cacheConfig}
+	executor := RequestExecutor{httpClientMock, cacheConfig, zap.L(), rpcCache, "mainnet"}
 
 	ctx := context.Background()
 	requestBody := jsonrpc.SingleRequestBody{
@@ -254,9 +240,9 @@ func TestUseCache(t *testing.T) {
 
 	var tests = []struct {
 		requestBody jsonrpc.RequestBody
+		cacheConfig config.ChainCacheConfig
 		cache       *cache.RPCCache
 		name        string
-		cacheConfig config.ChainCacheConfig
 		want        bool
 	}{
 		{
@@ -300,7 +286,7 @@ func TestUseCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := RequestExecutor{httpClientMock, zap.L(), tt.cache, "mainnet", tt.cacheConfig}
+			executor := RequestExecutor{httpClientMock, tt.cacheConfig, zap.L(), tt.cache, "mainnet"}
 			ans := executor.useCache(tt.requestBody)
 			if ans != tt.want { //nolint:nolintlint,wsl // Legacy
 				t.Errorf("got %t, want %t", ans, tt.want)

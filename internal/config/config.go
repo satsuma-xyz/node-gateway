@@ -488,15 +488,14 @@ type MethodTTLConfig struct {
 }
 
 type ChainCacheConfig struct {
-	// Default TTL for all methods
-	TTL        time.Duration `yaml:"ttl"`
 	MethodTTLs map[string]time.Duration
+	TTL        time.Duration `yaml:"ttl"`
 }
 
 func (c *ChainCacheConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type ChainCacheConfigAux struct {
-		TTL     time.Duration     `yaml:"ttl"`
 		Methods []MethodTTLConfig `yaml:"methods"`
+		TTL     time.Duration     `yaml:"ttl"`
 	}
 
 	// Unmarshal into the auxiliary type
@@ -574,11 +573,11 @@ func (c *ChainCacheConfig) GetMinimumTTL() time.Duration {
 }
 
 type SingleChainConfig struct {
-	Routing   RoutingConfig
+	Cache     ChainCacheConfig
 	ChainName string `yaml:"chainName"`
+	Routing   RoutingConfig
 	Upstreams []UpstreamConfig
 	Groups    []GroupConfig
-	Cache     ChainCacheConfig
 }
 
 func (c *SingleChainConfig) isValid() bool {
