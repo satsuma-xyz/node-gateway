@@ -1356,7 +1356,7 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 			description: "Should return method-specific TTL when it exists",
 		},
 		{
-			name: "method_ttl_exists",
+			name: "method_ttl_exists_query_non_existent_method",
 			config: ChainCacheConfig{
 				TTL: 5 * time.Minute,
 				MethodTTLs: map[string]time.Duration{
@@ -1366,6 +1366,17 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 			method:      "eth_getLogs",
 			expectedTTL: 5 * time.Minute,
 			description: "Should return default TTL when method-specific TTL doesn't exists",
+		},
+		{
+			name: "method_ttl_exists_but_not_default_query_non_existent_method",
+			config: ChainCacheConfig{
+				MethodTTLs: map[string]time.Duration{
+					"eth_getBalance": 10 * time.Minute,
+				},
+			},
+			method:      "eth_getLogs",
+			expectedTTL: 0,
+			description: "Should return default TTL (which is 0) when method-specific AND default TTL doesn't exist",
 		},
 	}
 
