@@ -120,7 +120,7 @@ func (r *RequestExecutor) routeToConfig(
 }
 
 func (r *RequestExecutor) useCache(requestBody jsonrpc.RequestBody) bool {
-	if r.cache == nil || r.cacheConfig.TTL == 0 {
+	if r.cache == nil {
 		return false
 	}
 

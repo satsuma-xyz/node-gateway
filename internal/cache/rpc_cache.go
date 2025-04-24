@@ -13,21 +13,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
-	"github.com/samber/lo"
 	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
 )
 
-var methodsToCache = []string{"eth_getTransactionReceipt", "eth_getBlockByHash", "eth_getBlockReceipts"}
-
 var redisDialTimeout = 2 * time.Second
 var redisReadTimeout = 500 * time.Millisecond
 var redisWriteTimeout = 500 * time.Millisecond
 
 var localCacheSize = 1000
-var localCacheTTL = 10 * time.Second
+var defaultLocalCacheTTL = 10 * time.Second
 
 func CreateRedisReaderClient(url string) *redis.Client {
 	return createRedisClient(url, "reader")
@@ -102,7 +99,7 @@ func getMinimumTTL(cacheConfig config.ChainCacheConfig) time.Duration {
 	// However, I'm still choosing to return a value here because I'm scared of hitting errors from passing 0 in the Redis client.
 	// Passing 0 might be possible, but I haven't tested it.
 	if minimumTTL == 0 {
-		return localCacheTTL
+		return defaultLocalCacheTTL
 	}
 
 	return minimumTTL
@@ -198,9 +195,7 @@ func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
 }
 
 func (c *RPCCache) ShouldCacheMethod(method string) bool {
-	// April 24 2025: Next iteration
-	//	return c.cacheConfig.GetTTLForMethod(method) > 0
-	return lo.Contains(methodsToCache, method)
+	return c.cacheConfig.GetTTLForMethod(method) > 0
 }
 
 // Use for testing
@@ -295,9 +290,7 @@ func (c *RPCCache) HandleRequestParallel(
 
 	result = respBody.Result
 
-	// April 24 2025: Next iteration
-	// ttl := c.cacheConfig.GetTTLForMethod(reqBody.Method)
-	ttl := c.cacheConfig.TTL
+	ttl := c.cacheConfig.GetTTLForMethod(reqBody.Method)
 
 	if result != nil {
 		// Perform cache set asynchronously
