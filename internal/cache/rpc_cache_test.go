@@ -18,7 +18,8 @@ import (
 
 func TestShouldCacheMethod(t *testing.T) {
 	redisClient, _ := redismock.NewClientMock()
-	cache := FromClients(redisClient, redisClient, metrics.NewContainer(config.TestChainName))
+	cache := FromClients(config.ChainCacheConfig{}, redisClient, redisClient, metrics.NewContainer(config.TestChainName))
+	// April 24 2025: Next iteration should use the methods defined in the config
 	assert.True(t, cache.ShouldCacheMethod("eth_getTransactionReceipt"))
 	assert.True(t, cache.ShouldCacheMethod("eth_getBlockByHash"))
 
@@ -43,10 +44,13 @@ func TestCreateRequestKeyGetBlockByHash(t *testing.T) {
 }
 
 func TestHandleRequestParallel(t *testing.T) {
+	cacheConfig := config.ChainCacheConfig{
+		TTL: 5 * time.Minute,
+	}
 	redisReadClient, redisReadClientMock := redismock.NewClientMock()
 	redisWriteClient, redisWriteClientMock := redismock.NewClientMock()
 	metricsContainer := metrics.NewContainer(config.TestChainName)
-	cache := FromClients(redisReadClient, redisWriteClient, metricsContainer)
+	cache := FromClients(cacheConfig, redisReadClient, redisWriteClient, metricsContainer)
 
 	chainName := "mainnet"
 	ttl := 5 * time.Minute
@@ -127,7 +131,7 @@ func TestHandleRequestParallel(t *testing.T) {
 				return tt.originResponse, nil
 			}
 
-			result, cached, err := cache.HandleRequestParallel(chainName, ttl, reqBody, originFunc)
+			result, cached, err := cache.HandleRequestParallel(chainName, reqBody, originFunc)
 
 			// Add small sleep to allow async cache set to complete
 			time.Sleep(5 * time.Millisecond)

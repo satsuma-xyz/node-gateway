@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 
 	"strconv"
@@ -90,6 +89,7 @@ func FromClients(cacheConfig config.ChainCacheConfig, reader, writer *redis.Clie
 			LocalCache: localCache,
 		}),
 		metricsContainer: metricsContainer,
+		cacheConfig:      cacheConfig,
 	}
 }
 
@@ -97,14 +97,14 @@ func FromClients(cacheConfig config.ChainCacheConfig, reader, writer *redis.Clie
 // This ensures the local cache doesn't keep entries longer than they would be valid in Redis
 func getMinimumTTL(cacheConfig config.ChainCacheConfig) time.Duration {
 	minimumTTL := cacheConfig.GetMinimumTTL()
-	
+
 	// If no TTL is set, that means we're not using the Redis cache here, so technically we don't need to return a value.
 	// However, I'm still choosing to return a value here because I'm scared of hitting errors from passing 0 in the Redis client.
 	// Passing 0 might be possible, but I haven't tested it.
 	if minimumTTL == 0 {
 		return localCacheTTL
 	}
-	
+
 	return minimumTTL
 }
 
@@ -117,6 +117,7 @@ type RPCCache struct {
 	cacheRead        *cache.Cache
 	cacheWrite       *cache.Cache
 	metricsContainer *metrics.Container
+	cacheConfig      config.ChainCacheConfig
 }
 
 func (c *RPCCache) get(ctx context.Context, key, jsonRPCMethod string) (json.RawMessage, error) {
@@ -197,6 +198,8 @@ func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
 }
 
 func (c *RPCCache) ShouldCacheMethod(method string) bool {
+	// April 24 2025: Next iteration
+	//	return c.cacheConfig.GetTTLForMethod(method) > 0 
 	return lo.Contains(methodsToCache, method)
 }
 
@@ -265,7 +268,7 @@ func (c *RPCCache) HandleRequest(chainName string, ttl time.Duration, reqBody js
 // Uses the redis clients instead of the go-redis/cache library
 func (c *RPCCache) HandleRequestParallel(
 	chainName string,
-	ttl time.Duration,
+	// ttl time.Duration,
 	reqBody jsonrpc.SingleRequestBody,
 	originFunc func() (*jsonrpc.SingleResponseBody, error),
 ) (json.RawMessage, bool, error) {
@@ -291,6 +294,10 @@ func (c *RPCCache) HandleRequestParallel(
 	}
 
 	result = respBody.Result
+
+	// April 24 2025: Next iteration
+	// ttl := c.cacheConfig.GetTTLForMethod(reqBody.Method)
+	ttl := c.cacheConfig.TTL
 
 	if result != nil {
 		// Perform cache set asynchronously
