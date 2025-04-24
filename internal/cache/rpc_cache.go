@@ -199,7 +199,7 @@ func (c *RPCCache) Marshal(value interface{}) ([]byte, error) {
 
 func (c *RPCCache) ShouldCacheMethod(method string) bool {
 	// April 24 2025: Next iteration
-	//	return c.cacheConfig.GetTTLForMethod(method) > 0 
+	//	return c.cacheConfig.GetTTLForMethod(method) > 0
 	return lo.Contains(methodsToCache, method)
 }
 
