@@ -30,16 +30,15 @@ type Router interface {
 }
 
 type SimpleRouter struct {
-	chainMetadataStore *metadata.ChainMetadataStore
-	healthCheckManager checks.HealthCheckManager
-	routingStrategy    RoutingStrategy
-	metricsContainer   *metrics.Container
-	logger             *zap.Logger
-	// Map from Priority => UpstreamIDs
-	priorityToUpstreams types.PriorityToUpstreamsMap
 	metadataParser      metadata.RequestMetadataParser
-	upstreamConfigs     []config.UpstreamConfig
 	requestExecutor     RequestExecutor
+	healthCheckManager  checks.HealthCheckManager
+	routingStrategy     RoutingStrategy
+	chainMetadataStore  *metadata.ChainMetadataStore
+	metricsContainer    *metrics.Container
+	logger              *zap.Logger
+	priorityToUpstreams types.PriorityToUpstreamsMap
+	upstreamConfigs     []config.UpstreamConfig
 }
 
 func NewRouter(
@@ -60,7 +59,7 @@ func NewRouter(
 		upstreamConfigs:     upstreamConfigs,
 		priorityToUpstreams: groupUpstreamsByPriority(upstreamConfigs, groupConfigs),
 		routingStrategy:     routingStrategy,
-		requestExecutor:     RequestExecutor{&http.Client{}, logger, rpcCache, chainName, cacheConfig},
+		requestExecutor:     RequestExecutor{&http.Client{}, cacheConfig, logger, rpcCache, chainName},
 		metadataParser:      metadata.RequestMetadataParser{},
 		metricsContainer:    metricsContainer,
 		logger:              logger,

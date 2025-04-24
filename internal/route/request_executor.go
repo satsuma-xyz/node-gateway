@@ -20,10 +20,10 @@ import (
 
 type RequestExecutor struct {
 	httpClient  client.HTTPClient
+	cacheConfig config.ChainCacheConfig
 	logger      *zap.Logger
 	cache       *cache.RPCCache
 	chainName   string
-	cacheConfig config.ChainCacheConfig
 }
 
 type HandledError struct {
@@ -161,7 +161,7 @@ func (r *RequestExecutor) retrieveOrCacheRequest(httpReq *http.Request, requestB
 		return singleRespBody, nil
 	}
 
-	val, cached, err := r.cache.HandleRequestParallel(r.chainName, r.cacheConfig.TTL, requestBody, originFunc)
+	val, cached, err := r.cache.HandleRequestParallel(r.chainName, requestBody, originFunc)
 
 	if err != nil {
 		switch err := err.(type) {

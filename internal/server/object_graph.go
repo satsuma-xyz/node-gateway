@@ -108,7 +108,7 @@ func wireSingleChainDependencies(
 		}
 	}
 
-	rpcCache := cache.FromClients(redisReader, redisWriter, metricContainer)
+	rpcCache := cache.FromClients(chainConfig.Cache, redisReader, redisWriter, metricContainer)
 
 	router := route.NewRouter(
 		chainConfig.ChainName,
