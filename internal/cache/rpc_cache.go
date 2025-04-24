@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	redisprometheus "github.com/redis/go-redis/extra/redisprometheus/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
+	"github.com/satsuma-data/node-gateway/internal/config"
 	"github.com/satsuma-data/node-gateway/internal/jsonrpc"
 	"github.com/satsuma-data/node-gateway/internal/metrics"
 	"go.uber.org/zap"
@@ -64,12 +66,14 @@ func createRedisClient(url, clientType string) *redis.Client {
 	return rdb
 }
 
-func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+func FromClients(cacheConfig config.ChainCacheConfig, reader, writer *redis.Client, metricsContainer *metrics.Container) *RPCCache {
 	if reader == nil || writer == nil {
 		return nil
 	}
 
-	localCache := cache.NewTinyLFU(localCacheSize, localCacheTTL)
+	minTTL := getMinimumTTL(cacheConfig)
+
+	localCache := cache.NewTinyLFU(localCacheSize, minTTL)
 
 	return &RPCCache{
 		cache: cache.New(&cache.Options{
@@ -89,8 +93,23 @@ func FromClients(reader, writer *redis.Client, metricsContainer *metrics.Contain
 	}
 }
 
-func FromClient(rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
-	return FromClients(rdb, rdb, metricsContainer)
+// getMinimumTTL returns the minimum TTL from the cache configuration
+// This ensures the local cache doesn't keep entries longer than they would be valid in Redis
+func getMinimumTTL(cacheConfig config.ChainCacheConfig) time.Duration {
+	minimumTTL := cacheConfig.GetMinimumTTL()
+	
+	// If no TTL is set, that means we're not using the Redis cache here, so technically we don't need to return a value.
+	// However, I'm still choosing to return a value here because I'm scared of hitting errors from passing 0 in the Redis client.
+	// Passing 0 might be possible, but I haven't tested it.
+	if minimumTTL == 0 {
+		return localCacheTTL
+	}
+	
+	return minimumTTL
+}
+
+func FromClient(cacheConfig config.ChainCacheConfig, rdb *redis.Client, metricsContainer *metrics.Container) *RPCCache {
+	return FromClients(cacheConfig, rdb, rdb, metricsContainer)
 }
 
 type RPCCache struct {

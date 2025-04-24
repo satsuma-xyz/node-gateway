@@ -1327,11 +1327,12 @@ func TestCacheConfig_GetRedisAddresses(t *testing.T) {
 
 func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 	tests := []struct {
-		name        string
-		config      ChainCacheConfig
-		method      string
-		expectedTTL time.Duration
-		description string
+		name           string
+		config         ChainCacheConfig
+		method         string
+		expectedTTL    time.Duration
+		expectedMinTTL time.Duration
+		description    string
 	}{
 		{
 			name: "default_ttl_only",
@@ -1339,9 +1340,10 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 				TTL:        5 * time.Minute,
 				MethodTTLs: map[string]time.Duration{},
 			},
-			method:      "eth_getBalance",
-			expectedTTL: 5 * time.Minute,
-			description: "Should return default TTL when no method-specific TTL exists",
+			method:         "eth_getBalance",
+			expectedTTL:    5 * time.Minute,
+			expectedMinTTL: 5 * time.Minute,
+			description:    "Should return default TTL when no method-specific TTL exists",
 		},
 		{
 			name: "method_ttl_exists",
@@ -1351,9 +1353,10 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 					"eth_getBalance": 10 * time.Minute,
 				},
 			},
-			method:      "eth_getBalance",
-			expectedTTL: 10 * time.Minute,
-			description: "Should return method-specific TTL when it exists",
+			method:         "eth_getBalance",
+			expectedTTL:    10 * time.Minute,
+			expectedMinTTL: 5 * time.Minute,
+			description:    "Should return method-specific TTL when it exists",
 		},
 		{
 			name: "method_ttl_exists_query_non_existent_method",
@@ -1363,9 +1366,10 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 					"eth_getBalance": 10 * time.Minute,
 				},
 			},
-			method:      "eth_getLogs",
-			expectedTTL: 5 * time.Minute,
-			description: "Should return default TTL when method-specific TTL doesn't exists",
+			method:         "eth_getLogs",
+			expectedTTL:    5 * time.Minute,
+			expectedMinTTL: 5 * time.Minute,
+			description:    "Should return default TTL when method-specific TTL doesn't exists",
 		},
 		{
 			name: "method_ttl_exists_but_not_default_query_non_existent_method",
@@ -1374,9 +1378,35 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 					"eth_getBalance": 10 * time.Minute,
 				},
 			},
-			method:      "eth_getLogs",
-			expectedTTL: 0,
-			description: "Should return default TTL (which is 0) when method-specific AND default TTL doesn't exist",
+			method:         "eth_getLogs",
+			expectedTTL:    0,
+			expectedMinTTL: 10 * time.Minute,
+			description:    "Should return default TTL (which is 0) when method-specific AND default TTL doesn't exist",
+		},
+		{
+			name: "multiple_method_ttls_with_smaller_value",
+			config: ChainCacheConfig{
+				TTL: 5 * time.Minute,
+				MethodTTLs: map[string]time.Duration{
+					"eth_getBalance": 10 * time.Minute,
+					"eth_getLogs":    3 * time.Minute,
+				},
+			},
+			method:         "eth_getBalance",
+			expectedTTL:    10 * time.Minute,
+			expectedMinTTL: 3 * time.Minute,
+			description:    "Should return method-specific TTL and minimum TTL should be the smallest value",
+		},
+		{
+			name: "all_zero_values",
+			config: ChainCacheConfig{
+				TTL:        0,
+				MethodTTLs: map[string]time.Duration{},
+			},
+			method:         "eth_getBalance",
+			expectedTTL:    0,
+			expectedMinTTL: 0,
+			description:    "Should return 0 for both TTL and minimum TTL when all values are zero",
 		},
 	}
 
@@ -1384,6 +1414,9 @@ func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ttl := tt.config.GetTTLForMethod(tt.method)
 			assert.Equal(t, tt.expectedTTL, ttl, tt.description)
+
+			minTTL := tt.config.GetMinimumTTL()
+			assert.Equal(t, tt.expectedMinTTL, minTTL, "Minimum TTL should match expected value")
 		})
 	}
 }

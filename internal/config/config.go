@@ -547,6 +547,32 @@ func (c *ChainCacheConfig) GetTTLForMethod(method string) time.Duration {
 	return c.TTL
 }
 
+// GetMinimumTTL returns the minimum TTL value across the default TTL and all method-specific TTLs.
+// If no TTL values are set (empty config or all zero values), it returns 0.
+func (c *ChainCacheConfig) GetMinimumTTL() time.Duration {
+	minTTL := c.TTL
+
+	// If default TTL is 0, initialize minTTL with the first non-zero method TTL
+	if minTTL == 0 {
+		for _, ttl := range c.MethodTTLs {
+			if ttl > 0 {
+				minTTL = ttl
+				break
+			}
+		}
+	}
+
+	// Find minimum across all method TTLs
+	for _, ttl := range c.MethodTTLs {
+		// Skip zero values as they indicate "use default"
+		if ttl > 0 && (minTTL == 0 || ttl < minTTL) {
+			minTTL = ttl
+		}
+	}
+
+	return minTTL
+}
+
 type SingleChainConfig struct {
 	Routing   RoutingConfig
 	ChainName string `yaml:"chainName"`
