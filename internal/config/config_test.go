@@ -1424,5 +1424,5 @@ func TestParseConfig_ChainCacheConfig(t *testing.T) {
 	// Test GetTTLForMethod
 	assert.Equal(t, 10*time.Minute, chainConfig.Cache.GetTTLForMethod("eth_getBalance"))
 	assert.Equal(t, 30*time.Second, chainConfig.Cache.GetTTLForMethod("eth_getBlockByNumber"))
-	assert.Equal(t, 5*time.Minute, chainConfig.Cache.GetTTLForMethod("eth_call"))    // Not specified, should return default
+	assert.Equal(t, 5*time.Minute, chainConfig.Cache.GetTTLForMethod("eth_call")) // Not specified, should return default
 }
