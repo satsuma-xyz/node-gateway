@@ -482,19 +482,69 @@ func NewDuration(d time.Duration) *time.Duration {
 	return &d
 }
 
+type MethodTTLConfig struct {
+	Method string        `yaml:"method"`
+	TTL    time.Duration `yaml:"ttl"`
+}
+
 type ChainCacheConfig struct {
-	TTL time.Duration `yaml:"ttl"`
+	// Default TTL for all methods
+	TTL        time.Duration `yaml:"ttl"`
+	MethodTTLs map[string]time.Duration
+}
+
+func (c *ChainCacheConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type ChainCacheConfigAux struct {
+		TTL     time.Duration     `yaml:"ttl"`
+		Methods []MethodTTLConfig `yaml:"methods"`
+	}
+
+	// Unmarshal into the auxiliary type
+	var aux ChainCacheConfigAux
+	if err := unmarshal(&aux); err != nil {
+		return err
+	}
+
+	c.TTL = aux.TTL
+
+	c.MethodTTLs = make(map[string]time.Duration)
+	for _, methodConfig := range aux.Methods {
+		c.MethodTTLs[methodConfig.Method] = methodConfig.TTL
+	}
+
+	return nil
 }
 
 func (c *ChainCacheConfig) isValid() bool {
 	// The redis-cache library will default the TTL to 1 hour
 	// if 0 < ttl < 1 second.
 	if c.TTL > 0 && c.TTL < time.Second {
-		zap.L().Error("ttl must be greater or equal to 1s")
+		zap.L().Error("TTL must be greater or equal to 1s")
 		return false
 	}
 
+	// Validate method-specific TTLs
+	for method, ttl := range c.MethodTTLs {
+		if ttl > 0 && ttl < time.Second {
+			zap.L().Error("method TTL must be greater or equal to 1s", zap.String("method", method))
+			return false
+		}
+
+		if method == "" {
+			zap.L().Error("method name cannot be empty in cache method TTL configuration")
+			return false
+		}
+	}
+
 	return true
+}
+
+func (c *ChainCacheConfig) GetTTLForMethod(method string) time.Duration {
+	if ttl, exists := c.MethodTTLs[method]; exists && ttl > 0 {
+		return ttl
+	}
+
+	return c.TTL
 }
 
 type SingleChainConfig struct {

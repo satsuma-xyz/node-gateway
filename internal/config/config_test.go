@@ -30,6 +30,25 @@ func TestParseConfig_InvalidConfigs(t *testing.T) {
             `,
 		},
 		{
+			name: "Cache config has 0 < ttl < 1s",
+			config: `
+            global:
+              port: 8080
+
+            chains:
+              - chainName: ethereum
+                cache:
+                  ttl: 10s
+                  methods:
+                    - method: eth_getLogs
+                      ttl: 0.5s
+                upstreams:
+                  - id: alchemy-eth
+                    httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+                    nodeType: full
+            `,
+		},
+		{
 			name: "Upstream config without httpURL.",
 			config: `
             global:
@@ -1304,4 +1323,95 @@ func TestCacheConfig_GetRedisAddresses(t *testing.T) {
 			assert.Equal(t, tt.wantWriter, writer, tt.description)
 		})
 	}
+}
+
+func TestChainCacheConfig_GetTTLForMethod(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      ChainCacheConfig
+		method      string
+		expectedTTL time.Duration
+		description string
+	}{
+		{
+			name: "default_ttl_only",
+			config: ChainCacheConfig{
+				TTL:        5 * time.Minute,
+				MethodTTLs: map[string]time.Duration{},
+			},
+			method:      "eth_getBalance",
+			expectedTTL: 5 * time.Minute,
+			description: "Should return default TTL when no method-specific TTL exists",
+		},
+		{
+			name: "method_ttl_exists",
+			config: ChainCacheConfig{
+				TTL: 5 * time.Minute,
+				MethodTTLs: map[string]time.Duration{
+					"eth_getBalance": 10 * time.Minute,
+				},
+			},
+			method:      "eth_getBalance",
+			expectedTTL: 10 * time.Minute,
+			description: "Should return method-specific TTL when it exists",
+		},
+		{
+			name: "method_ttl_exists",
+			config: ChainCacheConfig{
+				TTL: 5 * time.Minute,
+				MethodTTLs: map[string]time.Duration{
+					"eth_getBalance": 10 * time.Minute,
+				},
+			},
+			method:      "eth_getLogs",
+			expectedTTL: 5 * time.Minute,
+			description: "Should return default TTL when method-specific TTL doesn't exists",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ttl := tt.config.GetTTLForMethod(tt.method)
+			assert.Equal(t, tt.expectedTTL, ttl, tt.description)
+		})
+	}
+}
+
+func TestParseConfig_ChainCacheConfig(t *testing.T) {
+	config := `
+    global:
+      port: 8080
+
+    chains:
+      - chainName: ethereum
+        cache:
+          ttl: 5m
+          methods:
+            - method: eth_getBalance
+              ttl: 10m
+            - method: eth_getBlockByNumber
+              ttl: 30s
+        upstreams:
+          - id: alchemy-eth
+            httpURL: "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+            nodeType: full
+  `
+	configBytes := []byte(config)
+
+	parsedConfig, err := parseConfig(configBytes)
+	assert.NoError(t, err)
+
+	chainConfig := parsedConfig.Chains[0]
+
+	// Verify default TTL
+	assert.Equal(t, 5*time.Minute, chainConfig.Cache.TTL)
+
+	// Verify method-specific TTLs
+	assert.Equal(t, 10*time.Minute, chainConfig.Cache.MethodTTLs["eth_getBalance"])
+	assert.Equal(t, 30*time.Second, chainConfig.Cache.MethodTTLs["eth_getBlockByNumber"])
+
+	// Test GetTTLForMethod
+	assert.Equal(t, 10*time.Minute, chainConfig.Cache.GetTTLForMethod("eth_getBalance"))
+	assert.Equal(t, 30*time.Second, chainConfig.Cache.GetTTLForMethod("eth_getBlockByNumber"))
+	assert.Equal(t, 5*time.Minute, chainConfig.Cache.GetTTLForMethod("eth_call"))    // Not specified, should return default
 }
