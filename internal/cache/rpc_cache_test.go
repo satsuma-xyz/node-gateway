@@ -17,14 +17,65 @@ import (
 )
 
 func TestShouldCacheMethod(t *testing.T) {
-	redisClient, _ := redismock.NewClientMock()
-	cache := FromClients(config.ChainCacheConfig{}, redisClient, redisClient, metrics.NewContainer(config.TestChainName))
-	// April 24 2025: Next iteration should use the methods defined in the config
-	assert.True(t, cache.ShouldCacheMethod("eth_getTransactionReceipt"))
-	assert.True(t, cache.ShouldCacheMethod("eth_getBlockByHash"))
+	tests := []struct {
+		name        string
+		cacheConfig config.ChainCacheConfig
+		method      string
+		description string
+		shouldCache bool
+	}{
+		{
+			name:        "default_non_cacheable_method",
+			cacheConfig: config.ChainCacheConfig{},
+			method:      "eth_getTransactionReceipt",
+			shouldCache: false,
+			description: "Methods should not be cached by default when config is empty",
+		},
+		{
+			name: "config_specified_method",
+			cacheConfig: config.ChainCacheConfig{
+				TTL: 0,
+				MethodTTLs: map[string]time.Duration{
+					"eth_getTransactionReceipt": 10 * time.Second,
+				},
+			},
+			method:      "eth_getTransactionReceipt",
+			shouldCache: true,
+			description: "Method should be cached when explicitly included in config",
+		},
+		{
+			name: "method_not_in_config",
+			cacheConfig: config.ChainCacheConfig{
+				TTL: 0,
+				MethodTTLs: map[string]time.Duration{
+					"eth_getTransactionReceipt": 10 * time.Second,
+				},
+			},
+			method:      "eth_getBlockByNumber",
+			shouldCache: false,
+			description: "Method should not be cached when no default is set and it's not in config's method list",
+		},
+		{
+			name: "empty_methods_list",
+			cacheConfig: config.ChainCacheConfig{
+				TTL:        10 * time.Second,
+				MethodTTLs: map[string]time.Duration{},
+			},
+			method:      "eth_getTransactionReceipt",
+			shouldCache: true,
+			description: "Method should be cached since default TTL is defined",
+		},
+	}
 
-	assert.False(t, cache.ShouldCacheMethod("eth_getBlockByNumber"))
-	assert.False(t, cache.ShouldCacheMethod("eth_getLogs"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			redisClient, _ := redismock.NewClientMock()
+			cache := FromClients(tt.cacheConfig, redisClient, redisClient, metrics.NewContainer(config.TestChainName))
+
+			result := cache.ShouldCacheMethod(tt.method)
+			assert.Equal(t, tt.shouldCache, result, tt.description)
+		})
+	}
 }
 
 func TestCreateRequestKeyGetTransactionReceipt(t *testing.T) {
