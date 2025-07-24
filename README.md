@@ -15,7 +15,7 @@ Whether you're running your own nodes or using a managed provider, node RPCs
 often go down or fall behind. Naive load balancing between nodes doesn't
 account for [data consistency issues](https://alchemy.com/blog/data-accuracy).
 
-node-gateway makes it easier to run reliable and accurate node infrastructure
+node-gateway makes it easier to run a reliable and accurate node infrastructure
 for dApp developers, traders, and stakers.
 
 ## Example use cases
