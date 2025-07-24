@@ -509,7 +509,7 @@ func (m *Server) Shutdown() error {
 	return m.server.Shutdown(context.Background())
 }
 
-func getNumFileDesciptors() (int, error) {
+func getNumFileDescriptors() (int, error) {
 	pid := os.Getpid()
 	fds, err := os.Open(fmt.Sprintf("/proc/%d/fd", pid))
 
@@ -534,7 +534,7 @@ func (m *Server) StartEmittingSystemStats() {
 			case <-m.shutdownChannel:
 				return
 			case <-time.After(systemStatsEmissionInterval):
-				numFileDescriptors, err := getNumFileDesciptors()
+				numFileDescriptors, err := getNumFileDescriptors()
 				zap.L().Debug("Emitting system stats.", zap.Int("numFileDescriptors", numFileDescriptors))
 
 				if err != nil {
