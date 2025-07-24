@@ -184,7 +184,7 @@ func TestHandleRequestParallel(t *testing.T) {
 
 			result, cached, err := cache.HandleRequestParallel(chainName, reqBody, originFunc)
 
-			// Add small sleep to allow async cache set to complete
+			// Add a small sleep to allow async cache set to complete
 			time.Sleep(5 * time.Millisecond)
 
 			// Verify error handling

@@ -75,7 +75,7 @@ func main() {
 		}
 	}()
 
-	// Wait for an Unix exit signal.
+	// Wait for a Unix exit signal.
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 
